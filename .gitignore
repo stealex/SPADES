@@ -1,0 +1,4 @@
+build
+.vscode
+data/*.yaml
+__pycache__

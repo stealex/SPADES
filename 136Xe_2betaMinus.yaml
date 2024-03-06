@@ -1,0 +1,18 @@
+---
+task: wavefunctions # name of the task. For printing purposes only
+process: 2betaMinus
+output_directory: ./wavefunctions # a subdirectory will be created 
+initial_atom:
+  name: 136Xe
+  electron_config: auto # auto or a path
+final_atom:
+  electron_config: auto
+bound_states:
+  max_r: 100 a0
+  n_radial_points: 1000
+scattering_states:
+  min_ke: 1E-3 MeV
+  max_ke: 4.0 MeV
+  n_ke_points: 100
+  ke_grid_type: lin # log available as well 
+  n_radial_points: 1000
