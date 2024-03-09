@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 def test_dhfs():
     input_config_file = "data/ground_state_config_Z029.yaml"
-    handler = dhfs_handler(input_config_file, "Cu")
+    handler = dhfs_handler({"name": "29Cu", "weight": -1., "electron_config": input_config_file}, "Cu")
     handler.print()
     handler.run_dhfs(100, radius_units="bohr")
     
@@ -25,7 +25,6 @@ def test_dhfs():
     
     # build the radial density
     density = np.zeros_like(handler.rad_grid)
-    print(handler.q_grid[0])
     for i_shell in range(len(handler.dhfs_config.electron_config)):
         p = handler.p_grid[i_shell]
         q = handler.q_grid[i_shell]
