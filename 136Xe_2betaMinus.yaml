@@ -4,11 +4,14 @@ process: 2betaMinus
 output_directory: ./tmp # a subdirectory will be created 
 initial_atom:
   name: 136Xe
+  weight: -1.
   electron_config: auto # auto or a path
 final_atom:
+  name: auto
+  weight: auto
   electron_config: auto
 bound_states:
-  max_r: 100 a0
+  max_r: 100 bohr
   n_radial_points: 1000
 scattering_states:
   min_ke: 1E-3 MeV
