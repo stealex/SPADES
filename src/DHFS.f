@@ -27,9 +27,6 @@ C  ****  Ground-state configuration.
         DO IP=1,NPOINTS
           PP(IS,IP) = PA(IS,IP)
           QQ(IS,IP) = QA(IS,IP)
-          IF (IS.EQ.1) THEN
-            WRITE(*,*) RR(IP), PA(IS, IP), QA(IS,IP)
-          END IF
         END DO
       END DO
       END SUBROUTINE GET_WAVEFUNCTIONS
