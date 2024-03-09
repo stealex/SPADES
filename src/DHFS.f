@@ -1,3 +1,67 @@
+      SUBROUTINE GET_WAVEFUNCTIONS(RR, PP,QQ, NNSHELL,NPOINTS)
+      USE CONSTANTS
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z), INTEGER*4 (I-N)
+      PARAMETER (MSH=50,MGP=5000)
+C  ****  Ground-state configuration.
+      COMMON/RADWFS/
+     1  RV(MGP),                ! Potential function, r*V(r).
+     2  PA(MSH,MGP),QA(MSH,MGP),  ! Radial functions, P(r) and Q(r).
+     3  EV(MSH),                ! Energy eigenvalues, E.
+     4  OCCUP(MSH),             ! Ground-state occupation numbers, q.
+     5  NN(MSH),                ! Principal quantum numbers, n.
+     6  LL(MSH),                ! Orbital angular momenta, l.
+     7  JJ(MSH),                ! Total angular momenta (doubled), 2*j.
+     8  KK(MSH),                ! Relativistic quantum numbers, kappa.
+     9  ISHELL(MSH),            ! Shell identifiers, n*10000+l*100+2*j.
+     A  NSHELL                  ! Number of shells.
+      
+     
+      COMMON/CRGRID/R(MGP),DIFR(MGP),NP
+
+      DIMENSION RR(NPOINTS), PP(NNSHELL, NPOINTS), QQ(NNSHELL, NPOINTS)
+      
+      DO I=1,NPOINTS
+        RR(I) = R(I)
+      ENDDO
+      DO IS=1,NNSHELL
+        DO IP=1,NPOINTS
+          PP(IS,IP) = PA(IS,IP)
+          QQ(IS,IP) = QA(IS,IP)
+          IF (IS.EQ.1) THEN
+            WRITE(*,*) RR(IP), PA(IS, IP), QA(IS,IP)
+          END IF
+        END DO
+      END DO
+      END SUBROUTINE GET_WAVEFUNCTIONS
+
+      SUBROUTINE GET_POTENTIALS(VVNUC, VVEL, VVEX, NPP)
+      USE CONSTANTS
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z), INTEGER*4 (I-N)
+      PARAMETER (PI=3.1415926535897932D0,FOURPI=4.0D0*PI)
+      PARAMETER (TOL=1.0D-8)
+      PARAMETER (MSH=50,MGP=5000)
+      COMMON/SCRPOT/
+     1  RHO(MGP),          ! Electron density.
+     2  RDEN(MGP),         ! Radial electron density, 4*pi*r*r*RHO.
+     3  VNUC(MGP),         ! Nuclear potential, times r.
+     4  VEL(MGP),          ! Electronic potential, times r.
+     5  VEX(MGP),          ! Exchange potential, times r.
+     6  Z,                 ! Atomic number (nuclear charge).
+     7  QELEC,             ! Number of electrons in the atom or ion.
+     8  IBCOND             ! Boundary conditions.
+
+C  ****  Radial grid.
+      COMMON/CRGRID/R(MGP),DIFR(MGP),NP
+
+      DIMENSION VVNUC(NPP),VVEL(NPP), VVEX(NPP)
+
+      DO I=1,NPP
+        VVNUC(I) = VNUC(I)
+        VVEL(I) = VEL(I)
+        VVEX(I) = VEX(I)
+      END DO
+      END SUBROUTINE GET_POTENTIALS
+      
       SUBROUTINE CONFIGURATION_INPUT(NI,LLI,JJI,OCCUPI, IZ, NSI)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z), INTEGER*4 (I-N)
       CHARACTER NAMEL(11)*1
@@ -89,7 +153,8 @@ C  ****  Screened potential.
       ENDDO
       END SUBROUTINE CONFIGURATION_INPUT
       
-      
+C SUBROUTINE SET_PARAMETERS
+C Also modifies NPInput to the value after the call to SGRID      
       SUBROUTINE SET_PARAMETERS(AW, RN, NPINPUT)
       USE CONSTANTS
       IMPLICIT DOUBLE PRECISION (A-H,O-Z), INTEGER*4 (I-N)
@@ -183,6 +248,7 @@ C  ****  Conversion factor from Bohr to fm.
         DRN=0.05D0
       ENDIF
       CALL SGRID(R,DIFR,RN,R2,DRN,NP,MGP,IER)
+      NPINPUT = NP
       
 
 C

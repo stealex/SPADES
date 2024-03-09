@@ -1,7 +1,7 @@
 ---
-task: wavefunctions # name of the task. For printing purposes only
+task: 136Xe_2betaMinus # name of the task. For printing purposes only
 process: 2betaMinus
-output_directory: ./wavefunctions # a subdirectory will be created 
+output_directory: ./tmp # a subdirectory will be created 
 initial_atom:
   name: 136Xe
   electron_config: auto # auto or a path
