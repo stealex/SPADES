@@ -13,6 +13,12 @@ class dhfs_configuration:
         self.name = config_tmp["Name"]
         self.electron_config = np.array(config_tmp["configuration"])
         
+        
+        self.n_values = self.electron_config[:,0].astype(int)
+        self.l_values = self.electron_config[:,1].astype(int)
+        self.jj_values = self.electron_config[:,2].astype(int)
+        self.occ_values = self.electron_config[:,3].astype(float)
+        
     def print(self):
         text=f"""DHFS configuration:
 Z: {self.Z:d}
@@ -92,12 +98,11 @@ class dhfs_handler:
         Raises:
             ValueError: _description_
         """
-        n_values = self.dhfs_config.electron_config[:,0].astype(int)
-        l_values = self.dhfs_config.electron_config[:,1].astype(int)
-        jj_values = self.dhfs_config.electron_config[:,2].astype(int)
-        occ_values = self.dhfs_config.electron_config[:,3].astype(float)
-    
-        dhfs_wrapper.call_configuration_input(n_values, l_values, jj_values, occ_values,
+        
+        dhfs_wrapper.call_configuration_input(self.dhfs_config.n_values, 
+                                              self.dhfs_config.l_values, 
+                                              self.dhfs_config.jj_values, 
+                                              self.dhfs_config.occ_values,
                                               self.dhfs_config.Z)
         if (radius_units == "fm"):
             max_radius = max_radius/physics_constants.bohr_radius
