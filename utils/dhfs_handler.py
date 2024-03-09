@@ -3,11 +3,29 @@ import yaml
 import periodictable
 import utils.physics_constants as physics_constants
 import numpy as np
+import re
 
-class dhfs_configuration:
-    def __init__(self, configuration_file:str) -> None:
-        with open(configuration_file, 'r') as f:
-           config_tmp = yaml.safe_load(f)
+class atomic_system:
+    def __init__(self, config:dict) -> None:
+        self.name = config["name"]
+        matches = re.match(r'(\d+)([A-Za-z]+)', self.name)
+        self.mass_number = int(matches.group(1))
+        self.symbol = matches.group(2)
+        
+        self.weight = config["weight"]
+        if (self.weight < 0.):
+            self.weight = float(self.mass_number)
+            
+        tmp = config["electron_config"]
+        if (tmp == "auto"):
+            z = periodictable.elements.isotope(self.symbol)
+            electron_configuration_filename = os.path.join(os.path.dirname(__file__),
+                                                           f"../data/ground_state_config_Z{z:03d}.yaml")
+        else:
+            electron_configuration_filename = tmp
+            
+        with open(electron_configuration_filename, 'r') as f:
+            config_tmp = yaml.safe_load(f)
            
         self.Z = config_tmp["Z"]
         self.name = config_tmp["Name"]
@@ -38,7 +56,7 @@ class dhfs_handler:
     Example usage:
         from utils import dhfs_handler
         
-        handler = dhfs_handler(config_file, label)
+        handler = dhfs_handler(config, label)
         handler.run_dhfs(100, radius_unit='bohr')
         handler.rertrieve_results()
         
@@ -64,16 +82,21 @@ class dhfs_handler:
         values of the r times exchange potential. Dimensions = len(rad_grid)
     """
     
-    def __init__(self, configuration_file:str, label:str, atomic_weight:float=-1.0) -> None:
+    def __init__(self, config:dict|atomic_system, label:str, atomic_weight:float=-1.0) -> None:
         """Handler class for DHFS.f usage.
 
         Args:
-            configuration_file (str): path to yaml file containing the electron configuration
+            configuration_file (dict): dictonary {"name", "label, "electron_config"}
             label (str): Relevant label for calculations.
             atomic_weight (float, optional): Atomic weight in g/mol. If negative, the value from periodictable is used. Defaults to -1
         """
         self.label = label
-        self.dhfs_config = dhfs_configuration(configuration_file)
+        if (type(config) == dict):
+            self.dhfs_config = atomic_system(config)
+        elif (type(config) == atomic_system):
+            self.dhfs_config = config
+        else:
+            raise TypeError("config should be either a dictionary or an object of type atomic_system")
         
         if atomic_weight > 0.:
             self.atomic_weight = atomic_weight
@@ -120,9 +143,6 @@ class dhfs_handler:
     Retrieves results from the DHFS (Dirac-Hartree-Fock-Slater) calculations.
 
     Calls the DHFS wrapper to obtain wavefunction components (r, p, q) and potential components (vn, vel, vex).
-    
-    :return: None
-    :rtype: None
 
     The wavefunction components are computed based on the electron configuration and grid points specified 
     in dhfs_config and n_grid_points respectively.
