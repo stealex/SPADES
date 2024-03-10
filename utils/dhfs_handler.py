@@ -177,6 +177,8 @@ class dhfs_handler:
         self.rv_el = vel
         self.rv_ex = vex
         
+        self.binding_energies = dhfs_wrapper.call_get_binding_energies(len(p))
+        
     def build_modified_potential(self) -> np.ndarray:
         """Builds the modified DHFS potential a la [Nitescu et al, Phys. Rev. C 107, 025501, 2023]
         The resulting potential is suitable for the computation of both bound and scattering states
@@ -185,15 +187,18 @@ class dhfs_handler:
         Returns:
             np.ndarray: r times the modified potential
         """
-        rv_exchange_modified = np.zeros_like(self.rv_ex)
+        rv_exchange_modified = np.zeros(len(self.rv_ex))
+        density = np.zeros(len(self.rv_el))
         for i_s in range(len(self.dhfs_config.occ_values)):
+            p = self.p_grid[i_s]
+            q = self.q_grid[i_s]
             occ = self.dhfs_config.occ_values[i_s]
-            density = (self.p_grid[i_s]**2.0)+(self.q_grid[i_s]**2.0)
+            density = density+occ*(p*p+q*q)
             
-            tmp = -1.5*physics_constants.fine_structure*self.rad_grid*(((3.0*occ*density)/(np.pi))**(1./3.))
-            rv_exchange_modified = rv_exchange_modified + tmp
-        
+        cslate = 0.75/(np.pi*np.pi)
+        rv_exchange_modified = -1.5*np.power(cslate*self.rad_grid*density,1./3.)
         self.rv_modified = self.rv_nuc+self.rv_el + rv_exchange_modified
+        self.rv_modified[0] = 0.
         
         return self.rv_modified
         
