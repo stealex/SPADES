@@ -294,7 +294,8 @@ C
       PARAMETER (NPPG=NDIM+1,NPTG=NDIM+NPPG)
       COMMON/RADWF/RAD(NDIM),P(NDIM),Q(NDIM),NGP,ILAST,IER
       DIMENSION RI(NV)
-      
+
+      NGP=NV
       DO I=1,NV
         RAD(I)=RI(I)
       END DO
