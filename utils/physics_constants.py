@@ -3,5 +3,8 @@
 fermi = 1.0
 bohr_radius = 0.529177210903E5
 
-
+# energy units
 MeV = 1.0
+
+# other
+fine_structure = 1/137.035999084
