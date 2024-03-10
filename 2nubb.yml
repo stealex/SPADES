@@ -1,0 +1,13 @@
+name: 2nubb
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3
+  - numpy
+  - matplotlib
+  - periodictable
+  - numba
+  - compilers
+  - cmake
+  - pyyaml
