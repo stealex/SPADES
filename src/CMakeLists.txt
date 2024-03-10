@@ -1,4 +1,4 @@
-set(FORTRAIN_FILES radial.f
-                   DHFS.f)
+add_library(radial SHARED radial.f)
+add_library(dhfs SHARED DHFS.f)
 
-add_library(dhfs SHARED "${FORTRAIN_FILES}")
+target_link_libraries(dhfs PUBLIC radial)
