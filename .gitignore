@@ -2,3 +2,4 @@ build
 .vscode
 data/*.yaml
 __pycache__
+src/constants.mod
