@@ -276,6 +276,16 @@ C  ----  Electron rest energy (eV).
       END MODULE CONSTANTS
 C  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+      SUBROUTINE DERROR(IERR)
+      USE CONSTANTS
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z), INTEGER*4 (I-N)
+      COMMON/RADWF/RAD(NDIM),P(NDIM),Q(NDIM),NGP,ILAST,IER
+    
+      IERR=IER
+      END SUBROUTINE DERROR
+
+      
       SUBROUTINE SETRGRID(RI,NV)
       USE CONSTANTS
 C
