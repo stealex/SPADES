@@ -83,4 +83,14 @@ def call_get_potentials(n_points:int):
                              v_ex.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
                              ctypes.c_int(n_points))
     return (v_nuc, v_el, v_ex)
+
+# wrapper and definition for GET_BINDING_ENERGIES
+dhfs_lib.get_binding_energies_.argtypes = [ctypes.POINTER(ctypes.c_double),
+                                           ctypes.POINTER(ctypes.c_int)]
+dhfs_lib.get_binding_energies.restype = None
+def call_get_binding_energies(n_shells:int) -> np.ndarray:
+    energies = np.zeros(n_shells)
+    dhfs_lib.get_binding_energies(energies.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+                                  ctypes.c_int(n_shells))
+    return energies
     
