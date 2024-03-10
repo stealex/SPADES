@@ -1,3 +1,29 @@
+      SUBROUTINE GET_BINDING_ENERGIES(ENERGIES, NE)
+      USE CONSTANTS
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z), INTEGER*4 (I-N)
+      PARAMETER (MSH=50,MGP=5000)
+C  ****  Ground-state configuration.
+      COMMON/RADWFS/
+     1  RV(MGP),                ! Potential function, r*V(r).
+     2  PA(MSH,MGP),QA(MSH,MGP),  ! Radial functions, P(r) and Q(r).
+     3  EV(MSH),                ! Energy eigenvalues, E.
+     4  OCCUP(MSH),             ! Ground-state occupation numbers, q.
+     5  NN(MSH),                ! Principal quantum numbers, n.
+     6  LL(MSH),                ! Orbital angular momenta, l.
+     7  JJ(MSH),                ! Total angular momenta (doubled), 2*j.
+     8  KK(MSH),                ! Relativistic quantum numbers, kappa.
+     9  ISHELL(MSH),            ! Shell identifiers, n*10000+l*100+2*j.
+     A  NSHELL                  ! Number of shells.
+      
+     
+      DIMENSION ENERGIES(NE)
+      
+      DO I=1,NE
+        ENERGIES(I) = EV(I)
+      ENDDO
+      END SUBROUTINE GET_BINDING_ENERGIES
+
+      
       SUBROUTINE GET_WAVEFUNCTIONS(RR, PP,QQ, NNSHELL,NPOINTS)
       USE CONSTANTS
       IMPLICIT DOUBLE PRECISION (A-H,O-Z), INTEGER*4 (I-N)
