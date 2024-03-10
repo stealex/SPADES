@@ -14,8 +14,7 @@ C  ****  Ground-state configuration.
      8  KK(MSH),                ! Relativistic quantum numbers, kappa.
      9  ISHELL(MSH),            ! Shell identifiers, n*10000+l*100+2*j.
      A  NSHELL                  ! Number of shells.
-      
-     
+
       DIMENSION ENERGIES(NE)
       
       DO I=1,NE
