@@ -6,10 +6,6 @@ initial_atom:
   name: 136Xe
   weight: -1.
   electron_config: auto # auto or a path
-final_atom:
-  name: auto
-  weight: auto
-  electron_config: auto
 bound_states:
   max_r: 100
   radius_unit: bohr # fm available, defaults to bohr
