@@ -4,21 +4,30 @@ import periodictable
 import utils.physics_constants as physics_constants
 import numpy as np
 import re
+import os
+from copy import deepcopy
 
 class atomic_system:
     def __init__(self, config:dict) -> None:
         self.name = config["name"]
         matches = re.match(r'(\d+)([A-Za-z]+)', self.name)
-        self.mass_number = int(matches.group(1))
-        self.symbol = matches.group(2)
+        if (type(matches) == re.Match):
+            self.mass_number = int(matches.group(1))
+            self.symbol = matches.group(2)
+        else:
+            raise ValueError("Could not identify mass number and symbol for input atom. Format should be <A><Symbol>")
         
-        self.weight = config["weight"]
+        if ("weight" in config):
+            self.weight = float(config["weight"])
+        else:
+            self.weight = -1.
+            
         if (self.weight < 0.):
             self.weight = float(self.mass_number)
             
         tmp = config["electron_config"]
         if (tmp == "auto"):
-            z = periodictable.elements.isotope(self.symbol)
+            z = periodictable.elements.isotope(self.symbol).number
             electron_configuration_filename = os.path.join(os.path.dirname(__file__),
                                                            f"../data/ground_state_config_Z{z:03d}.yaml")
         else:
@@ -36,6 +45,7 @@ class atomic_system:
         self.l_values = self.electron_config[:,1].astype(int)
         self.jj_values = self.electron_config[:,2].astype(int)
         self.occ_values = self.electron_config[:,3].astype(float)
+
         
     def print(self):
         text=f"""DHFS configuration:
@@ -48,7 +58,11 @@ configuration:[n,l,2j,occupation]
         
         print(text)
             
-
+def create_ion(atom:atomic_system, z_nuc) -> atomic_system:
+    ion = deepcopy(atom)
+    ion.Z = z_nuc
+    ion.name = f"{ion.mass_number:d}{periodictable.elements[ion.Z].symbol:s}"
+    return ion
 
 class dhfs_handler:
     """
@@ -163,4 +177,23 @@ class dhfs_handler:
         self.rv_el = vel
         self.rv_ex = vex
         
+    def build_modified_potential(self) -> np.ndarray:
+        """Builds the modified DHFS potential a la [Nitescu et al, Phys. Rev. C 107, 025501, 2023]
+        The resulting potential is suitable for the computation of both bound and scattering states
+        and yields scattering states orthogonal on bound ones.
+
+        Returns:
+            np.ndarray: r times the modified potential
+        """
+        rv_exchange_modified = np.zeros_like(self.rv_ex)
+        for i_s in range(len(self.dhfs_config.occ_values)):
+            occ = self.dhfs_config.occ_values[i_s]
+            density = (self.p_grid[i_s]**2.0)+(self.q_grid[i_s]**2.0)
+            
+            tmp = -1.5*physics_constants.fine_structure*self.rad_grid*(((3.0*occ*density)/(np.pi))**(1./3.))
+            rv_exchange_modified = rv_exchange_modified + tmp
+        
+        self.rv_modified = self.rv_nuc+self.rv_el + rv_exchange_modified
+        
+        return self.rv_modified
         
