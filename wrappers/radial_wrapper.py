@@ -6,11 +6,8 @@ import os
 class RADIALError(Exception):
     pass
 
-try:
-    _dir_name = os.path.dirname(__file__)
-    radial_lib = cdll.LoadLibrary(os.path.join(_dir_name,"libdhfs.so"))
-except OSError as e:
-    print(f"Error: Unable to load radial.so: {e}")
+_dir_name = os.path.dirname(__file__)
+radial_lib = cdll.LoadLibrary(os.path.join(_dir_name,"../build/libradial.so"))
 
 # configuration and wrapper of VINT
 radial_lib.vint_.argtypes = [ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),ctypes.POINTER(ctypes.c_int)]
