@@ -102,7 +102,7 @@ def call_dbound(energy:float, n:int, k:int, eps:float=1E-14)->float:
         RADIALError: in case something went wrong in DBOUND
 
     Returns:
-        dict[str, float]: {"E": value} value of the binding energy obtained
+        float: value of the binding energy obtained
     """
     if (n < 1):
         raise ValueError("n should be >= 1")
