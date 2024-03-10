@@ -114,8 +114,9 @@ C  ****  Screened potential.
      8  IBCOND             ! Boundary conditions.
 
       DATA NAMEL/'s','p','d','f','g','h','i','j','k','l','m'/
-      DIMENSION NI(NSI), LLI(NSI), JJI(NSI), OCCUPI(NSI)
-
+      INTEGER*8 NI(NSI), LLI(NSI), JJI(NSI)
+      REAL*8 OCCUPI(NSI)
+      
       N0=NSI
       Z=1.0D0*IZ
       QELEC=0.0D0
