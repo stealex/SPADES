@@ -323,7 +323,7 @@ C
 
       END SUBROUTINE SET_PARAMETERS
 
-      SUBROUTINE DHFS_MAIN(ALPHA)
+      SUBROUTINE DHFS_MAIN(ALPHA, IVERBOSE)
 C
 C                      **************************
 C                      **     PROGRAM DHFS     **
@@ -420,7 +420,7 @@ C  *********************************************************************
 C
 C  ************  Self-consistent calculation.
 C
-      CALL DHFS(ALPHA,1)
+      CALL DHFS(ALPHA,IVERBOSE)
       CALL EXPVAL
       END SUBROUTINE DHFS_MAIN
 
