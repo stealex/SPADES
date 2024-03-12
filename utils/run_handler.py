@@ -16,6 +16,56 @@ class bound_config:
         self.radius_unit = a
         self.n_radial_points = params["n_radial_points"]
         
+        if (type(params["n_values"]) == str):
+            if (params["n_values"] != "auto"):
+                raise ValueError("n_values has to be 'auto', a number or a list")
+            else:
+                self.n_values = range(1,10)
+        elif (type(params["n_values"] == int)):
+            self.n_values = range(1,params["n_values"])
+        elif (type(params["n_values"]) == list):
+            self.n_values = params["n_values"]
+        else:
+            raise ValueError("Cannot interpret option n_values. Known options: auto, <int>, list[int]")
+            
+        if (type(params["k_values"]) == str):
+            if (params["k_values"] != 'auto'):
+                raise ValueError("k_values has to be 'auto', a number or a list")
+            else:
+                self.k_values = []
+                for i_n in self.n_values:
+                    k_tmp = []
+                    for i_k in range(-i_n, i_n):
+                        if (i_k == 0):
+                            continue
+                        
+                        k_tmp.append(i_k)
+                    self.k_values.append(k_tmp)
+        elif (type(params["k_values"]) == int):
+            k_proposed = params["k_values"]
+            self.k_values = []
+            for i_n in self.n_values:
+                if (k_proposed >= i_n) or (k_proposed < -i_n):
+                    continue
+                self.k_values.append([k_proposed])
+        elif (type(params["k_values"]) == list):
+            self.k_values = []
+            for i_n in self.n_values:
+                k_tmp = []
+                for i_k in params["k_values"]:
+                    if (i_k >= i_n) or (i_k < -i_n):
+                        continue
+                    k_tmp.append(i_k)
+                self.k_values.append(k_tmp)
+                
+    def print(self):
+        print("Configuration for bound states")
+        print(f"  - Maximum radial distance: {self.max_r : .3E} {self.radius_unit}")
+        print(f"  - Number of radial points: {self.n_radial_points: d}")
+        print(f"  - N and K values:")
+        for i in range(len(self.n_values)):
+            print(f"    - {self.n_values[i]}", self.k_values[i])
+        
        
 class scattering_config:
     def __init__(self, params:dict) -> None:
