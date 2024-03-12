@@ -42,11 +42,12 @@ def call_set_parameters(atomic_weight:float, outer_radius:float, n_grid_points:i
 
 
 # configuration and wrapper for DHFS_MAIN
-dhfs_lib.dhfs_main_.argtypes = [ctypes.POINTER(ctypes.c_double)]
+dhfs_lib.dhfs_main_.argtypes = [ctypes.POINTER(ctypes.c_double),
+                                ctypes.POINTER(ctypes.c_int)]
 dhfs_lib.dhfs_main_.restype = None
 
-def call_dhfs_main(alpha:float):
-    dhfs_lib.dhfs_main_(ctypes.c_double(alpha))
+def call_dhfs_main(alpha:float, iverbose:int=0):
+    dhfs_lib.dhfs_main_(ctypes.c_double(alpha), ctypes.c_int(iverbose))
     
 # configuration and wrapper for GET_WAVEFUNCTIONS
 dhfs_lib.get_wavefunctions_.argtypes = [ctypes.POINTER(ctypes.c_double),

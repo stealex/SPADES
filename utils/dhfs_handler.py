@@ -122,7 +122,7 @@ class dhfs_handler:
         print(f"Atomic weight = {self.atomic_weight:f}")
         self.dhfs_config.print()
         
-    def run_dhfs(self, max_radius:float, n_points=1000, radius_units:str="fm"):
+    def run_dhfs(self, max_radius:float, n_points=1000, radius_units:str="fm", iverbose=0):
         """Organizes the call to DHFS_MAIN from DHFS.f.
         Sets appropriate parameters first.
         
@@ -150,7 +150,7 @@ class dhfs_handler:
         n_tmp = dhfs_wrapper.call_set_parameters(self.atomic_weight, max_radius, n_points)
         self.n_grid_points = n_tmp.value
         
-        dhfs_wrapper.call_dhfs_main(1.5)
+        dhfs_wrapper.call_dhfs_main(1.5, iverbose)
         
     def retrieve_dhfs_results(self):
         """
