@@ -10,6 +10,8 @@ bound_states:
   max_r: 100
   radius_unit: bohr # fm available, defaults to bohr
   n_radial_points: 1000
+  n_values: auto
+  k_values: auto
 scattering_states:
   max_r: 100
   radius_unit: bohr
@@ -19,4 +21,5 @@ scattering_states:
   ke_unit: MeV
   n_ke_points: 100
   ke_grid_type: lin # log available as well 
+  k_values: auto
   
