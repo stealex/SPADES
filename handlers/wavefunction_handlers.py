@@ -1,68 +1,11 @@
-from wrappers import dhfs_wrapper
-import yaml
+from wrappers import dhfs_wrapper, radial_wrapper
+from wrappers.radial_wrapper import RADIALError
 import periodictable
 import utils.physics_constants as physics_constants
+from utils.math_stuff import hydrogenic_binding_energy
 import numpy as np
-import re
-import os
-from copy import deepcopy
+from configs.wavefunctions_config import atomic_system, radial_bound_config, radial_scattering_config
 
-class atomic_system:
-    def __init__(self, config:dict) -> None:
-        self.name = config["name"]
-        matches = re.match(r'(\d+)([A-Za-z]+)', self.name)
-        if (type(matches) == re.Match):
-            self.mass_number = int(matches.group(1))
-            self.symbol = matches.group(2)
-        else:
-            raise ValueError("Could not identify mass number and symbol for input atom. Format should be <A><Symbol>")
-        
-        if ("weight" in config):
-            self.weight = float(config["weight"])
-        else:
-            self.weight = -1.
-            
-        if (self.weight < 0.):
-            self.weight = float(self.mass_number)
-            
-        tmp = config["electron_config"]
-        if (tmp == "auto"):
-            z = periodictable.elements.isotope(self.symbol).number
-            electron_configuration_filename = os.path.join(os.path.dirname(__file__),
-                                                           f"../data/ground_state_config_Z{z:03d}.yaml")
-        else:
-            electron_configuration_filename = tmp
-            
-        with open(electron_configuration_filename, 'r') as f:
-            config_tmp = yaml.safe_load(f)
-           
-        self.Z = config_tmp["Z"]
-        self.name = config_tmp["Name"]
-        self.electron_config = np.array(config_tmp["configuration"])
-        
-        
-        self.n_values = self.electron_config[:,0].astype(int)
-        self.l_values = self.electron_config[:,1].astype(int)
-        self.jj_values = self.electron_config[:,2].astype(int)
-        self.occ_values = self.electron_config[:,3].astype(float)
-
-        
-    def print(self):
-        text=f"""DHFS configuration:
-Z: {self.Z:d}
-name: {self.name:s}
-configuration:[n,l,2j,occupation]        
-"""
-        for c in self.electron_config:
-            text = text + f"  - [{c[0]:d},{c[1]:d},{c[2]:d},{c[3]:f}]\n"
-        
-        print(text)
-            
-def create_ion(atom:atomic_system, z_nuc) -> atomic_system:
-    ion = deepcopy(atom)
-    ion.Z = z_nuc
-    ion.name = f"{ion.mass_number:d}{periodictable.elements[ion.Z].symbol:s}"
-    return ion
 
 class dhfs_handler:
     """
@@ -202,3 +145,98 @@ class dhfs_handler:
         
         return self.rv_modified
         
+        
+class bound_handler:
+    def __init__(self, z_nuc:int, n_e:int, bound_states_configuration:radial_bound_config) -> None:
+        self.bound_config = bound_states_configuration
+        self.z_nuc = z_nuc
+        self.n_e = n_e
+    
+    def find_bound_states(self, binding_energies = None):
+        self.states = {}
+    
+        try:
+            self.r_grid
+            self.rv_grid
+        except AttributeError:
+            self.bound_config.n_radial_points, self.r_grid, _ = radial_wrapper.call_sgrid(self.bound_config.max_r,
+                                                                                          1E-7,
+                                                                                          0.5,
+                                                                                          self.bound_config.n_radial_points,
+                                                                                          2*self.bound_config.n_radial_points)
+            self.rv_grid = -self.z_nuc*np.ones_like(self.r_grid)
+        
+        radial_wrapper.call_setrgrid(self.r_grid)
+        radial_wrapper.call_vint(self.r_grid, self.rv_grid)
+        
+        for i_n in range(len(self.bound_config.n_values)):
+            n = self.bound_config.n_values[i_n]
+            self.states[n] = {}
+            
+            for k in self.bound_config.k_values[n]:
+                self.states[n][k] = {}
+                
+                if not(binding_energies is None):
+                    trial_be = binding_energies[n][k]
+                else:
+                    trial_be =  hydrogenic_binding_energy(self.z_nuc, n, k)
+                    
+                try:
+                    true_be = radial_wrapper.call_dbound(trial_be, n, k)
+                except RADIALError:
+                    # means computation did not succeed for whatever reason
+                    # don't stop, just don't add this to the class
+                    print(f"could not find bound state for {n:d}, {k:d}")
+                    continue
+                
+                p, q = radial_wrapper.call_getpq(self.bound_config.n_radial_points)
+                
+                self.states[n][k] = {"be": true_be, "p":p, "q":q}
+                
+                
+class scattering_handler:
+    def __init__(self, z_nuc:int, n_e:int, scattering_states_configuration:radial_scattering_config) -> None:
+        self.scattering_config = scattering_states_configuration
+        self.z_nuc = z_nuc
+        self.n_e = n_e
+    
+    def set_potential(self,r_grid:np.ndarray, rv_grid:np.ndarray):
+        radial_wrapper.call_vint(r_grid, rv_grid)
+        
+    def compute_scattering_states(self):
+        if (self.scattering_config.ke_grid_type == "lin"):
+            self.energy_grid = np.linspace(self.scattering_config.min_ke,
+                                      self.scattering_config.max_ke,
+                                      self.scattering_config.n_ke_points)
+        elif (self.scattering_config.ke_grid_type == "log"):
+            self.energy_grid = np.logspace(self.scattering_config.min_ke,
+                                      self.scattering_config.max_ke,
+                                      self.scattering_config.n_ke_points)
+        else:
+            raise ValueError(f"Could not interpret option {self.scattering_config.ke_grid_type}")
+            return
+        
+        try:
+            self.r_grid
+        except AttributeError:
+            self.scattering_config.n_radial_points, self.r_grid, _ = radial_wrapper.call_sgrid(self.scattering_config.max_r,
+                                                                                               1E-7,
+                                                                                               0.5,
+                                                                                               self.scattering_config.n_radial_points,
+                                                                                               5*self.scattering_config.n_radial_points)
+        
+        radial_wrapper.call_setrgrid(self.r_grid)
+        self.states = {}
+        for k in self.scattering_config.k_values:
+            self.states[k] = {}
+            for i_e in range(len(self.energy_grid)):
+                e = self.energy_grid[i_e]
+                try:
+                    phase = radial_wrapper.call_dfree(e, k, 1E-14)
+                except RADIALError:
+                    print(f"Could not find scattering state {k:d}, {e:f}")
+                    continue
+                
+                p, q = radial_wrapper.call_getpq(len(self.r_grid))
+                
+                self.states[k][i_e] = {"energy": e, "phase": phase, "p":p, "q":q}

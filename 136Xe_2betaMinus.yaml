@@ -7,19 +7,30 @@ initial_atom:
   weight: -1.
   electron_config: auto # auto or a path
 bound_states:
-  max_r: 100
   radius_unit: bohr # fm available, defaults to bohr
-  n_radial_points: 1000
-  n_values: auto
-  k_values: auto
-scattering_states:
   max_r: 100
-  radius_unit: bohr
   n_radial_points: 1000
-  min_ke: 1E-3
-  max_ke: 4.0
+  n_values: auto # can be auto, int, (nmin, nmax), [n1,n2,n3...]
+  k_values: auto # can be auto, int, (kmin, kmax), {n1:[k1,k2,...]...}
+scattering_states:
+  radius_unit: bohr
+  max_r: 100
+  n_radial_points: 1000
   ke_unit: MeV
+  min_ke: 0.001
+  max_ke: 4.0
   n_ke_points: 100
   ke_grid_type: lin # log available as well 
-  k_values: auto
+  k_values: auto # can be auto, int, (kmin, kmax), [k1, k2, ...]
+spectra_computation:
+  method: Closure # can be Taylor
+  wavefunction_evaluation: on_surface # can be weighted
+  nuclear_radius: auto # can be a number
+  types: Sum # can be a string: Single, Sum, Alpha or a list of those
+output:
+  what:
+    - "wavefunctions"
+    - "spectra"
+    - "psfs"
+    - "binding energies"
   

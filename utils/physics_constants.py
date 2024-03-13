@@ -9,3 +9,5 @@ hartree = 2.0*13.605693122994*1E-6
 
 # other
 fine_structure = 1/137.035999084
+
+electron_mass = 0.51099895000 # MeV

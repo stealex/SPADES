@@ -195,11 +195,6 @@ def call_setrgrid(r:np.ndarray)->None:
     """
     radial_lib.setrgrid_(r.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
                          ctypes.c_int(len(r)))
-    # call DERROR to see if there was a problem
-    ierr = ctypes.c_int(0)
-    radial_lib.derror_(ierr)
-    if (ierr.value > 0):
-        raise RADIALError(f"SETRGRID returned the following error: {ierr.value : d}")
     
     
 radial_lib.getpq_.argtypes = [ctypes.POINTER(ctypes.c_double),# P
@@ -220,4 +215,5 @@ def call_getpq(n:int):
     if (ierr.value > 0):
         raise RADIALError(f"GETPQ returned the following error: {ierr.value : d}")
     
+    return (p,q)
     
