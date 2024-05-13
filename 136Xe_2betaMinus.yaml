@@ -1,36 +1,36 @@
 ---
 task: 136Xe_2betaMinus # name of the task. For printing purposes only
 process: 2betaMinus
-output_directory: ./tmp # a subdirectory will be created 
+distance_unit: bohr_radius # can be any CLHEP-defined distance unit or "bohr_radius"
+energy_unit: MeV # can by any CLHEP-defined energy unit or "electron_mass" or "hartree_energy"
 initial_atom:
   name: 136Xe
   weight: -1.
   electron_config: auto # auto or a path
 bound_states:
-  radius_unit: bohr # fm available, defaults to bohr
   max_r: 100
   n_radial_points: 1000
   n_values: auto # can be auto, int, (nmin, nmax), [n1,n2,n3...]
   k_values: auto # can be auto, int, (kmin, kmax), {n1:[k1,k2,...]...}
 scattering_states:
-  radius_unit: bohr
   max_r: 100
   n_radial_points: 1000
-  ke_unit: MeV
-  min_ke: 0.001
-  max_ke: 4.0
+  min_ke: 0.0001
+  max_ke: 2.45783
   n_ke_points: 100
-  ke_grid_type: lin # log available as well 
   k_values: auto # can be auto, int, (kmin, kmax), [k1, k2, ...]
 spectra_computation:
   method: Closure # can be Taylor
   wavefunction_evaluation: on_surface # can be weighted
   nuclear_radius: auto # can be a number
   types: Sum # can be a string: Single, Sum, Alpha or a list of those
+  energy_grid_type: lin # log available as well
 output:
+  location: ./tmp
   what:
-    - "wavefunctions"
-    - "spectra"
-    - "psfs"
-    - "binding energies"
+    - bound_wavefunctions
+    - scattering_wavefunction
+    - spectra
+    - psfs
+    - binding_energies
   

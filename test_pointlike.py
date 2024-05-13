@@ -1,12 +1,17 @@
 import numpy as np
 from wrappers import radial_wrapper
+import utils.ph as ph
 
 rPoints = np.linspace(0., 1000., 1000)
 rvValues = -1.*np.ones_like(rPoints)
 
 print("calling vint")
 radial_wrapper.call_vint(rPoints, rvValues)
-npoints, rGrid, drGrid = grid_info = radial_wrapper.call_sgrid(200., 1E-7, 0.5, 1000, 2000)
+npoints, rGrid, drGrid = grid_info = radial_wrapper.call_sgrid(200., 
+                                                               1E-7, 
+                                                               0.5, 
+                                                               1000, 
+                                                               2000)
 print("calling setrgrid")
 radial_wrapper.call_setrgrid(rGrid)
 print("loop over bound states")

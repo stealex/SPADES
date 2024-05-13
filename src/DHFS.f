@@ -84,7 +84,7 @@ C  ****  Radial grid.
       END DO
       END SUBROUTINE GET_POTENTIALS
       
-      SUBROUTINE CONFIGURATION_INPUT(NI,LLI,JJI,OCCUPI, IZ, NSI)
+      SUBROUTINE CONFIGURATION_INPUT(NI,LLI,JJI,OCCUPI, IZ, NSI, IWR)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z), INTEGER*4 (I-N)
       CHARACTER NAMEL(11)*1
       PARAMETER (MSH=50,MGP=5000)
@@ -140,9 +140,10 @@ C  ****  Screened potential.
               JTST=ABS(2*LL(I)-JJ(I))-1
               IF(OCCUP(I).GT.TST.OR.JTST.NE.0.OR.LL(I).LT.0)
      1           THEN
-                WRITE(6,2102)
+                IF(IWF.GT.0) THEN
+                  WRITE(6,2102)
  2102     FORMAT(2X,'The last printed data are incorrect.')
-
+                ENDIF
                 STOP
               ENDIF
               IDUP=1
@@ -158,19 +159,20 @@ C  ****  Screened potential.
           TST=DBLE(JJ(IS)+1)+TOL
           JTST=ABS(2*LL(IS)-JJ(IS))-1
           IF(OCCUP(IS).GT.TST.OR.JTST.NE.0.OR.LL(IS).LT.0) THEN
-            WRITE(6,2102)
             STOP
           ENDIF
           EV(NSHELL)=-(Z**2)/(2.0D0*NN(IS)**2)
-          IF(LL(IS).LE.10) THEN
-            WRITE(6,2003) NN(IS),NAMEL(LL(IS)+1),JJ(IS),ISHELL(IS),
-     1         OCCUP(IS)
+          IF (IWR.GT.0) THEN
+            IF(LL(IS).LE.10) THEN
+              WRITE(6,2003) NN(IS),NAMEL(LL(IS)+1),JJ(IS),ISHELL(IS),
+     1           OCCUP(IS)
  2003 FORMAT(2X,'Shell: ',I2,A1,I2,'/2  (',I6,'),  q =',F6.3)
 
-          ELSE
-            WRITE(6,2103) NN(IS),LL(IS),JJ(IS),ISHELL(IS),OCCUP(IS)
+            ELSE
+              WRITE(6,2103) NN(IS),LL(IS),JJ(IS),ISHELL(IS),OCCUP(IS)
  2103 FORMAT(2X,'Shell:  N=',I3,', L=',I3,', J=',I3,
      1  '/2  (',I6,'),  q =',F6.3)
+            ENDIF
           ENDIF
         ENDIF
       ENDDO
@@ -178,7 +180,7 @@ C  ****  Screened potential.
       
 C SUBROUTINE SET_PARAMETERS
 C Also modifies NPInput to the value after the call to SGRID      
-      SUBROUTINE SET_PARAMETERS(AW, RN, NPINPUT)
+      SUBROUTINE SET_PARAMETERS(AW, RN, NPINPUT, IWR)
       USE CONSTANTS
       IMPLICIT DOUBLE PRECISION (A-H,O-Z), INTEGER*4 (I-N)
       CHARACTER NAMEL(11)*1,LIT10(10)*1,EUN*2
@@ -229,9 +231,11 @@ C
       IF(RN.GT.0.0D0) THEN
         IBCOND=0
         RN=MAX(75.0D0,RN)
-        WRITE(6,2006) RN
+        IF (IWR.GT.0) THEN
+          WRITE(6,2006) RN
  2006   FORMAT(/2X,'Asymptotic boundary conditions'/2X,
      1    'Outer radius (infinity) =',1P,E13.6,' au')
+        ENDIF
       ELSE
         WRITE(6,*) 'Outer radius needs to be positive'
         STOP
@@ -242,9 +246,11 @@ C  **** Number of radial grid points, energy units.
 C
       NP=NPINPUT
       IF(NP.GT.MGP.OR.NP.LE.200) NP=MGP
-      WRITE(6,2007) NP
+      IF (IWR.GT.0) THEN
+        WRITE(6,2007) NP
  2007 FORMAT(/2X,'Number of radial grid points = ',I4)
-      WRITE(6,'(A)') ' '
+      ENDIF
+      ! WRITE(6,'(A)') ' '
 C
 C  **** Output energy unit.
 C
@@ -314,7 +320,6 @@ C
         ENDDO
         CALL SLAG6(1.0D0,AUX1,AUX1,NP)
         FNORM=Z/VNUC(NP)
-        WRITE(*,*) "FNORM = ", FNORM, Z
         DO I=1,NP
           VNUC(I)=-FNORM*(VNUC(I)+AUX1(NP1-I)*R(I))
         ENDDO
@@ -421,7 +426,7 @@ C
 C  ************  Self-consistent calculation.
 C
       CALL DHFS(ALPHA,IVERBOSE)
-      CALL EXPVAL
+      CALL EXPVAL(IVERBOSE)
       END SUBROUTINE DHFS_MAIN
 
 
@@ -719,7 +724,7 @@ C  ****  Latter's tail correction.
 C  *********************************************************************
 C                       SUBROUTINE EXPVAL
 C  *********************************************************************
-      SUBROUTINE EXPVAL
+      SUBROUTINE EXPVAL(IWR)
 C
 C     Calculation of the total binding energy and ionization energies,
 C  exact for configurations with closed shells.
@@ -828,21 +833,29 @@ C
 C
 C  ****  Total energy.
       FEBIN=EBIN*HREV
-      WRITE(6,2021) EBIN,FEBIN
+      IF (IWR.GT.0) THEN
+        WRITE(6,2021) EBIN,FEBIN
+      ENDIF
  2021 FORMAT(//5X,'Total binding energy = ',1P,E13.6,' Eh = ',
      1  E13.6,' eV')
 C  ****  Kinetic energy.
       FEKIN=EKIN*HREV
-      WRITE(6,2022) EKIN,FEKIN
+      IF (IWR.GT.0) THEN
+        WRITE(6,2022) EKIN,FEKIN
+      ENDIF
  2022 FORMAT(/11X,'Kinetic energy = ',1P,E13.6,' Eh = ',
      1  E13.6,' eV')
 C  ****  Potential energy.
       EPOT=EBIN-EKIN
       FEPOT=EPOT*HREV
-      WRITE(6,2023) EPOT,FEPOT
+      IF (IWR.GT.0) THEN
+        WRITE(6,2023) EPOT,FEPOT
+      ENDIF
  2023 FORMAT(9X,'Potential energy = ',1P,E13.6,' Eh = ',E13.6,
      1  ' eV')
+      IF (IWR.GT.0) THEN
       WRITE(6,'(/,2X,A)') '**** Self-consistent calculation completed.'
+      ENDIF
       RETURN
       END
 C  *********************************************************************
