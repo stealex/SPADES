@@ -3,3 +3,4 @@ build
 data/*.yaml
 __pycache__
 src/constants.mod
+tmp/*
