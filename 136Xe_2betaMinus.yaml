@@ -14,8 +14,8 @@ bound_states:
   k_values: auto # can be auto, int, (kmin, kmax), {n1:[k1,k2,...]...}
 scattering_states:
   max_r: 100
-  n_radial_points: 1000
-  min_ke: 0.0001
+  n_radial_points: 2500
+  min_ke: 0.00001
   max_ke: 2.45783
   n_ke_points: 100
   k_values: auto # can be auto, int, (kmin, kmax), [k1, k2, ...]

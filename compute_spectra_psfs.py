@@ -14,6 +14,81 @@ from spectra import fermi_functions, closure
 from grid_strategy import strategies
 
 
+def next_plot_indices(i_row, i_col, n_rows, n_cols):
+    if i_col < n_cols-1:
+        return (i_row, i_col+1)
+    else:
+        return (i_row+1, 0)
+
+
+def plot_asymptotic(wf_handler_final: wavefunctions_handler, e_values: list):
+    a = strategies.SquareStrategy()
+    k_values = wf_handler_final.scattering_config.k_values
+    print(wf_handler_final.scattering_config.k_values)
+    # print(a.get_grid_arrangement(2*len(e_values)*len(k_values)))
+    n_rows, n_cols = a.get_grid_arrangement(2*len(k_values))
+
+    r_grid = wf_handler_final.scattering_handler.r_grid
+    print(r_grid)
+    print(r_grid*ph.bohr_radius/ph.fermi)
+    for i_e in range(len(e_values)):
+        fig, axs = plt.subplots(n_rows, n_cols,
+                                figsize=(6*n_cols, 4*n_rows))
+        i_row = 0
+        i_col = 0
+
+        index_e_current = np.abs(
+            wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy - e_values[i_e]).argmin()
+
+        e = wf_handler_final.scattering_handler.energy_grid[index_e_current] * \
+            ph.hartree_energy
+        momentum = np.sqrt(e*(e+2*ph.electron_mass))
+        norm = np.sqrt((e + 2.0*ph.electron_mass) / (2.0*(e+ph.electron_mass)))
+        eta = math_stuff.sommerfeld_param(
+            wf_handler_final.scattering_handler.z_inf, 1., e)
+        for i_k in range(len(k_values)):
+            k = k_values[i_k]
+            l = k if k > 0 else -k-1
+            print(k, l)
+            kr = momentum*(r_grid*ph.bohr_radius/ph.fermi) / ph.hc
+            print("momentum = ", momentum)
+            print("r_grid = ", r_grid)
+            print("ph.bohr_radius/ph.fermi = ", ph.bohr_radius/ph.fermi)
+            print(kr)
+
+            p = wf_handler_final.scattering_handler.p_grid[i_k,
+                                                           index_e_current]
+            q = wf_handler_final.scattering_handler.q_grid[i_k,
+                                                           index_e_current]
+
+            delta = wf_handler_final.scattering_handler.phase_grid[i_k,
+                                                                   index_e_current]
+            coulomb_delta = math_stuff.coulomb_phase_shift(
+                e, wf_handler_final.scattering_handler.z_inf, k)
+            print(e, eta, wf_handler_final.scattering_handler.z_inf,
+                  delta, coulomb_delta)
+            axs[i_row, i_col].plot(r_grid, p)
+            axs[i_row, i_col].plot(r_grid, np.sin(
+                kr-l*np.pi/2.-eta*np.log(2*kr)+delta+coulomb_delta))
+            # axs[i_row, i_col].set_xscale('log')
+            axs[i_row, i_col].set_xlabel("r [bohr]")
+            axs[i_row, i_col].set_ylabel("P(r)")
+            axs[i_row, i_col].set_title(f"E = {e} [MeV]; kappa = {k}")
+            print(i_row, i_col)
+            i_row, i_col = next_plot_indices(i_row, i_col, n_rows, n_cols)
+
+            # axs[i_row, i_col].plot(r_grid, q)
+            axs[i_row, i_col].plot(r_grid, np.cos(
+                kr-l*np.pi/2.-eta*np.log(2*kr)+delta+coulomb_delta))
+            # axs[i_row, i_col].set_xscale('log')
+            axs[i_row, i_col].set_xlabel("r [bohr]")
+            axs[i_row, i_col].set_ylabel("Q(r)")
+            axs[i_row, i_col].set_title(f"E = {e} [MeV]; kappa = {k}")
+
+            print(i_row, i_col)
+            i_row, i_col = next_plot_indices(i_row, i_col, n_rows, n_cols)
+
+
 def plot_phase_shifts(wf_handler_final: wavefunctions_handler):
 
     a = strategies.SquareStrategy()
@@ -26,17 +101,12 @@ def plot_phase_shifts(wf_handler_final: wavefunctions_handler):
     total_phase = np.zeros_like(wf_handler_final.scattering_handler.phase_grid)
     for i_k in range(len(k_values)):
         k = k_values[i_k]
-        axs[i_row, i_col].scatter(
-            wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
-            wf_handler_final.scattering_handler.phase_grid[i_k],
-            label=r"$\delta$"
-        )
-
         coul_phase = np.zeros_like(total_phase[i_k])
         for i_e in range(len(coul_phase)):
-            energy = wf_handler_final.scattering_handler.energy_grid[i_e]
+            energy = wf_handler_final.scattering_handler.energy_grid[i_e] * \
+                ph.hartree_energy
             coul_phase[i_e] = math_stuff.coulomb_phase_shift(
-                energy*ph.hartree_energy, wf_handler_final.scattering_handler.z_inf, k)
+                energy, wf_handler_final.scattering_handler.z_inf, k)
 
         axs[i_row, i_col].scatter(
             wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
@@ -44,7 +114,13 @@ def plot_phase_shifts(wf_handler_final: wavefunctions_handler):
             label=r"$\Delta_C$"
         )
 
-        total_phase[i_k] = wf_handler_final.scattering_handler.phase_grid[i_k]+coul_phase
+        axs[i_row, i_col].scatter(
+            wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
+            wf_handler_final.scattering_handler.phase_grid[i_k]-coul_phase,
+            label=r"$\delta$"
+        )
+
+        total_phase[i_k] = wf_handler_final.scattering_handler.phase_grid[i_k]
 
         axs[i_row, i_col].scatter(
             wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
@@ -117,6 +193,26 @@ def main(argv=None):
     print("Computing wavefunctions for final atom")
     wf_handler_final = wavefunctions_handler(
         input_config.final_atom, input_config.bound_config, input_config.scattering_config)
+
+    r_grid_test = np.linspace(0., 100.*ph.fermi/ph.bohr_radius, 100)
+    rv_grid = np.zeros_like(r_grid_test)
+    r_nuc = 1.2*(input_config.final_atom.mass_number**(1./3.))
+    r_nuc_atomic = r_nuc/ph.bohr_radius*ph.fermi
+    for i_p in range(len(r_grid_test)):
+        r = r_grid_test[i_p]
+
+        if (r < r_nuc_atomic):
+            rv_grid[i_p] = r*(-1*input_config.final_atom.Z /
+                              (2.*r_nuc_atomic)*(3-(r / r_nuc_atomic)**(2.0)))
+        else:
+            rv_grid[i_p] = -input_config.final_atom.Z
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.plot(r_grid_test[r_grid_test < r_nuc_atomic],
+            (rv_grid)[r_grid_test < r_nuc_atomic])
+    ax.plot(r_grid_test[r_grid_test >= r_nuc_atomic],
+            (rv_grid)[r_grid_test >= r_nuc_atomic])
+    # wf_handler_final.find_all_wavefunctions(r_grid_test, rv_grid)
     wf_handler_final.find_all_wavefunctions()
 
     out_conf = output_config(location=run_conf["output"]["location"])
@@ -128,30 +224,13 @@ def main(argv=None):
         np.array([2.0-ph.electron_mass])*ph.MeV/ph.hartree_energy,
         np.array([-1, 1]))
 
+    plot_asymptotic(wf_handler_final, [1E-4, 2.0])
     print("Evaluating fermi functions")
     ff = fermi_functions.numeric(wf_handler_final.scattering_handler)
     ff.eval_fg(1.2*(input_config.initial_atom.mass_number**(1./3.)))
     ff.build_fermi_functions()
 
     plot_phase_shifts(wf_handler_final)
-    plt.show()
-    exit(0)
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.plot(wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
-            wf_handler_final.scattering_handler.phase_grid[1])
-
-    coulomb_phase_shift = np.zeros_like(
-        wf_handler_final.scattering_handler.phase_grid[1])
-    for i_e in range(len(wf_handler_final.scattering_handler.energy_grid)):
-        coulomb_phase_shift[i_e] = math_stuff.coulomb_phase_shift(
-            wf_handler_final.scattering_handler.energy_grid[i_e] *
-            ph.hartree_energy,
-            wf_handler_final.scattering_handler.z_inf,
-            1
-        )
-    ax.plot(wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
-            coulomb_phase_shift)
-    ax.set_title("phase")
 
     ff2 = fermi_functions.point_like(
         input_config.final_atom.Z, 1.2*(input_config.initial_atom.mass_number**(1./3.)))
@@ -182,9 +261,10 @@ def main(argv=None):
         y1[i] = ff.ff1_eval(spectrum_energy_grid[i])
         y1_ana[i] = ff2.ff1_eval(spectrum_energy_grid[i])
     ax.plot(spectrum_energy_grid,
-            np.abs(y1))
-    ax.plot(spectrum_energy_grid, np.abs(y1_ana))
+            y1)
+    ax.plot(spectrum_energy_grid, y1_ana)
     ax.set_title("ff1")
+    ax.set_xscale('log')
 
     fig, ax = plt.subplots(1, 2, figsize=(16, 6))
     ax[0].scatter(wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy/ph.MeV,

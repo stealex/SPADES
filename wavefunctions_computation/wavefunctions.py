@@ -1,5 +1,6 @@
 from handlers.wavefunction_handlers import dhfs_handler, bound_handler, scattering_handler
 from configs.wavefunctions_config import atomic_system, radial_scattering_config
+import numpy as np
 
 
 class wavefunctions_handler:
@@ -31,18 +32,24 @@ class wavefunctions_handler:
         self.bound_handler.find_bound_states(self.dhfs_handler.rad_grid,
                                              self.dhfs_handler.rv_modified)
 
-    def find_scattering_states(self):
+    def find_scattering_states(self, r_grid_scattering: np.ndarray | None = None, rv_scattering: np.ndarray | None = None):
         # solve scattering states in final atom
         self.scattering_handler = scattering_handler(self.atomic_system.Z,
                                                      int(self.atomic_system.occ_values.sum(
                                                      )),
                                                      self.scattering_config)
-        self.scattering_handler.set_potential(
-            self.dhfs_handler.rad_grid, self.dhfs_handler.rv_modified)
+        if (rv_scattering is None) and (r_grid_scattering is None):
+            print("Will use dhfs potential for scattering states")
+            self.scattering_handler.set_potential(
+                self.dhfs_handler.rad_grid, self.dhfs_handler.rv_modified)
+        elif (not (rv_scattering is None)) and (not (r_grid_scattering is None)):
+            print("Will use user potential for scattering states")
+            self.scattering_handler.set_potential(
+                r_grid_scattering, rv_scattering)
 
         self.scattering_handler.compute_scattering_states()
 
-    def find_all_wavefunctions(self):
+    def find_all_wavefunctions(self, r_grid_scattering: np.ndarray | None = None, rv_scattering: np.ndarray | None = None):
         try:
             self.run_dhfs()
             self.find_bound_states()
@@ -50,6 +57,6 @@ class wavefunctions_handler:
             pass
 
         try:
-            self.find_scattering_states()
+            self.find_scattering_states(r_grid_scattering, rv_scattering)
         except AttributeError:
             pass

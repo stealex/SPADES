@@ -28,6 +28,7 @@ def sommerfeld_param(z1, z2, energy):
 def coulomb_phase_shift(energy: float, z_inf: float, kappa: int):
     sinf = 1 if ((z_inf < 0) and kappa < 0) else 0
     # print("sinf ", sinf)
+    # print(z_inf)
     l = kappa if kappa > 0 else -kappa-1
     # print("l ", l)
     nu = dirac_nu(energy, z_inf, kappa)
@@ -40,5 +41,7 @@ def coulomb_phase_shift(energy: float, z_inf: float, kappa: int):
     # print("gam ", gam)
     arg_gamma = np.arctan2(np.imag(gam), np.real(gam))
     # print("arg_gamma ", arg_gamma)
-
-    return nu-(dirac_gam-1-l)*np.pi/2. + arg_gamma - sinf*np.pi
+    result = nu-(dirac_gam-1-l)*np.pi/2. + arg_gamma - sinf*np.pi
+    # print(energy, energy+ph.electron_mass, kappa, result)
+    # exit(0)
+    return result

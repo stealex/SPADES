@@ -27,7 +27,7 @@ def neutrino_integrand_standard(enu: float, e1: float, e2: float, q_value: float
 def neutrino_integrand_angular(enu: float, e1: float, e2: float, q_value: float, enei: float):
     k = kn(e1, enu, q_value, enei)
     l = ln(e2, enu, q_value, enei)
-    return 1./3.*(2*k*k+2*l*l+5*k*l)*(enu**2.0)*((q_value-e1-e2-enu)**2.0)
+    return 1./3.*(2*k*k + 2*l*l + 5*k*l)*(enu**2.0)*((q_value-e1-e2-enu)**2.0)
 
 
 class spectrum:
@@ -111,20 +111,18 @@ class closure_spectrum(spectrum):
                 return ret_val
 
             def range_enu(v, t, q_value, enei, emin):
-                return [0., q_value-t]
+                return [0., q_value-t-emin]
 
             def range_e2(t, q_value, enei, emin):
-                return [emin, q_value]
+                return [emin, q_value-emin]
 
         for i_e in range(len(self.energy_points)):
-            print("energy_point ", i_e)
             e1 = self.energy_points[i_e]
             result = integrate.nquad(
                 integrant,
                 ranges=[range_enu, range_e2],
                 args=(e1, self.q_value, self.enei, self.energy_points[0]),
             )
-            print("ie = ", i_e, "result = ", result)
             if isinstance(result, tuple):
                 spectrum[i_e] = result[0]
             else:

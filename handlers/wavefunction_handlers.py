@@ -215,8 +215,8 @@ class scattering_handler:
         self.p_grid = np.zeros(
             (len(self.scattering_config.k_values), len(self.energy_grid), len(self.r_grid)))
         self.q_grid = np.zeros_like(self.p_grid)
-        self.f_grid = np.zeros_like(self.p_grid)
-        self.g_grid = np.zeros_like(self.p_grid)
+        self.f_grid = np.zeros_like(self.p_grid, dtype=complex)
+        self.g_grid = np.zeros_like(self.p_grid, dtype=complex)
 
         for i_k in range(len(self.scattering_config.k_values)):
             k = self.scattering_config.k_values[i_k]
@@ -235,7 +235,6 @@ class scattering_handler:
                 coul_phase_shift = coulomb_phase_shift(
                     e*ph.hartree_energy, self.z_inf, k)
                 self.phase_grid[i_k][i_e] = phase  # + coul_phase_shift
-                # print(k, self.z_inf, e*ph.hartree_energy, coul_phase_shift)
                 momentum = np.sqrt(e*(e+2*ph.electron_mass/ph.hartree_energy))
                 norm = np.sqrt((e + 2.0*ph.electron_mass/ph.hartree_energy) /
                                (2.0*(e+ph.electron_mass/ph.hartree_energy)))
@@ -243,5 +242,9 @@ class scattering_handler:
                 g = 1.0/ph.fine_structure*norm*1./momentum * p/self.r_grid
                 f = 1.0/ph.fine_structure*norm*1./momentum * q/self.r_grid
 
-                self.g_grid[i_k][i_e] = g
-                self.f_grid[i_k][i_e] = f
+                self.g_grid[i_k][i_e] = g * \
+                    np.exp(-1.0j *
+                           (self.phase_grid[i_k][i_e] + coul_phase_shift))
+                self.f_grid[i_k][i_e] = f * \
+                    np.exp(-1.0j *
+                           (self.phase_grid[i_k][i_e] + coul_phase_shift))

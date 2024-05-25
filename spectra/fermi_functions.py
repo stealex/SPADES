@@ -16,6 +16,9 @@ class fermi_functions:
     def ff0_eval(self, ke: float):
         pass
 
+    def ff1_eval(self, ke: float):
+        pass
+
 
 class point_like(fermi_functions):
     def __init__(self, z: int, r: float) -> None:
@@ -45,7 +48,7 @@ class point_like(fermi_functions):
         # fact2 = np.sqrt(ke/(2.0*(ke+ph.electron_mass)))
         # fp1 = 1.0*np.sqrt(ff0)*fact2
         # return -2.0*np.real(gm1*np.conj(fp1))
-        momentum = np.sqrt(ke*(ke+2.0))
+        momentum = np.sqrt(ke*(ke+2.0*ph.electron_mass))
         e_total = (ke+ph.electron_mass)
         return momentum/e_total * ff0
 
@@ -56,7 +59,8 @@ class numeric:
 
     def eval_fg(self, radius: float, density_function: Callable | None = None):
         self.f = np.zeros((len(self.scattering_handler.scattering_config.k_values),
-                           len(self.scattering_handler.energy_grid)))
+                           len(self.scattering_handler.energy_grid)),
+                          dtype=complex)
         self.g = np.zeros_like(self.f)
 
         for i_k in range(len(self.scattering_handler.scattering_config.k_values)):
@@ -104,12 +108,9 @@ class numeric:
         self.fp1 = self.f[kp1]
         self.ff0 = CubicSpline(
             self.scattering_handler.energy_grid,
-            self.gm1*self.gm1 + self.fp1*self.fp1
+            np.abs(self.gm1*self.gm1) + np.abs(self.fp1*self.fp1)
         )
-        phase_diff = 0.0
-        # self.scattering_handler.phase_grid[kp1] - \
-        #     self.scattering_handler.phase_grid[km1]
         self.ff1 = CubicSpline(
             self.scattering_handler.energy_grid,
-            2.0*self.gm1*self.fp1 * np.cos(phase_diff)
+            2.0*np.real(self.gm1*np.conj(self.fp1))
         )
