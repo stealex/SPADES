@@ -18,5 +18,5 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES GNU)
 endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-add_subdirectory(src)
+add_subdirectory(RADIAL)
 

@@ -14,17 +14,22 @@ bound_states:
   k_values: auto # can be auto, int, (kmin, kmax), {n1:[k1,k2,...]...}
 scattering_states:
   max_r: 100
-  n_radial_points: 2500
+  n_radial_points: 1000
   min_ke: 0.00001
   max_ke: 2.45783
   n_ke_points: 100
   k_values: auto # can be auto, int, (kmin, kmax), [k1, k2, ...]
 spectra_computation:
   method: Closure # can be Taylor
-  wavefunction_evaluation: on_surface # can be weighted
+  wavefunction_evaluation: OnSurface # can be also Weighted
   nuclear_radius: auto # can be a number
-  types: Sum # can be a string: Single, Sum, Alpha or a list of those
+  types: [Single, Angular] # can be a string: Single, Sum, Angular, or a list of those
   energy_grid_type: lin # log available as well
+  corrections: [Exchange]
+  fermi_functions: [Numeric, PointLike, ChargedSphere]
+  q_value: auto
+  min_ke: auto
+  n_ke_points: auto
 output:
   location: ./tmp
   what:

@@ -42,12 +42,12 @@ dhfs_lib.set_parameters_.restype = None
 
 
 def call_set_parameters(atomic_weight: float, outer_radius: float, n_grid_points: int, i_verbose: int = 0):
-    np = ctypes.c_int(n_grid_points)
+    n_points = ctypes.c_int(n_grid_points)
     dhfs_lib.set_parameters_(ctypes.c_double(atomic_weight),
                              ctypes.c_double(outer_radius),
-                             np,
+                             n_points,
                              ctypes.c_int(i_verbose))
-    return np
+    return n_points.value
 
 
 # configuration and wrapper for DHFS_MAIN

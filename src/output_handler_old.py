@@ -1,11 +1,12 @@
-from configs.output_config import output_config
-from configs.wavefunctions_config import run_config
-from handlers.wavefunction_handlers import dhfs_handler, scattering_handler
+from .output_config import output_config
+from .wavefunctions import scattering_handler
+from .dhfs import dhfs_handler
+from .wavefunctions_config import run_config
 import os
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import ph
+from . import ph
 from grid_strategy import strategies
 
 
@@ -24,13 +25,16 @@ class output_handler:
         self.final_dir = os.path.abspath(self.output_config.location)
 
     def output_dhfs(self, handler: dhfs_handler):
-        base_name = f"{handler.dhfs_config.name}_dhfs.obj"
+        base_name = f"{handler.config.name}_dhfs.obj"
 
         with open(os.path.join(self.final_dir, base_name), 'wb') as f:
             pickle.dump(handler, f)
 
     def plot_scattering_wf(self, scatt_handler: scattering_handler, energy_values: np.ndarray, k_values: np.ndarray):
         available_energies = scatt_handler.energy_grid
+        momentum = np.sqrt(
+            available_energies*(available_energies+2*ph.electron_mass/ph.hartree_energy))
+
         for i_e in range(len(energy_values)):
             a = strategies.SquareStrategy()
             n_rows, n_cols = a.get_grid_arrangement(2*len(k_values))
@@ -42,13 +46,16 @@ class output_handler:
             i_col = 0
             for i_k in range(len(k_values)):
                 k = k_values[i_k]
+                scale = 1.0/ph.fine_structure * 1.0 / \
+                    (momentum[id_best]*scatt_handler.r_grid)
+                norm = scatt_handler.norm[id_best]*scale
                 ax[i_row, i_col].plot(scatt_handler.r_grid*ph.bohr_radius /
-                                      ph.fermi, np.abs(scatt_handler.g_grid[i_k][id_best]))
+                                      ph.fermi, np.abs(norm*scatt_handler.p_grid[k][id_best]))
                 ax[i_row, i_col].set_xlim(0., 8.)
                 ax[i_row, i_col].set_title(f"g {k}")
 
                 ax[i_row, i_col+1].plot(scatt_handler.r_grid*ph.bohr_radius/ph.fermi,
-                                        np.abs(scatt_handler.f_grid[i_k][id_best]))
+                                        np.abs(norm*scatt_handler.q_grid[k][id_best]))
                 ax[i_row, i_col+1].set_xlim(0., 8.)
                 ax[i_row, i_col+1].set_title(f"f {k}")
 
