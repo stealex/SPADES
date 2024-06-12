@@ -1,5 +1,6 @@
 import struct
 import numpy as np
+from . import ph
 
 
 def write_scattring_wf(file_name, kappa: list[int], ke_grid: np.ndarray, inner_grid: dict, coulomb_grid: dict, r_values: np.ndarray, p: dict, q: dict):
@@ -124,10 +125,11 @@ def read_bound_wf(file_name):
     return r_grid, be_values, p_values, q_values
 
 
-header_spectra = f'''
+header_spectra = '''
 # Spectra and PSF values computed with project_name version
-# Energy unit = unit
-# PSF unit = unit
+# Energy unit = {energy_unit}
+# PSF unit = {psf_unit}
+# N energy points = {n_energy_points}
 # Single (Summed) electron energy spectra are normalized to unit integral
 # Legend:
 # - dG/de = single electron energy spectrum
@@ -143,14 +145,16 @@ header_spectra = f'''
 def write_spectra(file_name, e_grid: np.ndarray, spectra: dict, psfs: dict | None = None):
     n_fermi_functions = len(spectra)
     with open(file_name, "w") as f:
-        f.write(header_spectra)
+        f.write(header_spectra.format(energy_unit=ph.user_energy_unit_name,
+                                      psf_unit=ph.user_psf_unit_name,
+                                      n_energy_points=len(e_grid)))
 
         if not (psfs is None):
             f.write("# PSFs:\n")
             line = ""
             for ff_type in psfs:
                 for sp_type in psfs[ff_type]:
-                    line = line+f'{sp_type+'('+ff_type+')':>20s}'
+                    line = line+f'{sp_type+'('+ff_type+')':>25s}'
 
             line = line+"\n"
             f.write(line)
@@ -158,7 +162,7 @@ def write_spectra(file_name, e_grid: np.ndarray, spectra: dict, psfs: dict | Non
             line = ""
             for ff_type in psfs:
                 for sp_type in psfs[ff_type]:
-                    line = line+f'{psfs[ff_type][sp_type]:20.8E}'
+                    line = line+f'{psfs[ff_type][sp_type]:25.13E}'
             line = line+"\n"
             f.write(line)
 
@@ -166,7 +170,7 @@ def write_spectra(file_name, e_grid: np.ndarray, spectra: dict, psfs: dict | Non
         line = f"{'E':>10s}"
         for ff_type in spectra:
             for sp_type in spectra[ff_type]:
-                line = line+f'{sp_type+'('+ff_type+')':>20s}'
+                line = line+f'{sp_type+'('+ff_type+')':>25s}'
 
         line = line+"\n"
         f.write(line)
@@ -175,6 +179,6 @@ def write_spectra(file_name, e_grid: np.ndarray, spectra: dict, psfs: dict | Non
             line = f"{e_grid[ie]:10.5f}"
             for ff_type in spectra:
                 for sp_type in spectra[ff_type]:
-                    line = line+f'{spectra[ff_type][sp_type][ie]:20.8E}'
+                    line = line+f'{spectra[ff_type][sp_type][ie]:25.13E}'
             line = line+"\n"
             f.write(line)

@@ -49,7 +49,8 @@ class bound_config:
 
     def print(self):
         print("Configuration for bound states")
-        print(f"  - Maximum radial distance: {self.max_r: 8.3f} bohr")
+        print(f"  - Maximum radial distance: {self.max_r*ph.to_distance_units(): 8.3f}",
+              f"{ph.user_distance_unit_name}")
         print(f"  - Number of radial points: {self.n_radial_points: d}")
         print(f"  - N and K values:")
         for i in range(len(self.n_values)):
@@ -62,15 +63,19 @@ class bound_handler:
         self.z_nuc = z_nuc
         self.n_e = n_e
 
-        _, self.r_grid, self.dr_grid = radial_wrapper.call_sgrid(self.config.max_r,
-                                                                 1E-7,
-                                                                 0.5,
-                                                                 self.config.n_radial_points,
-                                                                 2*self.config.n_radial_points)
-        radial_wrapper.call_setrgrid(self.r_grid)
+        _, r, dr = radial_wrapper.call_sgrid(self.config.max_r*ph.fm/ph.bohr_radius,
+                                             1E-7,
+                                             0.5,
+                                             self.config.n_radial_points,
+                                             2*self.config.n_radial_points)
+        self.r_grid = r*ph.bohr_radius/ph.fm
+        self.dr_grid = dr*ph.bohr_radius/ph.fm
+
+        radial_wrapper.call_setrgrid(r)
 
     def set_potential(self, r_grid: np.ndarray, rv_grid: np.ndarray):
-        radial_wrapper.call_vint(r_grid, rv_grid)
+        radial_wrapper.call_vint(
+            r_grid*ph.fm/ph.bohr_radius, rv_grid*ph.MeV*ph.fm/(ph.hartree_energy*ph.bohr_radius))
 
     def find_bound_states(self, binding_energies=None):
         self.p_grid = {}
@@ -95,7 +100,8 @@ class bound_handler:
                     trial_be = math_stuff.hydrogenic_binding_energy(
                         self.z_nuc, n, k)
                 try:
-                    true_be = radial_wrapper.call_dbound(trial_be, n, k)
+                    true_be = radial_wrapper.call_dbound(
+                        trial_be/ph.hartree_energy, n, k)
                 except RADIALError:
                     # means computation did not succeed for whatever reason
                     # don't stop, just don't add this to the class
@@ -104,9 +110,9 @@ class bound_handler:
 
                 p, q = radial_wrapper.call_getpq(
                     self.config.n_radial_points)
-                self.p_grid[n][k] = p
-                self.q_grid[n][k] = q
-                self.be[n][k] = true_be
+                self.p_grid[n][k] = p * 1./np.sqrt(ph.bohr_radius/ph.fm)
+                self.q_grid[n][k] = q * 1./np.sqrt(ph.bohr_radius/ph.fm)
+                self.be[n][k] = true_be*ph.hartree_energy
 
 
 class scattering_config:
@@ -138,38 +144,46 @@ class scattering_config:
 
     def print(self):
         print("Configuration for scattering states")
-        print(f"  - Maximum radial distance: {self.max_r: 8.3f} bohr")
+        print(f"  - Maximum radial distance: {self.max_r*ph.to_distance_units(): 8.3f}"
+              f" {ph.user_distance_unit_name}")
         print(f"  - Number of radial points: {self.n_radial_points: d}")
         print(f"  - K values: ", self.k_values)
-        print(f"  - Energy limits: [", self.min_ke,
-              ", ", self.max_ke, "] hartree")
+        print(f"  - Energy limits: [", self.min_ke/ph.user_energy_unit,
+              ", ", self.max_ke/ph.user_energy_unit, f"] {ph.user_energy_unit_name}")
+        print(f"  - Number of energy points: {self.n_ke_points}")
 
 
 class scattering_handler:
     def __init__(self, z_nuc: int, n_e: int, scattering_states_configuration: scattering_config) -> None:
         self.config = scattering_states_configuration
 
-        _, self.r_grid, self.dr_grid = radial_wrapper.call_sgrid(self.config.max_r,
-                                                                 1E-7,
-                                                                 0.5,
-                                                                 self.config.n_radial_points,
-                                                                 2*self.config.n_radial_points)
-        radial_wrapper.call_setrgrid(self.r_grid)
+        _, r, dr = radial_wrapper.call_sgrid(self.config.max_r*ph.fm/ph.bohr_radius,
+                                             1E-7,
+                                             0.5,
+                                             self.config.n_radial_points,
+                                             2*self.config.n_radial_points)
+
+        self.r_grid = r*ph.bohr_radius/ph.fm
+        self.dr_grid = dr*ph.bohr_radius/ph.fm
+
+        radial_wrapper.call_setrgrid(r)
         self.energy_grid = np.logspace(np.log10(self.config.min_ke),
                                        np.log10(self.config.max_ke),
                                        self.config.n_ke_points)
 
     def set_potential(self, r_grid: np.ndarray, rv_grid: np.ndarray):
-        self.z_inf = rv_grid[-1]
-        radial_wrapper.call_vint(r_grid, rv_grid)
+        to_atomic = ph.MeV*ph.fm/(ph.hartree_energy*ph.bohr_radius)
+        self.z_inf = rv_grid[-1]*to_atomic
+        radial_wrapper.call_vint(
+            r_grid*ph.fm/ph.bohr_radius, rv_grid*to_atomic)
 
     def compute_scattering_states(self):
         self.phase_grid = {}
         self.coul_phase_grid = {}
         self.p_grid = {}
         self.q_grid = {}
-        self.norm = np.sqrt((self.energy_grid+2.0*ph.electron_mass/ph.hartree_energy) /
-                            (2.0*(self.energy_grid+ph.electron_mass/ph.hartree_energy)))
+        self.norm = np.sqrt((self.energy_grid+2.0*ph.electron_mass) /
+                            (2.0*(self.energy_grid+ph.electron_mass)))
 
         for i_k in tqdm(range(len(self.config.k_values)),
                         desc="Computing scattering states",
@@ -187,14 +201,15 @@ class scattering_handler:
                             leave=False):
                 e = self.energy_grid[i_e]
                 try:
-                    phase = radial_wrapper.call_dfree(e, k, 1E-14)
+                    phase = radial_wrapper.call_dfree(
+                        e/ph.hartree_energy, k, 1E-14)
                 except RADIALError:
                     print(f"Could not find scattering state {k:d}, {e:f}")
                     continue
 
                 p, q = radial_wrapper.call_getpq(len(self.r_grid))
                 coul_phase_shift = coulomb_phase_shift(
-                    e*ph.hartree_energy, self.z_inf, k)
+                    e, self.z_inf, k)
                 self.p_grid[k][i_e] = p
                 self.q_grid[k][i_e] = q
 
@@ -217,8 +232,7 @@ class wavefunctions_handler:
         self.dhfs_handler = dhfs_handler(
             self.atomic_system, self.atomic_system.name)
         self.dhfs_handler.run_dhfs(self.bound_config.max_r,
-                                   self.bound_config.n_radial_points,
-                                   iverbose=0)
+                                   self.bound_config.n_radial_points)
 
         self.dhfs_handler.retrieve_dhfs_results()
         self.dhfs_handler.build_modified_potential()

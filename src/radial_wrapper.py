@@ -4,16 +4,24 @@ import os
 
 
 class RADIALError(Exception):
+    """Exception raised for errors in the RADIAL module."""
     pass
 
 
-_dir_name = os.path.dirname(__file__)
-radial_lib = cdll.LoadLibrary(os.path.join(_dir_name, "../build/libradial.so"))
+def load_radial_library():
+    _dir_name = os.path.dirname(__file__)
+    radial_lib = cdll.LoadLibrary(
+        os.path.join(_dir_name, "../build/libdhfs.so"))
 
-# configuration and wrapper of VINT
-radial_lib.vint_.argtypes = [
-    POINTER(c_double), POINTER(c_double), POINTER(c_int)]
-radial_lib.vint_.restype = None
+    # configuration and wrapper of VINT
+    radial_lib.vint_.argtypes = [
+        POINTER(c_double), POINTER(c_double), POINTER(c_int)]
+    radial_lib.vint_.restype = None
+
+    return radial_lib
+
+
+radial_lib = load_radial_library()
 
 
 def call_vint(r: np.ndarray, rv: np.ndarray) -> None:

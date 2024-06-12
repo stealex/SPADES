@@ -10,7 +10,7 @@ from functools import lru_cache
 
 class spectra_config:
     def __init__(self, method: str, wavefunction_evaluation: str, nuclear_radius: str | float, types: list[str],
-                 energy_grid_type: str, fermi_functions: list[str], corrections: list[str] | None = None, q_value: float | str | None = None, min_ke: float | str | None = None, n_ke_points: int | str | None = None) -> None:
+                 energy_grid_type: str, fermi_functions: list[str], q_value: float, min_ke: float, n_ke_points: int, corrections: list[str] | None = None) -> None:
         self.method = ph.SPECTRUM_METHODS[method]
         self.wavefunction_evaluation = ph.WAVEFUNCTIONEVALUATION[wavefunction_evaluation]
         self.nuclear_radius = nuclear_radius

@@ -2,155 +2,106 @@
 import os
 import yaml
 from argparse import ArgumentParser
-from src.wavefunctions_config import run_config
-from src.output_config import output_config
-from src.output_handler_old import output_handler
-from src.wavefunctions import wavefunctions_handler
+from src import ph, fermi_functions, exchange, spectra
+from src.wavefunctions import wavefunctions_handler, bound_config, scattering_config
+from src.dhfs import atomic_system, create_ion
 from src import io_handler
 import matplotlib.pyplot as plt
 import numpy as np
-from src import ph, math_stuff, fermi_functions, exchange, spectra
+from src.spectra import spectra_config
 import time
-from grid_strategy import strategies
 
 
-def next_plot_indices(i_row, i_col, n_rows, n_cols):
-    if i_col < n_cols-1:
-        return (i_row, i_col+1)
-    else:
-        return (i_row+1, 0)
+class run_config:
+    def __init__(self, config: dict) -> None:
+        self.task_name = config["task"]
+        self.process_name = config["process"]
 
+        # atoms
+        self.initial_atom = atomic_system(config["initial_atom"])
+        self.final_atom = create_ion(
+            self.initial_atom, self.initial_atom.Z + 2)
 
-def plot_asymptotic(wf_handler_final: wavefunctions_handler, e_values: list):
-    a = strategies.SquareStrategy()
-    k_values = wf_handler_final.scattering_config.k_values
-    # print(a.get_grid_arrangement(2*len(e_values)*len(k_values)))
-    n_rows, n_cols = a.get_grid_arrangement(2*len(k_values))
-
-    r_grid = wf_handler_final.scattering_handler.r_grid
-    for i_e in range(len(e_values)):
-        fig, axs = plt.subplots(n_rows, n_cols,
-                                figsize=(6*n_cols, 4*n_rows))
-        i_row = 0
-        i_col = 0
-
-        index_e_current = np.abs(
-            wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy - e_values[i_e]).argmin()
-
-        e = wf_handler_final.scattering_handler.energy_grid[index_e_current] * \
-            ph.hartree_energy
-        momentum = np.sqrt(e*(e+2*ph.electron_mass))
-        norm = np.sqrt((e + 2.0*ph.electron_mass) / (2.0*(e+ph.electron_mass)))
-        eta = math_stuff.sommerfeld_param(
-            wf_handler_final.scattering_handler.z_inf, 1., e)
-        for i_k in range(len(k_values)):
-            k = k_values[i_k]
-            l = k if k > 0 else -k-1
-            # print(k, l)
-            kr = momentum*(r_grid*ph.bohr_radius/ph.fermi) / ph.hc
-            # print("momentum = ", momentum)
-            # print("r_grid = ", r_grid)
-            # print("ph.bohr_radius/ph.fermi = ", ph.bohr_radius/ph.fermi)
-            # print(kr)
-
-            p = wf_handler_final.scattering_handler.p_grid[k][index_e_current]
-            q = wf_handler_final.scattering_handler.q_grid[k][index_e_current]
-
-            delta = wf_handler_final.scattering_handler.phase_grid[k][index_e_current]
-            coulomb_delta = math_stuff.coulomb_phase_shift(
-                e, wf_handler_final.scattering_handler.z_inf, k)
-            # print(e, eta, wf_handler_final.scattering_handler.z_inf,
-            #       delta, coulomb_delta)
-            axs[i_row, i_col].plot(r_grid, p)
-            axs[i_row, i_col].plot(r_grid, np.sin(
-                kr-l*np.pi/2.-eta*np.log(2*kr)+delta+coulomb_delta))
-            # axs[i_row, i_col].set_xscale('log')
-            axs[i_row, i_col].set_xlabel("r [bohr]")
-            axs[i_row, i_col].set_ylabel("P(r)")
-            axs[i_row, i_col].set_title(f"E = {e} [MeV]; kappa = {k}")
-            # print(i_row, i_col)
-            i_row, i_col = next_plot_indices(i_row, i_col, n_rows, n_cols)
-
-            axs[i_row, i_col].plot(r_grid, q)
-            # axs[i_row, i_col].plot(r_grid, np.cos(
-            #     kr-l*np.pi/2.-eta*np.log(2*kr)+delta+coulomb_delta))
-            # axs[i_row, i_col].set_xscale('log')
-            axs[i_row, i_col].set_xlabel("r [bohr]")
-            axs[i_row, i_col].set_ylabel("Q(r)")
-            axs[i_row, i_col].set_title(f"E = {e} [MeV]; kappa = {k}")
-
-            # print(i_row, i_col)
-            i_row, i_col = next_plot_indices(i_row, i_col, n_rows, n_cols)
-
-
-def plot_phase_shifts(wf_handler_final: wavefunctions_handler):
-
-    a = strategies.SquareStrategy()
-    k_values = wf_handler_final.scattering_config.k_values
-    n_rows, n_cols = a.get_grid_arrangement(len(k_values)+2)
-
-    i_row = 0
-    i_col = 0
-    fig, axs = plt.subplots(n_rows, n_cols, figsize=(6*n_cols, 4*n_rows))
-    total_phase = np.zeros(
-        (2, len(wf_handler_final.scattering_handler.phase_grid[-1])))
-    for i_k in range(len(k_values)):
-        k = k_values[i_k]
-        coul_phase = np.zeros_like(total_phase[0])
-        for i_e in range(len(coul_phase)):
-            energy = wf_handler_final.scattering_handler.energy_grid[i_e] * \
-                ph.hartree_energy
-            coul_phase[i_e] = math_stuff.coulomb_phase_shift(
-                energy, wf_handler_final.scattering_handler.z_inf, k)
-
-        axs[i_row, i_col].scatter(
-            wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
-            coul_phase,
-            label=r"$\Delta_C$"
-        )
-
-        axs[i_row, i_col].scatter(
-            wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
-            wf_handler_final.scattering_handler.phase_grid[k]-coul_phase,
-            label=r"$\delta$"
-        )
-
-        total_phase[i_k] = wf_handler_final.scattering_handler.phase_grid[k]
-
-        axs[i_row, i_col].scatter(
-            wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
-            total_phase[i_k],
-            label=r"$\delta + \Delta_C$"
-        )
-
-        axs[i_row, i_col].set_xlabel("Energy [MeV]")
-        axs[i_row, i_col].set_ylabel("Phase")
-        axs[i_row, i_col].set_xscale('log')
-        axs[i_row, i_col].set_title(r"$\kappa = $"+f"{k}")
-
-        axs[i_row, i_col].legend(loc=2)
-
-        if i_col+1 < n_cols:
-            i_col = i_col+1
+        # technicals
+        method = config["spectra_computation"]["method"]
+        wavefunction_eval = config["spectra_computation"]["wavefunction_evaluation"]
+        nuclear_radius = config["spectra_computation"]["nuclear_radius"]
+        print(type(nuclear_radius))
+        if isinstance(nuclear_radius, str):
+            print(nuclear_radius)
+            if nuclear_radius == "auto":
+                nuclear_radius = 1.2*(self.initial_atom.mass_number)**(1./3.)
+            else:
+                raise ValueError(
+                    f"Unknown option {nuclear_radius} for nuclear_radius")
+        elif isinstance(nuclear_radius, float):
+            if (nuclear_radius < 0):
+                raise ValueError("Nuclear radius cannot be < 0")
         else:
-            i_col = 0
-            i_row = i_row+1
+            raise ValueError("Cannot interpret nuclear_radius option")
 
-    axs[1, 0].scatter(
-        wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
-        total_phase[1] - total_phase[0]
-    )
-    axs[1, 0].set_xlabel("E [MeV]")
-    axs[1, 0].set_ylabel(r"$\Delta_{1} - \Delta_{-1}$")
-    axs[1, 0].set_xscale('log')
+        types = config["spectra_computation"]["types"]
+        energy_grid_type = config["spectra_computation"]["energy_grid_type"]
+        corrections = config["spectra_computation"]["corrections"]
+        fermi_functions = config["spectra_computation"]["fermi_functions"]
+        q_value = config["spectra_computation"]["q_value"]
+        if q_value == "auto":
+            q_values = ph.read_qvalues(ph.q_values_file)
+            q_value = q_values[self.initial_atom.name_nice]
+        elif (q_value > 0):
+            pass
+        else:
+            raise ValueError("Cannot interpret q_value option")
 
-    axs[1, 1].scatter(
-        wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
-        np.cos(total_phase[1] - total_phase[0])
-    )
-    axs[1, 1].set_xlabel("E [MeV]")
-    axs[1, 1].set_ylabel(r"$cos(\Delta_{1} - \Delta_{-1})$")
-    axs[1, 1].set_xscale('log')
+        min_ke = float(config["spectra_computation"]["min_ke"])
+        n_ke_points = config["spectra_computation"]["n_ke_points"]
+
+        if "bound_states" in config:
+            if (config["bound_states"]["n_values"] == "auto"):
+                n_values = list(set(self.initial_atom.n_values.tolist()))
+            else:
+                n_values = config["bound_states"]["n_values"]
+
+            if (config["bound_states"]["k_values"] == "auto"):
+                k_values = {}
+                for i_s in range(len(self.initial_atom.electron_config)):
+                    n = self.initial_atom.n_values[i_s]
+                    l = self.initial_atom.l_values[i_s]
+                    j = 0.5*self.initial_atom.jj_values[i_s]
+                    k = int((l-j)*(2*j+1))
+
+                    if not (self.initial_atom.n_values[i_s] in k_values):
+                        k_values[n] = []
+                    k_values[n].append(k)
+            else:
+                k_values = config["bound_states"]["k_values"]
+            self.bound_config = bound_config(max_r=config["bound_states"]["max_r"]*ph.user_distance_unit/ph.fm,
+                                             n_radial_points=config["bound_states"]["n_radial_points"],
+                                             n_values=n_values,
+                                             k_values=k_values)
+        else:
+            self.bound_config = None
+
+        if "scattering_states" in config:
+            k_values = config["scattering_states"]["k_values"]
+            if (config["scattering_states"]["k_values"] == "auto"):
+                k_values = [-1, 1]
+            if (config["scattering_states"]["n_ke_points"] == "auto"):
+                n_ke_points_scattering = 100
+            else:
+                n_ke_points_scattering = config["scattering_states"]["n_ke_points"]
+            self.scattering_config = scattering_config(max_r=config["scattering_states"]["max_r"]*ph.user_distance_unit/ph.fm,
+                                                       n_radial_points=config["scattering_states"]["n_radial_points"],
+                                                       min_ke=min_ke * ph.user_energy_unit/ph.MeV,
+                                                       max_ke=q_value * ph.user_energy_unit/ph.MeV,
+                                                       n_ke_points=n_ke_points_scattering,
+                                                       k_values=k_values)
+        else:
+            self.scattering_config = None
+
+        self.spectra_config = spectra_config(method=method, wavefunction_evaluation=wavefunction_eval, nuclear_radius=nuclear_radius,
+                                             types=types, energy_grid_type=energy_grid_type, fermi_functions=fermi_functions, q_value=q_value,
+                                             min_ke=min_ke, corrections=corrections, n_ke_points=n_ke_points)
 
 
 def main(argv=None):
@@ -161,27 +112,50 @@ def main(argv=None):
                         help="path to yaml configuration file")
     parser.add_argument("--verbose",
                         help="verbosity level: 0 = lowest; 5 = highest",
+                        type=int,
                         action="store",
-                        choices=range(0, 6),
+                        choices=[0, 1, 2, 3, 4, 5],
                         default=0)
+    parser.add_argument("--energy_unit",
+                        help="any CLHEP-defined energy unit or 'electron_mass' or 'hartree_energy'",
+                        type=str,
+                        action="store",
+                        default="MeV")
+    parser.add_argument("--distance_unit",
+                        help="any CLHEP-defined distance unit or 'bohr_radius'",
+                        type=str,
+                        action="store",
+                        default="fm")
+    parser.add_argument("--qvalues_file",
+                        help="File storing Q-values in MeV. YAML file with ANuc: Qval entries",
+                        type=str,
+                        action="store",
+                        default=ph.q_values_file)
 
     args = parser.parse_args()
+    ph.verbose = args.verbose
+    ph.user_distance_unit_name = args.distance_unit
+    ph.user_energy_unit_name = args.energy_unit
+    ph.user_distance_unit = ph.__dict__[
+        args.distance_unit]
+    ph.user_energy_unit = ph.__dict__[args.energy_unit]
+    ph.q_values_file = args.qvalues_file
 
     with open(args.config_file, 'r') as f:
         run_conf = yaml.safe_load(f)
 
     input_config = run_config(run_conf)
     has_bound_state_config = True
-    try:
+    if not (input_config.bound_config is None):
         input_config.bound_config.print()
-    except AttributeError:
+    else:
         print("No bound states configuration for RADIAL")
         has_bound_state_config = False
 
     has_scattering_state_config = True
-    try:
+    if not (input_config.scattering_config is None):
         input_config.scattering_config.print()
-    except AttributeError:
+    else:
         print("No scattering states configuration for RADIAL")
         has_scattering_state_config = False
 
@@ -195,11 +169,6 @@ def main(argv=None):
         wf_handler_initial.find_all_wavefunctions()
         stop_time = time.time()
         print(f"... took {stop_time-start_time: .2f} seconds")
-
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.plot(wf_handler_initial.dhfs_handler.rad_grid,
-                wf_handler_initial.dhfs_handler.rv_modified)
-        ax.set_xscale('log')
 
     if has_scattering_state_config:
         print("Computing wavefunctions for final atom")
@@ -224,57 +193,27 @@ def main(argv=None):
     else:
         eta_total = None
 
-    # out_conf = output_config(location=run_conf["output"]["location"])
-    # out_handler = output_handler(out_conf, input_config)
-    # out_handler.output_dhfs(wf_handler_initial.dhfs_handler)
-
-    # out_handler.plot_scattering_wf(
-    #     wf_handler_final.scattering_handler,
-    #     np.array([2.0-ph.electron_mass])*ph.MeV/ph.hartree_energy,
-    #     np.array([-1, 1]))
-
-    # plot_asymptotic(wf_handler_final, [1E-4, 2.0])
-
     if type(input_config.spectra_config.nuclear_radius) == str:
         nuclear_radius = 1.2*(input_config.initial_atom.mass_number**(1./3.))
     elif type(input_config.spectra_config.nuclear_radius) == float:
         nuclear_radius = input_config.spectra_config.nuclear_radius
 
-    if has_scattering_state_config:
-        q_value = input_config.scattering_config.max_ke*ph.hartree_energy
-        min_ke = input_config.scattering_config.min_ke*ph.hartree_energy
-        n_ke_points = input_config.scattering_config.n_ke_points
-    elif type(input_config.spectra_config.q_value) == float:
-        q_value = input_config.spectra_config.q_value
-        if type(input_config.spectra_config.min_ke) == float:
-            min_ke = input_config.spectra_config.min_ke
-        else:
-            raise ValueError(
-                "Could not determine spectrum start point."
-                "Either the minimum ke for scattering states or for spectra has to be given")
-        if type(input_config.spectra_config.n_ke_points) == int:
-            n_ke_points = input_config.spectra_config.n_ke_points
-        else:
-            raise ValueError(
-                "Could not determine number of energy points for spectrum."
-                "Either the number of points for scattering states or for spectra has to be given"
-            )
-    else:
-        raise ValueError(
-            "Could not determine spectrum end point."
-            "Either the maximum electron ke or the q-value has to be given")
-
     if (input_config.spectra_config.energy_grid_type == "lin"):
-        spectrum_energy_grid = np.linspace(min_ke, q_value, n_ke_points)
+        spectrum_energy_grid = np.linspace(input_config.spectra_config.min_ke,
+                                           input_config.spectra_config.q_value,
+                                           input_config.spectra_config.n_ke_points)
     elif input_config.spectra_config.energy_grid_type == "log":
         spectrum_energy_grid = np.logspace(
-            np.log10(min_ke), np.log10(q_value), n_ke_points)
+            np.log10(input_config.spectra_config.min_ke),
+            np.log10(input_config.spectra_config.q_value),
+            input_config.spectra_config.n_ke_points)
 
     if input_config.spectra_config.method == ph.CLOSUREMETHOD:
         atilde = 1.12*(input_config.initial_atom.mass_number**0.5)
-        enei = atilde - 0.5*(q_value + 2.0*ph.electron_mass)
+        enei = atilde - 0.5 * \
+            (input_config.spectra_config.q_value + 2.0*ph.electron_mass)
         spectrum = spectra.closure_spectrum(
-            q_value=q_value, energy_points=spectrum_energy_grid, enei=enei)
+            q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, enei=enei)
 
     print("Computing spectra:")
     psf_collection = {}
@@ -309,16 +248,19 @@ def main(argv=None):
             sp_type_nice = ph.SPECTRUM_TYPES_NICE[sp_type]
             if sp_type == ph.ANGULARSPECTRUM:
                 spectrum_vals = spectrum.compute_spectrum(
-                    sp_type, ff.ff1_eval, eta_total)
+                    sp_type, ff.ff1_eval,
+                    eta_total if ff_type == ph.NUMERICFERMIFUNCTIONS else None)
             else:
                 spectrum_vals = spectrum.compute_spectrum(
-                    sp_type, ff.ff0_eval, eta_total)
+                    sp_type, ff.ff0_eval,
+                    eta_total if ff_type == ph.NUMERICFERMIFUNCTIONS else None)
 
             spectrum_integral = spectrum.integrate_spectrum(spectrum_vals)
             spectra_collection[ff_type_nice][sp_type_nice] = spectrum_vals / \
                 spectrum_integral
             psf = spectrum.compute_psf(spectrum_integral)
-            psf_collection[ff_type_nice][sp_type_nice] = psf
+            psf_type_nice = ph.PSF_TYPES_NICE[sp_type]
+            psf_collection[ff_type_nice][psf_type_nice] = psf
 
     io_handler.write_spectra(
         "spectra.dat", spectrum_energy_grid, spectra_collection, psf_collection)

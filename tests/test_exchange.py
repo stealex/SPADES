@@ -15,9 +15,9 @@ def test_exchange():
     initial_atom.print()
 
     final_atom = create_ion(
-        initial_atom, initial_atom.Z+1)
-    ke_min = 2E-4
-    ke_max = 1E-1
+        initial_atom, initial_atom.Z+2)
+    ke_min = 2E-4  # MeV
+    ke_max = 1E-1  # MeV
     k_values = {}
     for i_s in range(len(initial_atom.electron_config)):
         n = initial_atom.n_values[i_s]
@@ -30,10 +30,10 @@ def test_exchange():
 
     n_values = list(set(initial_atom.n_values.tolist()))
     bound_config = wavefunctions.bound_config(
-        100, 5000, n_values, k_values)
+        100*ph.bohr_radius/ph.fm, 5000, n_values, k_values)
     bound_config.print()
     scattering_config = wavefunctions.scattering_config(
-        100, 5000, ke_min/ph.hartree_energy, ke_max/ph.hartree_energy,
+        100*ph.bohr_radius/ph.fm, 5000, ke_min, ke_max,
         100, [-1, 1])
     scattering_config.print()
     wf_handler_initial = wavefunctions.wavefunctions_handler(
@@ -49,7 +49,7 @@ def test_exchange():
     wf_handler_final.find_all_wavefunctions()
     r_nuc = 1.2 * \
         ((wf_handler_initial.atomic_system.mass_number)**(1./3.))
-    ir_nuc = np.abs(r_nuc*ph.fermi/ph.bohr_radius -
+    ir_nuc = np.abs(r_nuc -
                     wf_handler_final.bound_handler.r_grid).argmin()
     exchange_correction = exchange.exchange_correction(
         wf_handler_initial, wf_handler_final)
@@ -60,7 +60,7 @@ def test_exchange():
     tn = {}
 
     e_values = ph.electron_mass + \
-        wf_handler_final.scattering_handler.energy_grid/ph.hartree_energy
+        wf_handler_final.scattering_handler.energy_grid
 
     norm = np.sqrt((e_values+ph.electron_mass)/(2*e_values))
 
@@ -80,10 +80,12 @@ def test_exchange():
             if not (k in k_values[n]):
                 continue
             i_row, i_col = divmod(i_n, 2)
-            ax[i_row, i_col].plot(1E3*wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
+            ax[i_row, i_col].plot(1E3*wf_handler_final.scattering_handler.energy_grid,
                                   tn[n][k])
             ax[i_row, i_col].set_xscale('log')
             ax[i_row, i_col].set_xlim(1E3*ke_min, 1E3*ke_max)
+            ax[i_row, i_col].set_xlabel('E-m')
+            ax[i_row, i_col].set_ylabel(f'T({n},{k})')
             if k == -1:
                 if (n == 1):
                     ax[i_row, i_col].set_ylim(-0.005, 0.085)
@@ -99,16 +101,18 @@ def test_exchange():
     fig, ax = plt.subplots()
     eta_total = eta_s+eta_p
     for n in n_values:
-        ax.plot(1E3*wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
+        ax.plot(1E3*wf_handler_final.scattering_handler.energy_grid,
                 eta[n][-1])
-    ax.plot(1E3*wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
+    ax.plot(1E3*wf_handler_final.scattering_handler.energy_grid,
             eta_total)
+    ax.set_xlabel('E-m')
+    ax.set_ylabel("eta")
 
     fig, ax = plt.subplots()
     for n in n_values:
         if not (1 in k_values[n]):
             continue
-        ax.plot(1E3*wf_handler_final.scattering_handler.energy_grid*ph.hartree_energy,
+        ax.plot(1E3*wf_handler_final.scattering_handler.energy_grid,
                 eta[n][1])
 
     plt.show()

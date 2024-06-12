@@ -46,7 +46,7 @@ class run_config:
                     k_values[n].append(k)
             else:
                 k_values = config["bound_states"]["k_values"]
-            self.bound_config = bound_config(max_r=config["bound_states"]["max_r"]*ph.user_distance_unit/ph.bohr_radius,
+            self.bound_config = bound_config(max_r=config["bound_states"]["max_r"]*ph.user_distance_unit/ph.fm,
                                              n_radial_points=config["bound_states"]["n_radial_points"],
                                              n_values=n_values,
                                              k_values=k_values)
@@ -61,9 +61,9 @@ class run_config:
             self.scattering_config = scattering_config(max_r=config["scattering_states"]["max_r"]*ph.user_distance_unit/ph.bohr_radius,
                                                        n_radial_points=config["scattering_states"]["n_radial_points"],
                                                        min_ke=config["scattering_states"]["min_ke"] *
-                                                       ph.user_energy_unit/ph.hartree_energy,
+                                                       ph.user_energy_unit,
                                                        max_ke=config["scattering_states"]["max_ke"] *
-                                                       ph.user_energy_unit/ph.hartree_energy,
+                                                       ph.user_energy_unit,
                                                        n_ke_points=config["scattering_states"]["n_ke_points"],
                                                        k_values=k_values)
         else:

@@ -2,6 +2,8 @@ import numpy as np
 from ctypes import cdll
 import ctypes
 import os
+from . import ph
+
 try:
     _dir_name = os.path.dirname(__file__)
     dhfs_lib = cdll.LoadLibrary(os.path.join(_dir_name, "../build/libdhfs.so"))
@@ -19,7 +21,7 @@ dhfs_lib.configuration_input_.argtypes = [ctypes.POINTER(ctypes.c_int),
 dhfs_lib.configuration_input_.restype = None
 
 
-def call_configuration_input(n: np.ndarray, l: np.ndarray, jj: np.ndarray, occup: np.ndarray, i_z: int, i_verbose: int = 0):
+def call_configuration_input(n: np.ndarray, l: np.ndarray, jj: np.ndarray, occup: np.ndarray, i_z: int):
 
     dhfs_lib.configuration_input_(n.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
                                   l.ctypes.data_as(
@@ -30,7 +32,7 @@ def call_configuration_input(n: np.ndarray, l: np.ndarray, jj: np.ndarray, occup
                                       ctypes.POINTER(ctypes.c_double)),
                                   ctypes.c_int(i_z),
                                   ctypes.c_int(len(n)),
-                                  ctypes.c_int(i_verbose))
+                                  ctypes.c_int(ph.verbose))
 
 
 # configuration and wrapper for SET_PARAMETERS
@@ -41,12 +43,12 @@ dhfs_lib.set_parameters_.argtypes = [ctypes.POINTER(ctypes.c_double),
 dhfs_lib.set_parameters_.restype = None
 
 
-def call_set_parameters(atomic_weight: float, outer_radius: float, n_grid_points: int, i_verbose: int = 0):
+def call_set_parameters(atomic_weight: float, outer_radius: float, n_grid_points: int):
     n_points = ctypes.c_int(n_grid_points)
     dhfs_lib.set_parameters_(ctypes.c_double(atomic_weight),
                              ctypes.c_double(outer_radius),
                              n_points,
-                             ctypes.c_int(i_verbose))
+                             ctypes.c_int(ph.verbose))
     return n_points.value
 
 
@@ -56,8 +58,8 @@ dhfs_lib.dhfs_main_.argtypes = [ctypes.POINTER(ctypes.c_double),
 dhfs_lib.dhfs_main_.restype = None
 
 
-def call_dhfs_main(alpha: float, iverbose: int = 0):
-    dhfs_lib.dhfs_main_(ctypes.c_double(alpha), ctypes.c_int(iverbose))
+def call_dhfs_main(alpha: float):
+    dhfs_lib.dhfs_main_(ctypes.c_double(alpha), ctypes.c_int(ph.verbose))
 
 
 # configuration and wrapper for GET_WAVEFUNCTIONS

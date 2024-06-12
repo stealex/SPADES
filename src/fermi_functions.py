@@ -139,8 +139,9 @@ class numeric:
         self.f = {}
         self.g = {}
         e = self.scattering_handler.energy_grid
-        p = np.sqrt(e*(e+2.0*ph.electron_mass/ph.hartree_energy))
+        p = np.sqrt(e*(e+2.0*ph.electron_mass))
         norm = self.scattering_handler.norm
+        pr = p*radius/ph.hc
 
         for k in self.scattering_handler.p_grid:
             self.f[k] = np.zeros(
@@ -156,13 +157,11 @@ class numeric:
                 q_func = CubicSpline(
                     self.scattering_handler.r_grid, self.scattering_handler.q_grid[k][i_e]
                 )
-                r_nuc = radius*ph.fermi/ph.bohr_radius
                 if density_function is None:
-                    pr = p*r_nuc
-                    self.g[k][i_e] = norm[i_e]/(ph.fine_structure*pr[i_e]) * \
-                        p_func(r_nuc) * np.exp(-1.0j*phase_tot[i_e])
-                    self.f[k][i_e] = norm[i_e]/(ph.fine_structure*pr[i_e]) * \
-                        q_func(r_nuc) * np.exp(-1.0j*phase_tot[i_e])
+                    self.g[k][i_e] = norm[i_e]/(pr[i_e]) * \
+                        p_func(radius) * np.exp(-1.0j*phase_tot[i_e])
+                    self.f[k][i_e] = norm[i_e]/(pr[i_e]) * \
+                        q_func(radius) * np.exp(-1.0j*phase_tot[i_e])
 
                 else:
                     for i_e in range(len(e)):
@@ -180,21 +179,21 @@ class numeric:
                                                self.scattering_handler.r_grid[0],
                                                self.scattering_handler.r_grid[-1])
                         self.f[k][i_e] = norm[i_e] / \
-                            (ph.fine_structure*pr[i_e]) * \
+                            (pr[i_e]) * \
                             np.exp(-1.0j*phase_tot[i_e]) * q_avg
                         self.g[k][i_e] = norm[i_e] / \
-                            (ph.fine_structure*pr[i_e]) * \
+                            (pr[i_e]) * \
                             np.exp(-1.0j*phase_tot[i_e]) * p_avg
 
         self.build_fermi_functions()
 
     @ lru_cache(maxsize=None)
     def ff0_eval(self, energy):
-        return self.ff0(energy/ph.hartree_energy)
+        return self.ff0(energy)
 
     @ lru_cache(maxsize=None)
     def ff1_eval(self, energy):
-        return self.ff1(energy/ph.hartree_energy)
+        return self.ff1(energy)
 
     def build_fermi_functions(self):
         self.gm1 = self.g[-1]

@@ -6,7 +6,7 @@ from scipy.special import gamma
 def hydrogenic_binding_energy(z: int, n: int, k: int):
     total_energy = ph.electron_mass*np.power(
         1. + (z*ph.fine_structure/(n-np.abs(k) + np.sqrt(k*k-np.power(z*ph.fine_structure, 2.))))**2.0, -1./2.)
-    return (total_energy - ph.electron_mass)/ph.hartree_energy
+    return (total_energy - ph.electron_mass)
 
 
 def dirac_gamma(kappa: float, z: float):

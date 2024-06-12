@@ -98,8 +98,8 @@ class exchange_correction:
         r_nuc = 1.2 * \
             ((self.initial_handler.atomic_system.mass_number)**(1./3.))
 
-        ir_nuc = np.abs(r_nuc*ph.fermi/ph.bohr_radius -
-                        self.final_handler.bound_handler.r_grid).argmin()
+        ir_nuc = np.abs(
+            r_nuc - self.final_handler.bound_handler.r_grid).argmin()
 
         for k in [-1, 1]:
             scattering_bound, bound_bound = self.compute_overlaps(k)
@@ -140,12 +140,12 @@ class exchange_correction:
         n_values = self.initial_handler.bound_config.n_values
         k_values = self.initial_handler.bound_config.k_values
         e_values = ph.electron_mass + \
-            self.final_handler.scattering_handler.energy_grid*ph.hartree_energy
+            self.final_handler.scattering_handler.energy_grid
 
         r_nuc = 1.2 * \
             ((self.initial_handler.atomic_system.mass_number)**(1./3.))
 
-        ir_nuc = np.abs(r_nuc*ph.fermi/ph.bohr_radius -
+        ir_nuc = np.abs(r_nuc -
                         self.final_handler.bound_handler.r_grid).argmin()
 
         gm1 = self.final_handler.scattering_handler.norm * \
@@ -182,12 +182,12 @@ class exchange_correction:
         n_values = self.initial_handler.bound_config.n_values
         k_values = self.initial_handler.bound_config.k_values
         e_values = ph.electron_mass + \
-            self.final_handler.scattering_handler.energy_grid*ph.hartree_energy
+            self.final_handler.scattering_handler.energy_grid
 
         r_nuc = 1.2 * \
             ((self.initial_handler.atomic_system.mass_number)**(1./3.))
 
-        ir_nuc = np.abs(r_nuc*ph.fermi/ph.bohr_radius -
+        ir_nuc = np.abs(r_nuc -
                         self.final_handler.bound_handler.r_grid).argmin()
 
         gm1 = self.final_handler.scattering_handler.norm * \

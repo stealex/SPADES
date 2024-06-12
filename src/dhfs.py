@@ -5,12 +5,13 @@ import yaml
 import numpy as np
 from copy import deepcopy
 from . import dhfs_wrapper
+from . import ph
 
 
 class atomic_system:
     def __init__(self, config: dict) -> None:
-        self.name = config["name"]
-        matches = re.match(r'(\d+)([A-Za-z]+)', self.name)
+        self.name_nice = config["name"]
+        matches = re.match(r'(\d+)([A-Za-z]+)', self.name_nice)
         if (type(matches) == re.Match):
             self.mass_number = int(matches.group(1))
             self.symbol = matches.group(2)
@@ -126,7 +127,7 @@ class dhfs_handler:
         print(f"Atomic weight = {self.atomic_weight:f}")
         self.config.print()
 
-    def run_dhfs(self, max_radius: float, n_points=1000, iverbose=1):
+    def run_dhfs(self, max_radius: float, n_points=1000):
         """Organizes the call to DHFS_MAIN from DHFS.f.
         Sets appropriate parameters first.
 
@@ -142,13 +143,11 @@ class dhfs_handler:
                                               self.config.l_values,
                                               self.config.jj_values,
                                               self.config.occ_values,
-                                              self.config.Z,
-                                              i_verbose=iverbose)
+                                              self.config.Z)
         n_tmp = dhfs_wrapper.call_set_parameters(
-            self.atomic_weight, max_radius, n_points, iverbose)
-
+            self.atomic_weight, max_radius*ph.fm/ph.bohr_radius, n_points)
         self.n_grid_points = n_tmp
-        dhfs_wrapper.call_dhfs_main(1.5, iverbose)
+        dhfs_wrapper.call_dhfs_main(1.5)
 
     def retrieve_dhfs_results(self):
         """
@@ -167,16 +166,17 @@ class dhfs_handler:
     """
         (r, p, q) = dhfs_wrapper.call_get_wavefunctions(
             len(self.config.electron_config), self.n_grid_points)
-        self.rad_grid = r
-        self.p_grid = p
-        self.q_grid = q
+        self.rad_grid = r*ph.bohr_radius/ph.fm
+        self.p_grid = p * 1./np.sqrt(ph.bohr_radius/ph.fm)
+        self.q_grid = q * 1./np.sqrt(ph.bohr_radius/ph.fm)
 
         vn, vel, vex = dhfs_wrapper.call_get_potentials(self.n_grid_points)
-        self.rv_nuc = vn
-        self.rv_el = vel
-        self.rv_ex = vex
+        self.rv_nuc = vn * (ph.hartree_energy*ph.bohr_radius/ph.fm)
+        self.rv_el = vel * (ph.hartree_energy*ph.bohr_radius/ph.fm)
+        self.rv_ex = vex * (ph.hartree_energy*ph.bohr_radius/ph.fm)
 
-        self.binding_energies = dhfs_wrapper.call_get_binding_energies(len(p))
+        self.binding_energies = dhfs_wrapper.call_get_binding_energies(
+            len(p))*ph.hartree_energy
 
     def build_modified_potential(self) -> np.ndarray:
         """Builds the modified DHFS potential a la [Nitescu et al, Phys. Rev. C 107, 025501, 2023]
@@ -197,7 +197,8 @@ class dhfs_handler:
         cslate = 0.75/(np.pi*np.pi)
         rv_exchange_modified = -1.5 * \
             np.power(cslate*self.rad_grid*density, 1./3.)
-        self.rv_modified = self.rv_nuc+self.rv_el + rv_exchange_modified
+        self.rv_modified = self.rv_nuc+self.rv_el + \
+            rv_exchange_modified * (ph.hartree_energy*ph.bohr_radius/ph.fm)
         self.rv_modified[0] = 0.
 
         return self.rv_modified

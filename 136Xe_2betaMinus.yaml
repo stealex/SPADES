@@ -1,35 +1,31 @@
 ---
 task: 136Xe_2betaMinus # name of the task. For printing purposes only
 process: 2betaMinus
-distance_unit: bohr_radius # can be any CLHEP-defined distance unit or "bohr_radius"
-energy_unit: MeV # can by any CLHEP-defined energy unit or "electron_mass" or "hartree_energy"
 initial_atom:
   name: 136Xe
   weight: -1.
   electron_config: auto # auto or a path
 bound_states:
   max_r: 100
-  n_radial_points: 1000
+  n_radial_points: 10000
   n_values: auto # can be auto, int, (nmin, nmax), [n1,n2,n3...]
   k_values: auto # can be auto, int, (kmin, kmax), {n1:[k1,k2,...]...}
 scattering_states:
   max_r: 100
-  n_radial_points: 1000
-  min_ke: 0.00001
-  max_ke: 2.45783
-  n_ke_points: 100
+  n_radial_points: 10000
+  n_ke_points: auto
   k_values: auto # can be auto, int, (kmin, kmax), [k1, k2, ...]
 spectra_computation:
-  method: Closure # can be Taylor
-  wavefunction_evaluation: OnSurface # can be also Weighted
-  nuclear_radius: auto # can be a number
-  types: [Single, Angular] # can be a string: Single, Sum, Angular, or a list of those
-  energy_grid_type: lin # log available as well
-  corrections: [Exchange]
-  fermi_functions: [Numeric, PointLike, ChargedSphere]
-  q_value: auto
-  min_ke: auto
-  n_ke_points: auto
+  method: Closure # can one of: Closure, Taylor
+  wavefunction_evaluation: OnSurface # can be one of: OnSurface, Taylor
+  nuclear_radius: auto # can be a number or 'auto'
+  types: [Single, Angular, Sum] # a list of any combination of: Single, Sum, Angular
+  energy_grid_type: log # log available as well
+  corrections: [Exchange] # can be a list of any of: Exchange
+  fermi_functions: [Numeric, PointLike, ChargedSphere] # Can be a list of any of : Numeric, PointLike, ChargedSphere
+  q_value: auto # can be a number or 'auto'
+  min_ke: 0.001 # can be a number
+  n_ke_points: 100
 output:
   location: ./tmp
   what:
