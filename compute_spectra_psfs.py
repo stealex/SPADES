@@ -131,6 +131,10 @@ def main(argv=None):
                         type=str,
                         action="store",
                         default=ph.q_values_file)
+    parser.add_argument("--compute_2d_spectrum",
+                        action="store_true",
+                        default=False,
+                        help="Compute 2D spectrum as well as 1D spectrum")
 
     args = parser.parse_args()
     ph.verbose = args.verbose
@@ -200,12 +204,13 @@ def main(argv=None):
 
     if (input_config.spectra_config.energy_grid_type == "lin"):
         spectrum_energy_grid = np.linspace(input_config.spectra_config.min_ke,
-                                           input_config.spectra_config.q_value,
+                                           input_config.spectra_config.q_value-input_config.spectra_config.min_ke,
                                            input_config.spectra_config.n_ke_points)
     elif input_config.spectra_config.energy_grid_type == "log":
         spectrum_energy_grid = np.logspace(
             np.log10(input_config.spectra_config.min_ke),
-            np.log10(input_config.spectra_config.q_value),
+            np.log10(input_config.spectra_config.q_value -
+                     input_config.spectra_config.min_ke),
             input_config.spectra_config.n_ke_points)
 
     if input_config.spectra_config.method == ph.CLOSUREMETHOD:
@@ -218,12 +223,16 @@ def main(argv=None):
     print("Computing spectra:")
     psf_collection = {}
     spectra_collection = {}
+    spectra_2d_collection = {}
+    eta1_grid = None
+    eta2_grid = None
 
     for ff_type in input_config.spectra_config.fermi_functions:
         ff_type_nice = list(
             filter(lambda x: ph.FERMIFUNCTIONS[x] == ff_type, ph.FERMIFUNCTIONS))[0]
         psf_collection[ff_type_nice] = {}
         spectra_collection[ff_type_nice] = {}
+        spectra_2d_collection[ff_type_nice] = {}
 
         print("\t"*1, f"- {ff_type_nice}")
         if ff_type == ph.NUMERICFERMIFUNCTIONS & (not has_scattering_state_config):
@@ -262,8 +271,28 @@ def main(argv=None):
             psf_type_nice = ph.PSF_TYPES_NICE[sp_type]
             psf_collection[ff_type_nice][psf_type_nice] = psf
 
+            if not args.compute_2d_spectrum:
+                continue
+            if sp_type == ph.SUMMEDSPECTRUM:
+                continue
+
+            if sp_type == ph.ANGULARSPECTRUM:
+                eta1_grid, eta2_grid, spectrum_vals = spectrum.compute_2d_spectra(
+                    sp_type, ff.ff1_eval,
+                    eta_total if ff_type == ph.NUMERICFERMIFUNCTIONS else None)
+            else:
+                eta1_grid, eta2_grid, spectrum_vals = spectrum.compute_2d_spectra(
+                    sp_type, ff.ff0_eval,
+                    eta_total if ff_type == ph.NUMERICFERMIFUNCTIONS else None)
+
+            spectra_2d_collection[ff_type_nice][sp_type_nice] = spectrum_vals / \
+                spectrum_integral
+
     io_handler.write_spectra(
         "spectra.dat", spectrum_energy_grid, spectra_collection, psf_collection)
+    if eta1_grid is not None and eta2_grid is not None:
+        io_handler.write_2d_spectra(
+            "spectra_2d.dat", eta1_grid, eta2_grid, spectrum_energy_grid[0], spectra_2d_collection)
 
     return
     print("Evaluating fermi functions")

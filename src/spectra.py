@@ -6,6 +6,7 @@ from typing import Callable
 from scipy import interpolate
 from tqdm import tqdm
 from functools import lru_cache
+import matplotlib.pyplot as plt
 
 
 class spectra_config:
@@ -113,11 +114,11 @@ class closure_spectrum(spectrum):
             integrant = integrant_single
 
             def range_enu_single(e2, e1, q_value, enei, emin):
-                return [0., q_value-e1-e2-emin]
+                return [0., q_value-e1-e2]
             range_enu = range_enu_single
 
             def range_e2_single(e1, q_value, enei, emin):
-                return [emin, q_value-e1-emin]
+                return [emin, q_value-e1]
             range_e2 = range_e2_single
 
         elif spectrum_type == ph.ANGULARSPECTRUM:
@@ -126,11 +127,11 @@ class closure_spectrum(spectrum):
             integrant = integrant_angular
 
             def range_enu_angular(e2, e1, q_value, enei, emin):
-                return [0., q_value-e1-e2-emin]
+                return [0., q_value-e1-e2]
             range_enu = range_enu_angular
 
             def range_e2_angular(e1, q_value, enei, emin):
-                return [emin, q_value-e1-emin]
+                return [emin, q_value-e1]
             range_e2 = range_e2_angular
 
         elif spectrum_type == ph.SUMMEDSPECTRUM:
@@ -146,7 +147,7 @@ class closure_spectrum(spectrum):
             integrant = integrant_sum
 
             def range_enu_sum(v, t, q_value, enei, emin):
-                return [0., q_value-t-emin]
+                return [0., q_value-t]
             range_enu = range_enu_sum
 
             def range_e2_sum(t, q_value, enei, emin):
@@ -172,6 +173,70 @@ class closure_spectrum(spectrum):
 
         spectrum[-1] = 0.
         return spectrum
+
+    def compute_2d_spectra(self, spectrum_type: int, fermi_func: Callable, eta_total: Callable | None = None):
+        # the change of variable is done on dG/de1de2
+        # e1 = eta1 + emin
+        # e2 = eta2*(q_value - eta1 - 2*emin) + emin
+        if not (eta_total is None):
+            @ lru_cache(maxsize=None)
+            def full_func(e1): return fermi_func(e1)*(1.0+eta_total(e1))
+        else:
+            @ lru_cache(maxsize=None)
+            def full_func(e1): return fermi_func(e1)
+
+        if spectrum_type == ph.SINGLESPECTRUM:
+            def integrant_single(enu, eta2, eta1, q_value, enei, emin):
+                e1 = eta1 + emin
+                e2 = eta2*(q_value-eta1-2*emin) + emin
+
+                return self.standard_electron_integrant(e1, e2, full_func) *\
+                    neutrino_integrand_standard(enu, e1, e2, q_value, enei) *\
+                    (q_value-eta1-2*emin)
+            integrant = integrant_single
+        if spectrum_type == ph.ANGULARSPECTRUM:
+            def integrant_angular(enu, eta2, eta1, q_value, enei, emin):
+                e1 = eta1 + emin
+                e2 = eta2*(q_value-eta1-2*emin) + emin
+
+                return -1*self.standard_electron_integrant(e1, e2, full_func) *\
+                    neutrino_integrand_angular(enu, e1, e2, q_value, enei) *\
+                    (q_value-eta1-2*emin)
+            integrant = integrant_angular
+
+        eta1_grid = self.energy_points-self.energy_points[0]
+        eta2_grid = np.linspace(0, 1, len(self.energy_points))
+
+        spectrum_2d = np.zeros((len(eta1_grid), len(eta2_grid)))
+        for ie in tqdm(range(len(eta1_grid)-1),
+                       desc="\t"*2 +
+                       f"- 2D {ph.SPECTRUM_TYPES_NICE[spectrum_type]}",
+                       ncols=100):
+            e1 = eta1_grid[ie]+self.energy_points[0]
+            for je in range(len(eta2_grid)):
+                e2 = eta2_grid[je]*(self.q_value-eta1_grid[ie] -
+                                    2*self.energy_points[0])+self.energy_points[0]
+                if self.q_value-e1-e2 < 0.:
+                    if abs(self.q_value-e1-e2) > 1e-10:
+                        raise ValueError("Something went wrong in the integration.\n"
+                                         "The energy grid is most probably wrong.")
+                    else:
+                        spectrum_2d[ie, je] = 0.
+                        continue
+
+                result = integrate.quad(
+                    integrant,
+                    0., self.q_value-e1-e2,
+                    args=(eta2_grid[je], eta1_grid[ie], self.q_value,
+                          self.enei, self.energy_points[0]),
+                )
+                if isinstance(result, tuple):
+                    # if result[0] >= 0. else 0.
+                    spectrum_2d[ie, je] = result[0]
+                else:
+                    raise ValueError("Spectrum integration did not succeed")
+        spectrum_2d[-1, :] = 0.
+        return (eta1_grid, eta2_grid, spectrum_2d)
 
     def compute_psf(self, spec):
         psf_mev = spec*self.constant_in_front

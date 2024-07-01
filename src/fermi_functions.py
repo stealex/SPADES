@@ -149,6 +149,7 @@ class numeric:
             self.g[k] = np.zeros_like(self.f[k])
             phase_tot = self.scattering_handler.phase_grid[k] + \
                 self.scattering_handler.coul_phase_grid[k]
+            # phase_tot = np.zeros_like(self.f[k])
 
             for i_e in range(len(e)):
                 p_func = CubicSpline(
@@ -204,5 +205,5 @@ class numeric:
         )
         self.ff1 = CubicSpline(
             self.scattering_handler.energy_grid,
-            2.0*np.real(self.gm1*np.conj(self.fp1))
+            2.0*np.abs(self.gm1*np.conj(self.fp1))
         )
