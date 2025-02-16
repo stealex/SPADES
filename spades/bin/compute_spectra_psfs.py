@@ -3,24 +3,24 @@ import os
 import scipy as sp
 import yaml
 from argparse import ArgumentParser
-from SPADES import ph, fermi_functions, exchange, spectra
-from SPADES.wavefunctions import wavefunctions_handler, bound_config, scattering_config
-from SPADES.dhfs import atomic_system, create_ion
-from SPADES import io_handler
+from spades import ph, fermi_functions, exchange, spectra
+from spades.wavefunctions import wavefunctions_handler, bound_config, scattering_config
+from spades.dhfs import AtomicSystem, create_ion
+from spades import io_handler
 import matplotlib.pyplot as plt
 import numpy as np
-from SPADES.spectra import spectra_2d_config, spectra_config
+from spades.spectra import Spectra2DConfig, SpectraConfig
 import time
 
 
-class run_config:
+class RunConfig:
     def __init__(self, config: dict) -> None:
         self.task_name = config["task"]
         self.process_name = config["process"]
         self.process = ph.BBTYPES[self.process_name]
 
         # atoms
-        self.initial_atom = atomic_system(config["initial_atom"])
+        self.initial_atom = AtomicSystem(config["initial_atom"])
         self.final_atom = create_ion(
             self.initial_atom, self.initial_atom.Z + 2)
 
@@ -118,13 +118,13 @@ class run_config:
         except KeyError:
             pass
 
-        self.spectra_config = spectra_config(method=method, wavefunction_evaluation=wavefunction_eval, nuclear_radius=nuclear_radius,
-                                             types=types, energy_grid_type=energy_grid_type, fermi_functions=fermi_functions, q_value=q_value,
-                                             min_ke=min_ke, corrections=corrections, n_ke_points=n_ke_points, ke_step=ke_step, orders=orders)
+        self.spectra_config = SpectraConfig(method=method, wavefunction_evaluation=wavefunction_eval, nuclear_radius=nuclear_radius,
+                                            types=types, energy_grid_type=energy_grid_type, fermi_functions=fermi_functions, q_value=q_value,
+                                            min_ke=min_ke, corrections=corrections, n_ke_points=n_ke_points, ke_step=ke_step, orders=orders)
 
-        self.spectra_2d_config = spectra_2d_config(n_points_log=config["spectra_computation"]["2d_config"]["n_points_log"],
-                                                   n_points_lin=config["spectra_computation"]["2d_config"]["n_points_lin"],
-                                                   e_max_log=config["spectra_computation"]["2d_config"]["e_max_log"])
+        self.spectra_2d_config = Spectra2DConfig(n_points_log=config["spectra_computation"]["2d_config"]["n_points_log"],
+                                                 n_points_lin=config["spectra_computation"]["2d_config"]["n_points_lin"],
+                                                 e_max_log=config["spectra_computation"]["2d_config"]["e_max_log"])
         self.output_prefix = config["output"]["file_prefix"]
 
 
@@ -172,7 +172,7 @@ def main(argv=None):
     with open(args.config_file, 'r') as f:
         run_conf = yaml.safe_load(f)
 
-    input_config = run_config(run_conf)
+    input_config = RunConfig(run_conf)
     has_bound_state_config = True
     if not (input_config.bound_config is None):
         input_config.bound_config.print()
@@ -211,8 +211,8 @@ def main(argv=None):
 
     if has_bound_state_config & has_scattering_state_config & (ph.EXCHANGE_CORRECTION in input_config.spectra_config.corrections):
         print(f"Computign exchange correction")
-        ex_corr = exchange.exchange_correction(wf_handler_initial,
-                                               wf_handler_final)
+        ex_corr = exchange.ExchangeCorrection(wf_handler_initial,
+                                              wf_handler_final)
         start_time = time.time()
         ex_corr.compute_eta_total()
         stop_time = time.time()
@@ -266,14 +266,14 @@ def main(argv=None):
             atilde = 1.12*(input_config.initial_atom.mass_number**0.5)
             enei = atilde - 0.5 * \
                 (input_config.spectra_config.q_value + 2.0*ph.electron_mass)
-            spectrum = spectra.closure_spectrum_2nubb(
+            spectrum = spectra.ClosureSpectrum2nubb(
                 q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, enei=enei)
         elif input_config.process == ph.NEUTRINOLESS_TWOBMINUS:
             spectrum = spectra.spectrum_0nubb(
                 q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, nuclear_radius=nuclear_radius)
     elif input_config.spectra_config.method == ph.TAYLORMETHOD:
         if input_config.process == ph.TWONEUTRINO_TWOBMINUS:
-            spectrum = spectra.taylor_spectrum_2nubb(
+            spectrum = spectra.TaylorSpectrum2nubb(
                 q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, orders=input_config.spectra_config.orders
             )
 
@@ -301,14 +301,14 @@ def main(argv=None):
             continue
 
         if ff_type == ph.NUMERIC_FERMIFUNCTIONS:
-            ff = fermi_functions.numeric(
+            ff = fermi_functions.Numeric(
                 wf_handler_final.scattering_handler, nuclear_radius)
         elif ff_type == ph.POINTLIKE_FERMIFUNCTIONS:
-            ff = fermi_functions.point_like(
+            ff = fermi_functions.PointLike(
                 input_config.final_atom.Z, nuclear_radius, spectrum_energy_grid
             )
         elif ff_type == ph.CHARGEDSPHERE_FERMIFUNCTIONS:
-            ff = fermi_functions.charged_sphere(
+            ff = fermi_functions.ChargedSphere(
                 input_config.final_atom.Z, nuclear_radius
             )
 
@@ -394,12 +394,12 @@ def main(argv=None):
         f"{input_config.output_prefix}_fermi_functions.dat", input_config.initial_atom.name_nice, input_config.process_name, spectrum_energy_grid, ff0_vals, ff1_vals)
     return
     print("Evaluating fermi functions")
-    ff = fermi_functions.numeric(
+    ff = fermi_functions.Numeric(
         wf_handler_final.scattering_handler, nuclear_radius)
 
     plot_phase_shifts(wf_handler_final)
 
-    ff2 = fermi_functions.charged_sphere(
+    ff2 = fermi_functions.ChargedSphere(
         input_config.final_atom.Z, nuclear_radius)
     spectrum_energy_grid = np.logspace(np.log10(wf_handler_final.scattering_handler.energy_grid[0]*ph.hartree_energy),
                                        np.log10(wf_handler_final.scattering_handler.energy_grid[-1] *
@@ -449,7 +449,7 @@ def main(argv=None):
     q_val = wf_handler_final.scattering_handler.energy_grid[-1] * \
         ph.hartree_energy
     enei = atilde - 0.5*(q_val + 2.0*ph.electron_mass)
-    closure_spectrum = spectra.closure_spectrum_2nubb(
+    closure_spectrum = spectra.ClosureSpectrum2nubb(
         q_value=spectrum_energy_grid[-1], energy_points=spectrum_energy_grid, enei=enei)
 
     # fig, ax = plt.subplots()

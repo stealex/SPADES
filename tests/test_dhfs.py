@@ -2,7 +2,7 @@ import numpy as np
 import os
 import yaml
 
-from SPADES import dhfs_wrapper, ph
+from spades import dhfs_wrapper, ph
 
 
 def test_dhfs():

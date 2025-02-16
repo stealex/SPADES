@@ -1,13 +1,13 @@
-from SPADES.dhfs import dhfs_handler, atomic_system
-from SPADES import ph
+from spades.dhfs import DHFSHandler, AtomicSystem
+from spades import ph
 
 ph.verbose = 1
-initial_atom = atomic_system(
+initial_atom = AtomicSystem(
     name="45Ca",
     electron_config="auto"
 )
 initial_atom.print()
 
-handler = dhfs_handler(initial_atom, "test")
+handler = DHFSHandler(initial_atom, "test")
 handler.print()
 handler.run_dhfs(100, 1000)

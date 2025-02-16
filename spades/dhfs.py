@@ -8,7 +8,7 @@ from . import dhfs_wrapper
 from . import ph
 
 
-class atomic_system:
+class AtomicSystem:
     def __init__(self, name="", atomic_number=-1, mass_number=-1, electron_config="auto", weight=-1.) -> None:
         if not (name is ""):
             self.name_nice = name
@@ -70,14 +70,14 @@ configuration:[n,l,2j,occupation]
         print(text)
 
 
-def create_ion(atom: atomic_system, z_nuc) -> atomic_system:
+def create_ion(atom: AtomicSystem, z_nuc) -> AtomicSystem:
     ion = deepcopy(atom)
     ion.Z = z_nuc
     ion.name = f"{ion.mass_number:d}{periodictable.elements[ion.Z].symbol:s}"
     return ion
 
 
-class dhfs_handler:
+class DHFSHandler:
     """
     Class for handling DHFS calculations and results for a specific system.
     Example usage:
@@ -109,7 +109,7 @@ class dhfs_handler:
         values of the r times exchange potential. Dimensions = len(rad_grid)
     """
 
-    def __init__(self, config: dict | atomic_system, label: str, atomic_weight: float = -1.0) -> None:
+    def __init__(self, config: AtomicSystem, label: str, atomic_weight: float = -1.0) -> None:
         """Handler class for DHFS.f usage.
 
         Args:
@@ -119,8 +119,8 @@ class dhfs_handler:
         """
         self.label = label
         if (type(config) == dict):
-            self.config = atomic_system(config)
-        elif (type(config) == atomic_system):
+            self.config = AtomicSystem(config)
+        elif (type(config) == AtomicSystem):
             self.config = config
         else:
             raise TypeError(

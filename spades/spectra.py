@@ -23,14 +23,14 @@ def normalize_spectra(values, integral):
                                   type(values)} and type(integral) = {type(integral)}")
 
 
-class spectra_2d_config:
+class Spectra2DConfig:
     def __init__(self, n_points_log: int, n_points_lin: int, e_max_log: float):
         self.n_points_log = n_points_log
         self.n_points_lin = n_points_lin
         self.e_max_log = e_max_log
 
 
-class spectra_config:
+class SpectraConfig:
     def __init__(self, method: str, wavefunction_evaluation: str, nuclear_radius: str | float, types: list[str],
                  energy_grid_type: str, fermi_functions: list[str], q_value: float, min_ke: float, n_ke_points: int, ke_step: float, corrections: list[str] | None = None,
                  orders: list[str] | None = None) -> None:
@@ -83,7 +83,7 @@ def neutrino_integrand_angular(enu: float, e1: float, e2: float, q_value: float,
     return 1./3.*(2*k*k + 2*l*l + 5*k*l)*(enu**2.0)*((q_value-e1-e2-enu)**2.0)
 
 
-class spectrum:
+class Spectrum:
     def __init__(self, q_value: float, energy_points: np.ndarray) -> None:
         self.q_value = q_value
         self.energy_points = energy_points
@@ -112,7 +112,7 @@ class spectrum:
         pass
 
 
-class spectrum_2nubb(spectrum):
+class Spectrum2nubb(Spectrum):
     def __init__(self, q_value: float, energy_points: np.ndarray) -> None:
         super().__init__(q_value, energy_points)
 
@@ -129,7 +129,7 @@ class spectrum_2nubb(spectrum):
         pass
 
 
-class closure_spectrum_2nubb(spectrum_2nubb):
+class ClosureSpectrum2nubb(Spectrum2nubb):
     def __init__(self, q_value: float, energy_points: np.ndarray, enei: float) -> None:
         super().__init__(q_value, energy_points)
         self.enei = enei
@@ -140,10 +140,10 @@ class closure_spectrum_2nubb(spectrum_2nubb):
     def compute_spectrum(self, spectrum_type: int, fermi_func: Callable, eta_total: Callable | None = None):
         spectrum = np.zeros_like(self.energy_points)
         if not (eta_total is None):
-            @ lru_cache(maxsize=None)
+            @lru_cache(maxsize=None)
             def full_func(e1): return fermi_func(e1)*(1.0+eta_total(e1))
         else:
-            @ lru_cache(maxsize=None)
+            @lru_cache(maxsize=None)
             def full_func(e1): return fermi_func(e1)
 
         if spectrum_type == ph.SINGLESPECTRUM:
@@ -217,10 +217,10 @@ class closure_spectrum_2nubb(spectrum_2nubb):
         # e1 = eta1 + emin
         # e2 = eta2*(q_value - eta1 - 2*emin) + emin
         if not (eta_total is None):
-            @ lru_cache(maxsize=None)
+            @lru_cache(maxsize=None)
             def full_func(e1): return fermi_func(e1)*(1.0+eta_total(e1))
         else:
-            @ lru_cache(maxsize=None)
+            @lru_cache(maxsize=None)
             def full_func(e1): return fermi_func(e1)
 
         if spectrum_type == ph.SINGLESPECTRUM:
@@ -369,7 +369,7 @@ def integral_order(e1: float, e2: float, q_value: float, order: str):
         return integral_order_4(e1, e2, q_value)
 
 
-class taylor_spectrum_2nubb(spectrum_2nubb):
+class TaylorSpectrum2nubb(Spectrum2nubb):
     def __init__(self, q_value: float, energy_points: np.ndarray, orders: list[str] | None) -> None:
         super().__init__(q_value, energy_points)
         if orders is None:
@@ -387,10 +387,10 @@ class taylor_spectrum_2nubb(spectrum_2nubb):
         spectrum = np.zeros_like(self.energy_points)
 
         if not (eta_total is None):
-            @ lru_cache(maxsize=None)
+            @lru_cache(maxsize=None)
             def full_func(e1): return fermi_func(e1)*(1.0+eta_total(e1))
         else:
-            @ lru_cache(maxsize=None)
+            @lru_cache(maxsize=None)
             def full_func(e1): return fermi_func(e1)
 
         spectra = {}
@@ -475,10 +475,10 @@ class taylor_spectrum_2nubb(spectrum_2nubb):
                            e2_final: np.ndarray, eta_total: Callable | None = None):
 
         if not (eta_total is None):
-            @ lru_cache(maxsize=None)
+            @lru_cache(maxsize=None)
             def full_func(e1): return fermi_func(e1)*(1.0+eta_total(e1))
         else:
-            @ lru_cache(maxsize=None)
+            @lru_cache(maxsize=None)
             def full_func(e1): return fermi_func(e1)
 
         spectra_2d = {}
@@ -507,7 +507,7 @@ class taylor_spectrum_2nubb(spectrum_2nubb):
         return spectra_2d
 
 
-class spectrum_0nubb(spectrum):
+class Spectrum0nubb(Spectrum):
     def __init__(self, q_value: float, energy_points: np.ndarray, nuclear_radius: float) -> None:
         super().__init__(q_value, energy_points)
         self.nuclear_radius = nuclear_radius
@@ -528,10 +528,10 @@ class spectrum_0nubb(spectrum):
         spectrum = np.zeros_like(self.energy_points)
 
         if not (eta_total is None):
-            @ lru_cache(maxsize=None)
+            @lru_cache(maxsize=None)
             def full_func(e1): return fermi_func(e1)*(1.0+eta_total(e1))
         else:
-            @ lru_cache(maxsize=None)
+            @lru_cache(maxsize=None)
             def full_func(e1): return fermi_func(e1)
 
         if spectrum_type == ph.SINGLESPECTRUM:
