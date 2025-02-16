@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 import os
+import scipy as sp
 import yaml
 from argparse import ArgumentParser
-from src import ph, fermi_functions, exchange, spectra
-from src.wavefunctions import wavefunctions_handler, bound_config, scattering_config
-from src.dhfs import atomic_system, create_ion
-from src import io_handler
+from SPADES import ph, fermi_functions, exchange, spectra
+from SPADES.wavefunctions import wavefunctions_handler, bound_config, scattering_config
+from SPADES.dhfs import atomic_system, create_ion
+from SPADES import io_handler
 import matplotlib.pyplot as plt
 import numpy as np
-from src.spectra import spectra_config
+from SPADES.spectra import spectra_2d_config, spectra_config
 import time
 
 
@@ -16,6 +17,7 @@ class run_config:
     def __init__(self, config: dict) -> None:
         self.task_name = config["task"]
         self.process_name = config["process"]
+        self.process = ph.BBTYPES[self.process_name]
 
         # atoms
         self.initial_atom = atomic_system(config["initial_atom"])
@@ -54,7 +56,18 @@ class run_config:
             raise ValueError("Cannot interpret q_value option")
 
         min_ke = float(config["spectra_computation"]["min_ke"])
-        n_ke_points = config["spectra_computation"]["n_ke_points"]
+        n_ke_points = -1
+        ke_step = -1.
+        try:
+            n_ke_points = config["spectra_computation"]["n_ke_points"]
+        except KeyError:
+            ke_step = config["spectra_computation"]["ke_step"]
+        if (n_ke_points > 0) & (ke_step > 0):
+            raise ValueError(
+                "Cannot have both n_ke_points and ke_step specified for spectra_computation")
+        if (ke_step > 0) & (energy_grid_type != "lin"):
+            raise ValueError(
+                "Cannot have ke_step specified for log energy grid in spectra_computation")
 
         if "bound_states" in config:
             if (config["bound_states"]["n_values"] == "auto"):
@@ -99,9 +112,20 @@ class run_config:
         else:
             self.scattering_config = None
 
+        orders = None
+        try:
+            orders = config["spectra_computation"]["orders"]
+        except KeyError:
+            pass
+
         self.spectra_config = spectra_config(method=method, wavefunction_evaluation=wavefunction_eval, nuclear_radius=nuclear_radius,
                                              types=types, energy_grid_type=energy_grid_type, fermi_functions=fermi_functions, q_value=q_value,
-                                             min_ke=min_ke, corrections=corrections, n_ke_points=n_ke_points)
+                                             min_ke=min_ke, corrections=corrections, n_ke_points=n_ke_points, ke_step=ke_step, orders=orders)
+
+        self.spectra_2d_config = spectra_2d_config(n_points_log=config["spectra_computation"]["2d_config"]["n_points_log"],
+                                                   n_points_lin=config["spectra_computation"]["2d_config"]["n_points_lin"],
+                                                   e_max_log=config["spectra_computation"]["2d_config"]["e_max_log"])
+        self.output_prefix = config["output"]["file_prefix"]
 
 
 def main(argv=None):
@@ -185,7 +209,7 @@ def main(argv=None):
         stop_time = time.time()
         print(f"... took {stop_time-start_time: .2f} seconds")
 
-    if has_bound_state_config & has_scattering_state_config & (ph.EXCHANGECORRECTION in input_config.spectra_config.corrections):
+    if has_bound_state_config & has_scattering_state_config & (ph.EXCHANGE_CORRECTION in input_config.spectra_config.corrections):
         print(f"Computign exchange correction")
         ex_corr = exchange.exchange_correction(wf_handler_initial,
                                                wf_handler_final)
@@ -203,9 +227,17 @@ def main(argv=None):
         nuclear_radius = input_config.spectra_config.nuclear_radius
 
     if (input_config.spectra_config.energy_grid_type == "lin"):
-        spectrum_energy_grid = np.linspace(input_config.spectra_config.min_ke,
-                                           input_config.spectra_config.q_value-input_config.spectra_config.min_ke,
-                                           input_config.spectra_config.n_ke_points)
+        if input_config.spectra_config.n_ke_points == -1:
+            spectrum_energy_grid = np.arange(
+                input_config.spectra_config.min_ke,
+                input_config.spectra_config.q_value -
+                input_config.spectra_config.min_ke,
+                input_config.spectra_config.ke_step)
+        else:
+            spectrum_energy_grid = np.linspace(input_config.spectra_config.min_ke,
+                                               input_config.spectra_config.q_value-input_config.spectra_config.min_ke,
+                                               input_config.spectra_config.n_ke_points,
+                                               retstep=True)
     elif input_config.spectra_config.energy_grid_type == "log":
         spectrum_energy_grid = np.logspace(
             np.log10(input_config.spectra_config.min_ke),
@@ -213,12 +245,37 @@ def main(argv=None):
                      input_config.spectra_config.min_ke),
             input_config.spectra_config.n_ke_points)
 
+    # 2D grid
+    spectrum_energy_grid_2d = []
+    e1_log = np.logspace(
+        np.log10(input_config.spectra_config.min_ke),
+        np.log10(input_config.spectra_2d_config.e_max_log),
+        input_config.spectra_2d_config.n_points_log
+    )
+    e1_lin = np.linspace(
+        input_config.spectra_2d_config.e_max_log,
+        input_config.spectra_config.q_value-input_config.spectra_config.min_ke,
+        input_config.spectra_2d_config.n_points_lin
+    )
+    e1_final = np.concatenate((e1_log, e1_lin[1:]))
+    e2_final = e1_final.copy()
+    e1_final, e2_final = np.meshgrid(e1_final, e2_final, indexing="ij")
+
     if input_config.spectra_config.method == ph.CLOSUREMETHOD:
-        atilde = 1.12*(input_config.initial_atom.mass_number**0.5)
-        enei = atilde - 0.5 * \
-            (input_config.spectra_config.q_value + 2.0*ph.electron_mass)
-        spectrum = spectra.closure_spectrum(
-            q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, enei=enei)
+        if input_config.process == ph.TWONEUTRINO_TWOBMINUS:
+            atilde = 1.12*(input_config.initial_atom.mass_number**0.5)
+            enei = atilde - 0.5 * \
+                (input_config.spectra_config.q_value + 2.0*ph.electron_mass)
+            spectrum = spectra.closure_spectrum_2nubb(
+                q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, enei=enei)
+        elif input_config.process == ph.NEUTRINOLESS_TWOBMINUS:
+            spectrum = spectra.spectrum_0nubb(
+                q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, nuclear_radius=nuclear_radius)
+    elif input_config.spectra_config.method == ph.TAYLORMETHOD:
+        if input_config.process == ph.TWONEUTRINO_TWOBMINUS:
+            spectrum = spectra.taylor_spectrum_2nubb(
+                q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, orders=input_config.spectra_config.orders
+            )
 
     print("Computing spectra:")
     psf_collection = {}
@@ -226,6 +283,9 @@ def main(argv=None):
     spectra_2d_collection = {}
     eta1_grid = None
     eta2_grid = None
+
+    ff0_vals = {}
+    ff1_vals = {}
 
     for ff_type in input_config.spectra_config.fermi_functions:
         ff_type_nice = list(
@@ -235,38 +295,55 @@ def main(argv=None):
         spectra_2d_collection[ff_type_nice] = {}
 
         print("\t"*1, f"- {ff_type_nice}")
-        if ff_type == ph.NUMERICFERMIFUNCTIONS & (not has_scattering_state_config):
+        if ff_type == ph.NUMERIC_FERMIFUNCTIONS & (not has_scattering_state_config):
             print("ERROR: Numeric fermi functions requested, but no configuration was given.\n"
                   "Spectrum will not be computed with numeric fermi functions")
             continue
 
-        if ff_type == ph.NUMERICFERMIFUNCTIONS:
+        if ff_type == ph.NUMERIC_FERMIFUNCTIONS:
             ff = fermi_functions.numeric(
                 wf_handler_final.scattering_handler, nuclear_radius)
-
-        elif ff_type == ph.POINTLIKEFERMIFUNCTIONS:
+        elif ff_type == ph.POINTLIKE_FERMIFUNCTIONS:
             ff = fermi_functions.point_like(
                 input_config.final_atom.Z, nuclear_radius, spectrum_energy_grid
             )
-        elif ff_type == ph.CHARGEDSPHEREFERMIFUNCTIONS:
+        elif ff_type == ph.CHARGEDSPHERE_FERMIFUNCTIONS:
             ff = fermi_functions.charged_sphere(
                 input_config.final_atom.Z, nuclear_radius
             )
 
+        ff0_vals[ff_type] = np.zeros_like(spectrum_energy_grid)
+        ff1_vals[ff_type] = np.zeros_like(spectrum_energy_grid)
+        for ike in range(len(spectrum_energy_grid)):
+            ke = spectrum_energy_grid[ike]
+            ff0_vals[ff_type][ike] = ff.ff0_eval(ke)
+            ff1_vals[ff_type][ike] = ff.ff1_eval(ke)
+
         for sp_type in input_config.spectra_config.types:
             sp_type_nice = ph.SPECTRUM_TYPES_NICE[sp_type]
             if sp_type == ph.ANGULARSPECTRUM:
-                spectrum_vals = spectrum.compute_spectrum(
-                    sp_type, ff.ff1_eval,
-                    eta_total if ff_type == ph.NUMERICFERMIFUNCTIONS else None)
+                if input_config.process == ph.TWONEUTRINO_TWOBMINUS:
+                    spectrum_vals = spectrum.compute_spectrum(
+                        sp_type, ff.ff1_eval,
+                        eta_total if ff_type == ph.NUMERIC_FERMIFUNCTIONS else None)
+                else:
+                    spectrum_vals = spectrum.compute_spectrum(
+                        sp_type, 1, ff.ff1_eval,
+                        eta_total if ff_type == ph.NUMERIC_FERMIFUNCTIONS else None)
             else:
-                spectrum_vals = spectrum.compute_spectrum(
-                    sp_type, ff.ff0_eval,
-                    eta_total if ff_type == ph.NUMERICFERMIFUNCTIONS else None)
+                if input_config.process == ph.TWONEUTRINO_TWOBMINUS:
+                    spectrum_vals = spectrum.compute_spectrum(
+                        sp_type, ff.ff0_eval,
+                        eta_total if ff_type == ph.NUMERIC_FERMIFUNCTIONS else None)
+                else:
+                    spectrum_vals = spectrum.compute_spectrum(
+                        sp_type, 1, ff.ff0_eval,
+                        eta_total if ff_type == ph.NUMERIC_FERMIFUNCTIONS else None)
 
             spectrum_integral = spectrum.integrate_spectrum(spectrum_vals)
-            spectra_collection[ff_type_nice][sp_type_nice] = spectrum_vals / \
-                spectrum_integral
+            spectra_collection[ff_type_nice][sp_type_nice] = spectra.normalize_spectra(
+                spectrum_vals, spectrum_integral)
+
             psf = spectrum.compute_psf(spectrum_integral)
             psf_type_nice = ph.PSF_TYPES_NICE[sp_type]
             psf_collection[ff_type_nice][psf_type_nice] = psf
@@ -276,24 +353,45 @@ def main(argv=None):
             if sp_type == ph.SUMMEDSPECTRUM:
                 continue
 
-            if sp_type == ph.ANGULARSPECTRUM:
-                eta1_grid, eta2_grid, spectrum_vals = spectrum.compute_2d_spectra(
-                    sp_type, ff.ff1_eval,
-                    eta_total if ff_type == ph.NUMERICFERMIFUNCTIONS else None)
+            if (sp_type == ph.ANGULARSPECTRUM):
+                spectrum_vals = spectrum.compute_2d_spectra(
+                    sp_type, ff.ff1_eval, e1_final, e2_final,
+                    eta_total if ff_type == ph.NUMERIC_FERMIFUNCTIONS else None)
             else:
-                eta1_grid, eta2_grid, spectrum_vals = spectrum.compute_2d_spectra(
-                    sp_type, ff.ff0_eval,
-                    eta_total if ff_type == ph.NUMERICFERMIFUNCTIONS else None)
+                spectrum_vals = spectrum.compute_2d_spectra(
+                    sp_type, ff.ff0_eval, e1_final, e2_final,
+                    eta_total if ff_type == ph.NUMERIC_FERMIFUNCTIONS else None)
 
-            spectra_2d_collection[ff_type_nice][sp_type_nice] = spectrum_vals / \
-                spectrum_integral
+            if type(spectrum_vals) == dict:
+                for ord in spectrum_vals:
+                    for ie in range(len(spectrum_vals[ord])):
+                        for je in range(len(spectrum_vals[ord][ie])):
+                            spectrum_vals[ord][ie, je] = spectrum_vals[ord][ie, je] / \
+                                spectrum_integral[ord]
+            else:
+                for ie in range(len(spectrum_vals)):
+                    for je in range(len(spectrum_vals[ie])):
+                        spectrum_vals[ie, je] = spectrum_vals[ie, je] / \
+                            spectrum_integral
 
+            spectra_2d_collection[ff_type_nice][sp_type_nice] = spectrum_vals
+
+    print(psf_collection)
     io_handler.write_spectra(
-        "spectra.dat", spectrum_energy_grid, spectra_collection, psf_collection)
-    if eta1_grid is not None and eta2_grid is not None:
+        f"{input_config.output_prefix}_spectra.dat", input_config.initial_atom.name_nice, input_config.process_name, spectrum_energy_grid, spectra_collection, psf_collection)
+    if spectra_2d_collection is not None:
         io_handler.write_2d_spectra(
-            "spectra_2d.dat", eta1_grid, eta2_grid, spectrum_energy_grid[0], spectra_2d_collection)
+            f"{input_config.output_prefix}_spectra_2d.dat",
+            input_config.initial_atom.name_nice,
+            input_config.process_name,
+            e1_final,
+            e2_final,
+            spectrum_energy_grid[0],
+            spectra_2d_collection,
+            psf_collection)
 
+    io_handler.write_fermi_functions(
+        f"{input_config.output_prefix}_fermi_functions.dat", input_config.initial_atom.name_nice, input_config.process_name, spectrum_energy_grid, ff0_vals, ff1_vals)
     return
     print("Evaluating fermi functions")
     ff = fermi_functions.numeric(
@@ -351,7 +449,7 @@ def main(argv=None):
     q_val = wf_handler_final.scattering_handler.energy_grid[-1] * \
         ph.hartree_energy
     enei = atilde - 0.5*(q_val + 2.0*ph.electron_mass)
-    closure_spectrum = spectra.closure_spectrum(
+    closure_spectrum = spectra.closure_spectrum_2nubb(
         q_value=spectrum_energy_grid[-1], energy_points=spectrum_energy_grid, enei=enei)
 
     # fig, ax = plt.subplots()
