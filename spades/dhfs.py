@@ -10,7 +10,7 @@ from . import ph
 
 class AtomicSystem:
     def __init__(self, name="", atomic_number=-1, mass_number=-1, electron_config="auto", weight=-1.) -> None:
-        if not (name is ""):
+        if (name != ""):
             self.name_nice = name
             matches = re.match(r'(\d+)([A-Za-z]+)', self.name_nice)
             if (type(matches) == re.Match):
@@ -40,7 +40,7 @@ class AtomicSystem:
         if (tmp == "auto"):
             z = periodictable.elements.isotope(self.symbol).number
             electron_configuration_filename = os.path.join(os.path.dirname(__file__),
-                                                           f"../../data/atomic_gs_configurations/ground_state_config_Z{z:03d}.yaml")
+                                                           f"../data/atomic_gs_configurations/ground_state_config_Z{z:03d}.yaml")
         else:
             electron_configuration_filename = tmp
 

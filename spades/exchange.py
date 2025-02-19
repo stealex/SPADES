@@ -1,4 +1,4 @@
-from .wavefunctions import wavefunctions_handler
+from .wavefunctions import WaveFunctionsHandler
 import numpy as np
 from scipy.interpolate import Akima1DInterpolator, CubicSpline
 from scipy import integrate
@@ -44,8 +44,8 @@ def integrate_wf(f1: np.ndarray,
         print("Something went wrong")
 
 
-class exchange_correction:
-    def __init__(self, initial_handler: wavefunctions_handler, final_handler: wavefunctions_handler) -> None:
+class ExchangeCorrection:
+    def __init__(self, initial_handler: WaveFunctionsHandler, final_handler: WaveFunctionsHandler) -> None:
         self.initial_handler = initial_handler
         self.final_handler = final_handler
 

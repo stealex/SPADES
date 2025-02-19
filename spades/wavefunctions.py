@@ -1,13 +1,18 @@
 import re
 import numpy as np
+
+from spades.config import BoundConfig, ScatteringConfig
 from . import ph, radial_wrapper, math_stuff, dhfs
-from .math_stuff import hydrogenic_binding_energy, coulomb_phase_shift
+from spades.math_stuff import hydrogenic_binding_energy, coulomb_phase_shift
 from .radial_wrapper import RADIALError
-from .dhfs import dhfs_handler
+from .dhfs import DHFSHandler
 from tqdm import tqdm
 
+import logging
+logger = logging.getLogger(__name__)
 
-class bound_config:
+
+class bound_config_old:
     def __init__(self, max_r: float, n_radial_points: int,
                  n_values: int | tuple[int, int] | list[int],
                  k_values: str | int | tuple[int, int] | dict[int, list[int]] = "auto") -> None:
@@ -57,8 +62,8 @@ class bound_config:
             print(f"    - {self.n_values[i]}", self.k_values[self.n_values[i]])
 
 
-class bound_handler:
-    def __init__(self, z_nuc: int, n_e: int, bound_states_configuration: bound_config) -> None:
+class BoundHandler:
+    def __init__(self, z_nuc: int, n_e: int, bound_states_configuration: BoundConfig) -> None:
         self.config = bound_states_configuration
         self.z_nuc = z_nuc
         self.n_e = n_e
@@ -115,7 +120,7 @@ class bound_handler:
                 self.be[n][k] = true_be*ph.hartree_energy
 
 
-class scattering_config:
+class scattering_config_old:
     def __init__(self, max_r: float, n_radial_points: int,
                  min_ke: float, max_ke: float, n_ke_points: int,
                  k_values: int | tuple[int, int] | list[int]) -> None:
@@ -153,20 +158,24 @@ class scattering_config:
         print(f"  - Number of energy points: {self.n_ke_points}")
 
 
-class scattering_handler:
-    def __init__(self, z_nuc: int, n_e: int, scattering_states_configuration: scattering_config) -> None:
+class ScatteringHandler:
+    def __init__(self, z_nuc: int, n_e: int, scattering_states_configuration: ScatteringConfig) -> None:
         self.config = scattering_states_configuration
 
+        logger.debug(
+            f"creating r grid with r_max={self.config.max_r*ph.fm/ph.bohr_radius}, N = {self.config.n_radial_points}")
         _, r, dr = radial_wrapper.call_sgrid(self.config.max_r*ph.fm/ph.bohr_radius,
                                              1E-7,
                                              0.5,
                                              self.config.n_radial_points,
                                              2*self.config.n_radial_points)
-
         self.r_grid = r*ph.bohr_radius/ph.fm
         self.dr_grid = dr*ph.bohr_radius/ph.fm
 
         radial_wrapper.call_setrgrid(r)
+
+        logger.debug(
+            f"creating energy grid with E_min={self.config.min_ke}, E_max={self.config.max_ke}, N={self.config.n_ke_points}")
         self.energy_grid = np.logspace(np.log10(self.config.min_ke),
                                        np.log10(self.config.max_ke),
                                        self.config.n_ke_points)
@@ -232,8 +241,8 @@ class scattering_handler:
             self.q_grid[k] = q_corr
 
 
-class wavefunctions_handler:
-    def __init__(self, atom: dhfs.atomic_system, bound_conf: bound_config | None = None, scattering_conf: scattering_config | None = None) -> None:
+class WaveFunctionsHandler:
+    def __init__(self, atom: dhfs.AtomicSystem, bound_conf: BoundConfig | None = None, scattering_conf: ScatteringConfig | None = None) -> None:
         self.atomic_system = atom
         if (bound_conf is None) and (scattering_conf is None):
             raise ValueError(
@@ -244,7 +253,7 @@ class wavefunctions_handler:
             self.scattering_config = scattering_conf
 
     def run_dhfs(self) -> None:
-        self.dhfs_handler = dhfs_handler(
+        self.dhfs_handler = DHFSHandler(
             self.atomic_system, self.atomic_system.name)
         self.dhfs_handler.run_dhfs(self.bound_config.max_r,
                                    self.bound_config.n_radial_points)
@@ -253,19 +262,19 @@ class wavefunctions_handler:
         self.dhfs_handler.build_modified_potential()
 
     def find_bound_states(self):
-        self.bound_handler = bound_handler(self.atomic_system.Z,
-                                           int(self.atomic_system.occ_values.sum()),
-                                           self.bound_config)
+        self.bound_handler = BoundHandler(self.atomic_system.Z,
+                                          int(self.atomic_system.occ_values.sum()),
+                                          self.bound_config)
         self.bound_handler.set_potential(self.dhfs_handler.rad_grid,
                                          self.dhfs_handler.rv_modified)
         self.bound_handler.find_bound_states()
 
     def find_scattering_states(self, r_grid_scattering: np.ndarray | None = None, rv_scattering: np.ndarray | None = None):
         # solve scattering states in final atom
-        self.scattering_handler = scattering_handler(self.atomic_system.Z,
-                                                     int(self.atomic_system.occ_values.sum(
-                                                     )),
-                                                     self.scattering_config)
+        self.scattering_handler = ScatteringHandler(self.atomic_system.Z,
+                                                    int(self.atomic_system.occ_values.sum(
+                                                    )),
+                                                    self.scattering_config)
         if (rv_scattering is None) and (r_grid_scattering is None):
             print("Will use dhfs potential for scattering states")
             self.scattering_handler.set_potential(

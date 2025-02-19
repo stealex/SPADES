@@ -3,6 +3,7 @@ from hepunits.units import *
 from hepunits.constants import *
 import os
 import yaml
+import logging
 electron_mass = 0.51099895000*MeV
 hartree_energy = 2.0*13.605693122994*eV
 bohr_radius = 0.529177210903*angstrom
@@ -20,7 +21,7 @@ user_psf_unit_name = "1/year"
 q_values_file = "qvalues_2nubb_KY13.yaml"
 
 
-def read_qvalues(file_name: str):
+def read_mass_difference(file_name: str):
     print(f"Reading {file_name}")
     if (file_name.startswith((".", "/"))):
         # we were given an absolute path
@@ -50,13 +51,21 @@ NEUTRINOLESS_TWOBPLUS = 4
 TWONEUTRINO_BPLUSEC = 5
 NEUTRINOLESS_BPLUSEC = 6
 TWONEUTRINO_TWOEC = 7
-BBTYPES = {"2nu2betaMinus": TWONEUTRINO_TWOBMINUS,
-           "0nu2betaMinus": NEUTRINOLESS_TWOBMINUS,
-           "2nu2betaPlus": TWONEUTRINO_TWOBPLUS,
-           "0nu2betaPlus": NEUTRINOLESS_TWOBPLUS,
-           "2nubetaPlusEC": TWONEUTRINO_BPLUSEC,
-           "0nubetaPlusEC": NEUTRINOLESS_BPLUSEC,
-           "2nu2EC": TWONEUTRINO_TWOEC}
+PROCESSES = {"2nu_2betaMinus": TWONEUTRINO_TWOBMINUS,
+             "0nu_2betaMinus": NEUTRINOLESS_TWOBMINUS,
+             "2nu_2betaPlus": TWONEUTRINO_TWOBPLUS,
+             "0nu_2betaPlus": NEUTRINOLESS_TWOBPLUS,
+             "2nu_betaPlusEC": TWONEUTRINO_BPLUSEC,
+             "0nu_betaPlusEC": NEUTRINOLESS_BPLUSEC,
+             "2nu_2EC": TWONEUTRINO_TWOEC}
+
+PROCESS_IONISATION = {TWONEUTRINO_TWOBMINUS: 2,
+                      NEUTRINOLESS_TWOBMINUS: 2,
+                      TWONEUTRINO_BPLUSEC: -1,
+                      NEUTRINOLESS_BPLUSEC: -1,
+                      TWONEUTRINO_TWOBPLUS: -2,
+                      NEUTRINOLESS_TWOBPLUS: -2,
+                      TWONEUTRINO_TWOEC: 0}
 
 
 POINTLIKE_FERMIFUNCTIONS = 1

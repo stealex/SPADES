@@ -2,7 +2,7 @@ import numpy as np
 from numba import njit
 from . import ph
 from scipy import special
-from .wavefunctions import wavefunctions_handler, bound_handler, scattering_handler
+from .wavefunctions import WaveFunctionsHandler, BoundHandler, ScatteringHandler
 from scipy.interpolate import Akima1DInterpolator, CubicSpline
 from scipy import integrate
 from typing import Callable
@@ -11,7 +11,7 @@ from functools import lru_cache
 from mpmath import mp, hyp1f1, mpc
 
 
-class fermi_functions:
+class FermiFunctions:
     def __init__(self) -> None:
         pass
 
@@ -22,7 +22,7 @@ class fermi_functions:
         pass
 
 
-class point_like(fermi_functions):
+class PointLike(FermiFunctions):
     def __init__(self, z: int, r: float, e_grid: np.ndarray | None = None) -> None:
         self.z = z
         self.r = r
@@ -84,25 +84,25 @@ class point_like(fermi_functions):
             np.exp(np.pi*eta/2.)
         return result
 
-    @ lru_cache(maxsize=None)
+    @lru_cache(maxsize=None)
     def ff0_eval(self, ke: float):
         gm1 = self.gk(ke, -1)
         fp1 = self.fk(ke, 1)
         return np.abs(gm1*gm1) + np.abs(fp1*fp1)
 
-    @ lru_cache(maxsize=None)
+    @lru_cache(maxsize=None)
     def ff1_eval(self, ke: float):
         gm1 = self.gk(ke, -1)
         fp1 = self.fk(ke, 1)
         return 2.0*np.real(gm1*np.conj(fp1))
 
 
-class charged_sphere(fermi_functions):
+class ChargedSphere(FermiFunctions):
     def __init__(self, z: int, r: float) -> None:
         self.z = z
         self.r = r
 
-    @ lru_cache(maxsize=None)
+    @lru_cache(maxsize=None)
     def ff0_eval(self, ke):
         gamma = np.sqrt(1.0-(ph.fine_structure*self.z)**2.0)
         p = np.sqrt(ke*(ke+2*ph.electron_mass))
@@ -120,7 +120,7 @@ class charged_sphere(fermi_functions):
         #                                              (gamma-1))*(np.abs(g1)**2.0)*np.exp(np.pi*eta)
         return ff
 
-    @ lru_cache(maxsize=None)
+    @lru_cache(maxsize=None)
     def ff1_eval(self, ke):
         ff0 = self.ff0_eval(ke)
         # fact1 = np.sqrt((ke+2.0*ph.electron_mass)/(2.0*(ke+ph.electron_mass)))
@@ -133,8 +133,8 @@ class charged_sphere(fermi_functions):
         return momentum/e_total * ff0
 
 
-class numeric:
-    def __init__(self, scattering_handler: scattering_handler, radius: float, density_function: Callable | None = None) -> None:
+class Numeric(FermiFunctions):
+    def __init__(self, scattering_handler: ScatteringHandler, radius: float, density_function: Callable | None = None) -> None:
         self.scattering_handler = scattering_handler
         self.f = {}
         self.g = {}
@@ -188,11 +188,11 @@ class numeric:
 
         self.build_fermi_functions()
 
-    @ lru_cache(maxsize=None)
+    @lru_cache(maxsize=None)
     def ff0_eval(self, energy):
         return self.ff0(energy)
 
-    @ lru_cache(maxsize=None)
+    @lru_cache(maxsize=None)
     def ff1_eval(self, energy):
         return self.ff1(energy)
 
