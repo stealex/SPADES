@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from multiprocessing import process
 from numpy import ndarray
 from spades.fermi_functions import FermiFunctions
 from spades.spectra.base import BetaSpectrumBase
@@ -39,11 +40,37 @@ def standard_electron_integrant_2nubb(e1, e2, fermi_func: Callable):
 
 
 def spectrum_integrant_2nubb(enu, e2, e1, q_value, sp_type: int, emin, enei, full_func: Callable,  transition: int):
+    """Spectrum integrat for 2nu beta beta decay.
+
+    Args:
+        enu (_type_): energy of (anti-) neutrino
+        e2 (_type_): kinetic energy of second massive lepton
+        e1 (_type_): kinetic energy of first massive letpon
+        q_value (_type_): q-value of the decay
+        sp_type (int): spectrum type
+        emin (_type_): minimum kinetic energy used in integration
+        enei (_type_): E_{N} - E_{I}
+        full_func (Callable): full Fermi function
+        transition (int): transition type
+
+    Raises:
+        NotImplementedError: _description_
+        NotImplementedError: _description_
+        NotImplementedError: _description_
+        ValueError: _description_
+
+    Returns:
+        _type_: _description_
+    """
+    # compute total energies
+    et1 = e1+ph.electron_mass
+    et2 = e2+ph.electron_mass
+    enu2 = q_value + 2*ph.electron_mass - et1 - et2 - enu
     if sp_type == ph.SINGLESPECTRUM:
         if (transition == ph.ZEROPLUS_TO_ZEROPLUS):
             return standard_electron_integrant_2nubb(e1, e2, full_func) *\
                 neutrino_integrand_closure_standard_00(
-                    enu, e1, e2, q_value, enei)
+                    enu, e1, e2, enu2, enei)
         elif (transition == ph.ZEROPLUS_TO_TWOPLUS):
             return standard_electron_integrant_2nubb(e1, e2, full_func) *\
                 neutrino_integrand_closure_standard_02(
@@ -55,12 +82,17 @@ def spectrum_integrant_2nubb(enu, e2, e1, q_value, sp_type: int, emin, enei, ful
         v = e2
         ee2 = t*v/q_value
         ee1 = t - ee2
+
+        et1 = ee1+ph.electron_mass
+        et2 = ee2+ph.electron_mass
+        enu2 = q_value + 2*ph.electron_mass - et1 - et2 - enu
+
         if (ee1 < emin) or (ee2 < emin):
             return 0.
         if transition == ph.ZEROPLUS_TO_ZEROPLUS:
             ret_val = t/q_value*standard_electron_integrant_2nubb(ee1, ee2, full_func) *\
                 neutrino_integrand_closure_standard_00(
-                    enu, ee1, ee2, q_value, enei)
+                    enu, et1, et2, enu2, enei)
         elif transition == ph.ZEROPLUS_TO_TWOPLUS:
             ret_val = t/q_value*standard_electron_integrant_2nubb(ee1, ee2, full_func) *\
                 neutrino_integrand_closure_standard_02(
@@ -72,7 +104,7 @@ def spectrum_integrant_2nubb(enu, e2, e1, q_value, sp_type: int, emin, enei, ful
         if transition == ph.ZEROPLUS_TO_ZEROPLUS:
             return -1.0*standard_electron_integrant_2nubb(e1, e2, full_func) *\
                 neutrino_integrand_closure_angular_00(
-                    enu, e1, e2, q_value, enei)
+                    enu, et1, et2, enu2, enei)
         else:
             raise NotImplementedError()
     else:

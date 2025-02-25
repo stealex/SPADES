@@ -297,7 +297,7 @@ def compute_spectra_and_psfs(input_config: RunConfig, wf_handler_init: WaveFunct
                         print(
                             f"{key} {kk} {spectrum.compute_psf(integrals[key][kk])}")
                 else:
-                    return
+                    print(f"{key} {spectrum.compute_psf(integrals[key])}")
         else:
             print(f"Integrals {spectrum.spectrum_integrals}")
             print(f"PSFs {spectrum.compute_psf()}")

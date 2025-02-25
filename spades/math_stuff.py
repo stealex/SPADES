@@ -38,17 +38,17 @@ def coulomb_phase_shift(energy: float, z_inf: float, kappa: int):
 
 
 @njit
-def kn(e1: float, enu: float, q_value: float, enei: float):
-    return 1./(e1+enu+enei+ph.electron_mass) + 1./(enei+q_value-e1-enu+ph.electron_mass)
+def kn(e1: float, e2: float, enu1: float, enu2: float, enei: float):
+    return 1./(e1+enu1+enei) + 1./(e2+enu2+enei)
 
 
 @njit
-def ln(e2: float, enu: float, q_value: float, enei: float):
-    return 1./(enei+q_value-e2-enu+ph.electron_mass) + 1./(e2+enu+enei+ph.electron_mass)
+def ln(e1: float, e2: float, enu1: float, enu2: float, enei: float):
+    return 1./(e1+enu2+enei) + 1./(e2+enu1+enei)
 
 
 @njit
-def neutrino_integrand_closure_standard_00(enu: float, e1: float, e2: float, q_value: float, enei: float):
-    k = kn(e1, enu, q_value, enei)
-    l = ln(e2, enu, q_value, enei)
-    return (k*k+l*l+k*l)*(enu**2.0)*((q_value-e1-e2-enu)**2.0)
+def neutrino_integrand_closure_standard_00(enu1: float, e1: float, e2: float, enu2: float, enei: float):
+    k = kn(e1, e2, enu1, enu2, enei)
+    l = ln(e1, e2, enu1, enu2, enei)
+    return (k*k+l*l+k*l)*(enu1**2.0)*(enu2**2.0)
