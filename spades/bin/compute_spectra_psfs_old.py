@@ -3,7 +3,7 @@ import os
 import scipy as sp
 import yaml
 from argparse import ArgumentParser
-from spades import ph, fermi_functions, exchange, spectra
+from spades import ph, fermi_functions, exchange, twobeta
 from spades.wavefunctions import WaveFunctionsHandler, bound_config, scattering_config
 from spades.dhfs import AtomicSystem, create_ion
 from spades import io_handler
@@ -267,14 +267,14 @@ def main(argv=None):
             atilde = 1.12*(input_config.initial_atom.mass_number**0.5)
             enei = atilde - 0.5 * \
                 (input_config.spectra_config.q_value + 2.0*ph.electron_mass)
-            spectrum = spectra.ClosureSpectrum2nubb(
+            spectrum = twobeta.ClosureSpectrum2nubb(
                 q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, enei=enei)
         elif input_config.process == ph.NEUTRINOLESS_TWOBMINUS:
-            spectrum = spectra.spectrum_0nubb(
+            spectrum = twobeta.spectrum_0nubb(
                 q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, nuclear_radius=nuclear_radius)
     elif input_config.spectra_config.method == ph.TAYLORMETHOD:
         if input_config.process == ph.TWONEUTRINO_TWOBMINUS:
-            spectrum = spectra.TaylorSpectrum2nubb(
+            spectrum = twobeta.TaylorSpectrum2nubb(
                 q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, orders=input_config.spectra_config.orders
             )
 
@@ -342,7 +342,7 @@ def main(argv=None):
                         eta_total if ff_type == ph.NUMERIC_FERMIFUNCTIONS else None)
 
             spectrum_integral = spectrum.integrate_spectrum(spectrum_vals)
-            spectra_collection[ff_type_nice][sp_type_nice] = spectra.normalize_spectra(
+            spectra_collection[ff_type_nice][sp_type_nice] = twobeta.normalize_spectra(
                 spectrum_vals, spectrum_integral)
 
             psf = spectrum.compute_psf(spectrum_integral)
@@ -450,7 +450,7 @@ def main(argv=None):
     q_val = wf_handler_final.scattering_handler.energy_grid[-1] * \
         ph.hartree_energy
     enei = atilde - 0.5*(q_val + 2.0*ph.electron_mass)
-    closure_spectrum = spectra.ClosureSpectrum2nubb(
+    closure_spectrum = twobeta.ClosureSpectrum2nubb(
         q_value=spectrum_energy_grid[-1], energy_points=spectrum_energy_grid, enei=enei)
 
     # fig, ax = plt.subplots()

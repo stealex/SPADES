@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from multiprocessing import Value
+from multiprocessing import Value, process
 from typing import Callable, Type, final
 from matplotlib import pyplot as plt
 import yaml
@@ -12,8 +12,10 @@ import numpy as np
 from spades import fermi_functions, ph, exchange
 from spades.config import RunConfig
 from spades.dhfs import AtomicSystem, create_ion
-from spades.spectra.base import SpectrumBase
-from spades.spectra.closure import create_closure_spectrum
+from spades.spectra.base import BetaSpectrumBase, SpectrumBase
+import spades.spectra.twobeta
+import spades.spectra.ecbeta
+import spades.spectra.twoec
 from spades.wavefunctions import WaveFunctionsHandler
 
 logger = logging.getLogger(__name__)
@@ -81,7 +83,7 @@ def create_atoms(input_config: RunConfig):
     initial_atom = AtomicSystem(**input_config.initial_atom_dict)
     initial_atom.print()
 
-    proc = input_config.process
+    proc = input_config.process.type
     if (proc in [ph.TWONEUTRINO_TWOBMINUS, ph.NEUTRINOLESS_TWOBMINUS,
                  ph.TWONEUTRINO_TWOBPLUS, ph.NEUTRINOLESS_TWOBPLUS]):
         final_atom = create_ion(
@@ -146,22 +148,7 @@ def build_energy_grids(input_config: RunConfig):
     else:
         raise ValueError("Could not build 1D energy grid")
 
-    if (input_config.spectra_config.e_max_log_2d > 0.):
-        e1_log = np.logspace(
-            np.log10(input_config.spectra_config.min_ke),
-            np.log10(input_config.spectra_config.e_max_log_2d),
-            input_config.spectra_config.n_points_log_2d
-        )
-        e1_lin = np.linspace(
-            input_config.spectra_config.e_max_log_2d,
-            input_config.spectra_config.q_value-input_config.spectra_config.min_ke,
-            input_config.spectra_config.n_points_lin_2d
-        )
-        e1_final = np.concatenate((e1_log, e1_lin[1:]))
-        e2_final = e1_final.copy()
-        e1_final, e2_final = np.meshgrid(e1_final, e2_final, indexing="ij")
-
-    return (energy_grid_1D, e1_final, e2_final)
+    return energy_grid_1D
 
 
 def create_fermi_functions(ff_type: int, input_config: RunConfig, wf_handler_final: WaveFunctionsHandler | None, final_atom: AtomicSystem | None,
@@ -193,27 +180,98 @@ def compute_two_ec_psfs(input_config: RunConfig, wf_handler_init: WaveFunctionsH
     pass
 
 
-def create_spectrum(sp_type: int, input_config: RunConfig, fermi_functions: fermi_functions.FermiFunctions, eta_total: Callable | None,
-                    final_atom: AtomicSystem, energy_grid_1D: np.ndarray) -> SpectrumBase:
-    if (input_config.spectra_config.method["name"] == "Closure"):
-        atilde = 1.12*(final_atom.mass_number**0.5)
-        if ("enei" in input_config.spectra_config.method):
-            if (isinstance(input_config.spectra_config.method["enei"], float)):
-                enei = input_config.spectra_config.method["enei"]
-            elif isinstance(input_config.spectra_config.method["enei"], str):
-                if (input_config.spectra_config.method["enei"] != "auto"):
-                    raise ValueError("Cannot interpret enei option")
-                enei = atilde - 0.5 * \
-                    (input_config.spectra_config.q_value + 2.0*ph.electron_mass)
+def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.FermiFunctions, eta_total: Callable | None,
+                    final_atom: AtomicSystem, wf_handler_init: WaveFunctionsHandler | None) -> SpectrumBase:
+    if (input_config.process.type in [ph.TWONEUTRINO_TWOBMINUS, ph.TWONEUTRINO_TWOBPLUS]):
+        if (input_config.spectra_config.method["name"] == "Closure"):
+            atilde = 1.12*(final_atom.mass_number**0.5)
+            if ("enei" in input_config.spectra_config.method):
+                if (isinstance(input_config.spectra_config.method["enei"], float)):
+                    enei = input_config.spectra_config.method["enei"]
+                elif isinstance(input_config.spectra_config.method["enei"], str):
+                    if (input_config.spectra_config.method["enei"] != "auto"):
+                        raise ValueError("Cannot interpret enei option")
+                    enei = atilde - 0.5 * \
+                        (input_config.spectra_config.q_value + 2.0*ph.electron_mass)
 
-        print(enei, atilde, input_config.spectra_config.q_value)
-        return create_closure_spectrum(sp_type, input_config.spectra_config.q_value, energy_grid_1D, enei, fermi_functions)
+            print(enei, atilde, input_config.spectra_config.q_value,
+                  input_config.spectra_config.nuclear_radius)
+            return spades.spectra.twobeta.ClosureSpectrum2nu(q_value=input_config.spectra_config.q_value,
+                                                             enei=enei,
+                                                             fermi_functions=fermi_functions,
+                                                             eta_total=eta_total,
+                                                             transition=input_config.process.transition,
+                                                             min_ke=input_config.spectra_config.min_ke,
+                                                             n_ke_points=input_config.spectra_config.n_ke_points,
+                                                             energy_grid_type=input_config.spectra_config.energy_grid_type)
+        else:
+            raise NotImplementedError()
+    elif (input_config.process.type in [ph.NEUTRINOLESS_TWOBMINUS, ph.NEUTRINOLESS_TWOBPLUS]):
+        if (input_config.spectra_config.method["name"] == "Closure"):
+            if (input_config.process.mechanism == ph.LIGHT_NEUTRINO_EXCHANGE):
+                return spades.spectra.twobeta.ClosureSpectrum0nu_LNE(q_value=input_config.spectra_config.q_value,
+                                                                     nuclear_radius=input_config.spectra_config.nuclear_radius,
+                                                                     fermi_functions=fermi_functions,
+                                                                     eta_total=eta_total,
+                                                                     min_ke=input_config.spectra_config.min_ke,
+                                                                     n_ke_points=input_config.spectra_config.n_ke_points,
+                                                                     energy_grid_type=input_config.spectra_config.energy_grid_type)
+            else:
+                raise NotImplementedError()
+        else:
+            raise NotImplementedError()
+
+    elif (input_config.process.type == ph.TWONEUTRINO_BPLUSEC):
+        if input_config.spectra_config.method["name"] == "Closure":
+            atilde = 1.12*(final_atom.mass_number**0.5)
+            if ("enei" in input_config.spectra_config.method):
+                if (isinstance(input_config.spectra_config.method["enei"], float)):
+                    enei = input_config.spectra_config.method["enei"]
+                elif isinstance(input_config.spectra_config.method["enei"], str):
+                    if (input_config.spectra_config.method["enei"] != "auto"):
+                        raise ValueError("Cannot interpret enei option")
+                    enei = atilde - 0.5 * \
+                        (input_config.spectra_config.q_value)
+
+            print(enei, atilde, input_config.spectra_config.q_value,
+                  input_config.spectra_config.nuclear_radius)
+            return spades.spectra.ecbeta.ClosureSpectrum2nu(q_value=input_config.spectra_config.q_value,
+                                                            fermi_functions=fermi_functions,
+                                                            bound_handler=wf_handler_init.bound_handler,
+                                                            nuclear_radius=input_config.spectra_config.nuclear_radius,
+                                                            enei=enei,
+                                                            min_ke=input_config.spectra_config.min_ke,
+                                                            n_ke_points=input_config.spectra_config.n_ke_points,
+                                                            energy_grid_type=input_config.spectra_config.energy_grid_type)
+
+    elif (input_config.process.type == ph.TWONEUTRINO_TWOEC):
+        if input_config.spectra_config.method["name"] == "Closure":
+            atilde = 1.12*(final_atom.mass_number**0.5)
+            if ("enei" in input_config.spectra_config.method):
+                if (isinstance(input_config.spectra_config.method["enei"], float)):
+                    enei = input_config.spectra_config.method["enei"]
+                elif isinstance(input_config.spectra_config.method["enei"], str):
+                    if (input_config.spectra_config.method["enei"] != "auto"):
+                        raise ValueError("Cannot interpret enei option")
+                    enei = atilde - 0.5 * \
+                        (input_config.spectra_config.q_value-2.0*ph.electron_mass)
+
+            print(enei, atilde, input_config.spectra_config.q_value,
+                  input_config.spectra_config.nuclear_radius)
+
+            return spades.spectra.twoec.TwoECSpectrumClosure(q_value=input_config.spectra_config.q_value,
+                                                             bound_handler=wf_handler_init.bound_handler,
+                                                             nuclear_radius=input_config.spectra_config.nuclear_radius,
+                                                             enei=enei)
+        else:
+            raise NotImplementedError()
+
     else:
         raise NotImplementedError()
 
 
 def compute_spectra_and_psfs(input_config: RunConfig, wf_handler_init: WaveFunctionsHandler | None, wf_handler_final: WaveFunctionsHandler | None, eta_total: Callable | None,
-                             final_atom: AtomicSystem, energy_grid_1D: np.ndarray, e1_grid_2D: np.ndarray | None, e2_grid_2D: np.ndarray | None):
+                             final_atom: AtomicSystem, energy_grid_1D: np.ndarray):
     for ff_type in input_config.spectra_config.fermi_function_types:
         fermi_functions = create_fermi_functions(ff_type,
                                                  input_config,
@@ -221,32 +279,39 @@ def compute_spectra_and_psfs(input_config: RunConfig, wf_handler_init: WaveFunct
                                                  final_atom,
                                                  energy_grid_1D)
 
-        for sp_type in input_config.spectra_config.types:
-            spectrum = create_spectrum(sp_type,
-                                       input_config,
-                                       fermi_functions,
-                                       eta_total, final_atom,
-                                       energy_grid_1D)
-            values = spectrum.compute_spectrum(None)
-            for key in values:
-                integrals = spectrum.integrate_spectrum(values[key])
-                psf_years = spectrum.compute_psf(integrals)
-                print(integrals, psf_years)
+        spectrum = create_spectrum(input_config,
+                                   fermi_functions,
+                                   eta_total, final_atom,
+                                   wf_handler_init)
 
-                fig, ax = plt.subplots()
-                ax.plot(spectrum.energy_points, values[key])
-                plt.show()
+        for sp_type in input_config.spectra_config.types:
+            spectrum.compute_spectrum(sp_type)
+
+        if (input_config.process.type != ph.TWONEUTRINO_TWOEC):
+            integrals = spectrum.integrate_spectrum()
+            print(f"These are the integrals {integrals}")
+
+            for key in integrals:
+                if isinstance(integrals[key], dict):
+                    for kk in integrals[key]:
+                        print(
+                            f"{key} {kk} {spectrum.compute_psf(integrals[key][kk])}")
+                else:
+                    return
+        else:
+            print(f"Integrals {spectrum.spectrum_integrals}")
+            print(f"PSFs {spectrum.compute_psf()}")
 
 
 def spectra_and_psfs_factory(input_config: RunConfig, wf_handler_init: WaveFunctionsHandler | None, wf_handler_final: WaveFunctionsHandler | None, eta_total,
-                             initial_atom: AtomicSystem | None, final_atom: AtomicSystem, energy_grid_1D: np.ndarray, e1_grid_2D: np.ndarray | None, e2_grid_2D: np.ndarray | None):
+                             initial_atom: AtomicSystem | None, final_atom: AtomicSystem, energy_grid_1D: np.ndarray):
     if input_config.process == ph.TWONEUTRINO_TWOEC:
         if (wf_handler_init == None):
             raise ValueError("Logic error for 2nu2EC")
         return compute_two_ec_psfs(input_config, wf_handler_init)
     else:
         return compute_spectra_and_psfs(input_config, wf_handler_init, wf_handler_final, eta_total,
-                                        final_atom, energy_grid_1D, e1_grid_2D, e2_grid_2D)
+                                        final_atom, energy_grid_1D)
 
 
 def main(argv=None):
@@ -263,11 +328,11 @@ def main(argv=None):
         )
         eta_total = exchange_correction.eta_total
 
-    energy_grid_1D, e1_grid_2D, e2_grid_2D = build_energy_grids(input_config)
+    energy_grid_1D = build_energy_grids(input_config)
 
     spectra_psfs = spectra_and_psfs_factory(
         input_config, wf_handler_init, wf_handler_final, eta_total,
-        initial_atom, final_atom, energy_grid_1D, e1_grid_2D, e2_grid_2D)
+        initial_atom, final_atom, energy_grid_1D)
 
 
 if __name__ == "__main__":

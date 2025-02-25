@@ -25,7 +25,7 @@ class AtomicSystem:
                     "Mass number and atomic number need to be positive")
             self.mass_number = mass_number
             self.Z = atomic_number
-            self.name_nice = f"{self.mass_number:d}{periodictable.elements[self.Z].symbol:s}"
+            self.name_nice = f"{int(self.mass_number):d}{periodictable.elements[self.Z].symbol:s}"
             self.symbol = periodictable.elements[self.Z].symbol
 
         if (weight > 0.):
@@ -69,11 +69,15 @@ configuration:[n,l,2j,occupation]
 
         print(text)
 
+    def net_charge(self):
+        n_electrons = self.occ_values.sum()
+        return self.Z - n_electrons
+
 
 def create_ion(atom: AtomicSystem, z_nuc) -> AtomicSystem:
     ion = deepcopy(atom)
     ion.Z = z_nuc
-    ion.name = f"{ion.mass_number:d}{periodictable.elements[ion.Z].symbol:s}"
+    ion.name = f"{int(ion.mass_number):d}{periodictable.elements[ion.Z].symbol:s}"
     return ion
 
 
@@ -209,5 +213,3 @@ class DHFSHandler:
         self.rv_modified = self.rv_nuc+self.rv_el + \
             rv_exchange_modified * (ph.hartree_energy*ph.bohr_radius/ph.fm)
         self.rv_modified[0] = 0.
-
-        return self.rv_modified

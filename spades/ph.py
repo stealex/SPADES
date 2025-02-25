@@ -18,7 +18,7 @@ user_distance_unit_name = "fm"
 user_energy_unit_name = "MeV"
 user_psf_unit_name = "1/year"
 
-q_values_file = "qvalues_2nubb_KY13.yaml"
+q_values_file = "deltaM_KY13.yaml"
 
 
 def read_mass_difference(file_name: str):
@@ -29,7 +29,8 @@ def read_mass_difference(file_name: str):
     else:
         # we were given a file name, check in the repo
         _dir_name = os.path.dirname(__file__)
-        file = open(os.path.join(_dir_name, f"../data/{file_name}"))
+        file = open(os.path.join(
+            _dir_name, f"../data/mass_difference/{file_name}"))
     qvalues = yaml.safe_load(file)
     return qvalues
 
@@ -55,9 +56,21 @@ PROCESSES = {"2nu_2betaMinus": TWONEUTRINO_TWOBMINUS,
              "0nu_2betaMinus": NEUTRINOLESS_TWOBMINUS,
              "2nu_2betaPlus": TWONEUTRINO_TWOBPLUS,
              "0nu_2betaPlus": NEUTRINOLESS_TWOBPLUS,
-             "2nu_betaPlusEC": TWONEUTRINO_BPLUSEC,
-             "0nu_betaPlusEC": NEUTRINOLESS_BPLUSEC,
+             "2nu_ECbetaPlus": TWONEUTRINO_BPLUSEC,
+             "0nu_ECbetaPlus": NEUTRINOLESS_BPLUSEC,
              "2nu_2EC": TWONEUTRINO_TWOEC}
+
+ZEROPLUS_TO_ZEROPLUS = 1
+ZEROPLUS_TO_TWOPLUS = 2
+TRANSITION_NAMES = {"0->0": ZEROPLUS_TO_ZEROPLUS,
+                    "0->2": ZEROPLUS_TO_TWOPLUS}
+TRANSITION_NAMES_REV = {ZEROPLUS_TO_ZEROPLUS: "0->0",
+                        ZEROPLUS_TO_TWOPLUS: "0->2"}
+
+LIGHT_NEUTRINO_EXCHANGE = 1
+NEUTRINOLESS_MECHANISMS = {"LNE": LIGHT_NEUTRINO_EXCHANGE}
+NEUTRINOLESS_MECHANISMS_REV = {LIGHT_NEUTRINO_EXCHANGE: "LNE"}
+
 
 PROCESS_IONISATION = {TWONEUTRINO_TWOBMINUS: 2,
                       NEUTRINOLESS_TWOBMINUS: 2,
@@ -118,6 +131,6 @@ WAVEFUNCTIONEVALUATION = {"OnSurface": ONSURFACE,
 
 # PATHS
 gs_configurations_path = os.path.join(os.path.dirname(
-    __file__), "../../data/atomic_gs_configurations")
+    __file__), "../data/atomic_gs_configurations")
 q_values_path = os.path.join(os.path.dirname(
-    __file__), "../../data/qvalues")
+    __file__), "../data/mass_difference/deltaM_KY13.yaml")

@@ -1,11 +1,20 @@
 from dataclasses import dataclass, field
 from logging import config
+from multiprocessing import Value
 from optparse import Option
+from tokenize import Double
 from typing import Optional, Dict, Any
 from spades import ph
 from spades.dhfs import AtomicSystem, create_ion
 import logging
 logger = logging.Logger(__name__)
+
+
+@dataclass
+class DoubleBetaProcess:
+    type: int
+    transition: int = ph.ZEROPLUS_TO_ZEROPLUS
+    mechanism: int = ph.LIGHT_NEUTRINO_EXCHANGE
 
 
 @dataclass
@@ -66,8 +75,15 @@ class RunConfig:
             pass
 
         self.task_name = config["task"]
-        self.process_dict = config["process"]
-        self.process = ph.PROCESSES[self.process_dict["name"]]
+
+        proc_dict = {}
+        proc_dict["type"] = ph.PROCESSES[config["process"]["name"]]
+        if ("transition" in config["process"]):
+            proc_dict["transition"] = ph.TRANSITION_NAMES[config["process"]["transition"]]
+        if ("mechanism" in config["process"]):
+            proc_dict["mechanism"] = ph.NEUTRINOLESS_MECHANISMS[config["process"]["mechanism"]]
+
+        self.process = DoubleBetaProcess(**proc_dict)
         self.initial_atom_dict = config["initial_atom"]
 
     def resolve_nuclear_radius(self, initial_atom: AtomicSystem):
@@ -96,16 +112,16 @@ class RunConfig:
             delta_m_tmp = delta_m_map[initial_atom.name_nice]
 
             # if double beta minus
-            if (self.process in [ph.TWONEUTRINO_TWOBMINUS, ph.NEUTRINOLESS_TWOBMINUS]):
+            if (self.process.type in [ph.TWONEUTRINO_TWOBMINUS, ph.NEUTRINOLESS_TWOBMINUS]):
                 q_val = delta_m_tmp - 2.*ph.electron_mass
-            elif (self.process in [ph.TWONEUTRINO_TWOBPLUS, ph.NEUTRINOLESS_TWOBPLUS]):
+            elif (self.process.type in [ph.TWONEUTRINO_TWOBPLUS, ph.NEUTRINOLESS_TWOBPLUS]):
                 q_val = delta_m_tmp - 4.*ph.electron_mass
-            elif (self.process in [ph.TWONEUTRINO_BPLUSEC, ph.NEUTRINOLESS_BPLUSEC]):
+            elif (self.process.type in [ph.TWONEUTRINO_BPLUSEC, ph.NEUTRINOLESS_BPLUSEC]):
                 q_val = delta_m_tmp - 2.*ph.electron_mass
-            elif (self.process in [ph.TWONEUTRINO_TWOEC]):
+            elif (self.process.type in [ph.TWONEUTRINO_TWOEC]):
                 q_val = delta_m_tmp
             else:
-                logger.error("Could not resolve q_value option")
+                raise ValueError("Could not resolve q_value option")
 
             self._raw_config["spectra_computation"]["q_value"] = q_val
         else:
