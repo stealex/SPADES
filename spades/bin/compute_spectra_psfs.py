@@ -47,7 +47,7 @@ def parse_input():
                         help="File storing Q-values in MeV. YAML file with ANuc: Qval entries",
                         type=str,
                         action="store",
-                        default=ph.q_values_file)
+                        default=ph.delta_m_files)
     parser.add_argument("--compute_2d_spectrum",
                         action="store_true",
                         default=False,
@@ -62,7 +62,7 @@ def parse_input():
     ph.user_distance_unit = ph.__dict__[
         args.distance_unit]
     ph.user_energy_unit = ph.__dict__[args.energy_unit]
-    ph.q_values_file = args.qvalues_file
+    ph.delta_m_files = args.qvalues_file
 
     with open(args.config_file, 'r') as f:
         conf = yaml.safe_load(f)
@@ -70,7 +70,7 @@ def parse_input():
     input_config = RunConfig(conf)
     initial_atom, final_atom = create_atoms(input_config)
     input_config.resolve_nuclear_radius(initial_atom)
-    input_config.resolve_q_value(initial_atom, final_atom)
+    input_config.resolve_ei_ef(initial_atom, final_atom)
     input_config.create_spectra_config()
     input_config.create_scattering_config()
     input_config.resolve_bound_config(initial_atom)
@@ -136,12 +136,12 @@ def build_exchange_correction(wf_handler_init: WaveFunctionsHandler, wf_handler_
 def build_energy_grids(input_config: RunConfig):
     if (input_config.spectra_config.energy_grid_type == "lin"):
         energy_grid_1D = np.linspace(input_config.spectra_config.min_ke,
-                                     input_config.spectra_config.q_value-input_config.spectra_config.min_ke,
+                                     input_config.spectra_config.total_ke-input_config.spectra_config.min_ke,
                                      input_config.spectra_config.n_ke_points)
     elif (input_config.spectra_config.energy_grid_type == "log"):
         energy_grid_1D = np.logspace(
             np.log10(input_config.spectra_config.min_ke),
-            np.log10(input_config.spectra_config.q_value -
+            np.log10(input_config.spectra_config.total_ke -
                      input_config.spectra_config.min_ke),
             input_config.spectra_config.n_ke_points
         )
@@ -191,12 +191,12 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
                 elif isinstance(input_config.spectra_config.method["enei"], str):
                     if (input_config.spectra_config.method["enei"] != "auto"):
                         raise ValueError("Cannot interpret enei option")
-                    enei = atilde - 0.5 * \
-                        (input_config.spectra_config.q_value + 2.0*ph.electron_mass)
+                    enei = atilde - 0.5 * input_config.spectra_config.ei_ef
 
-            print(enei, atilde, input_config.spectra_config.q_value,
-                  input_config.spectra_config.nuclear_radius)
-            return spades.spectra.twobeta.ClosureSpectrum2nu(q_value=input_config.spectra_config.q_value,
+            print("EN-EI=", enei, " atilde=", atilde, " totalKE=", input_config.spectra_config.total_ke,
+                  " R=", input_config.spectra_config.nuclear_radius)
+            return spades.spectra.twobeta.ClosureSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
+                                                             ei_ef=input_config.spectra_config.ei_ef,
                                                              enei=enei,
                                                              fermi_functions=fermi_functions,
                                                              eta_total=eta_total,
@@ -209,7 +209,8 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
     elif (input_config.process.type in [ph.NEUTRINOLESS_TWOBMINUS, ph.NEUTRINOLESS_TWOBPLUS]):
         if (input_config.spectra_config.method["name"] == "Closure"):
             if (input_config.process.mechanism == ph.LIGHT_NEUTRINO_EXCHANGE):
-                return spades.spectra.twobeta.ClosureSpectrum0nu_LNE(q_value=input_config.spectra_config.q_value,
+                return spades.spectra.twobeta.ClosureSpectrum0nu_LNE(total_ke=input_config.spectra_config.total_ke,
+                                                                     ei_ef=input_config.spectra_config.ei_ef,
                                                                      nuclear_radius=input_config.spectra_config.nuclear_radius,
                                                                      fermi_functions=fermi_functions,
                                                                      eta_total=eta_total,
@@ -230,12 +231,12 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
                 elif isinstance(input_config.spectra_config.method["enei"], str):
                     if (input_config.spectra_config.method["enei"] != "auto"):
                         raise ValueError("Cannot interpret enei option")
-                    enei = atilde - 0.5 * \
-                        (input_config.spectra_config.q_value)
+                    enei = atilde - 0.5 * input_config.spectra_config.ei_ef
 
-            print(enei, atilde, input_config.spectra_config.q_value,
+            print(enei, atilde, input_config.spectra_config.total_ke,
                   input_config.spectra_config.nuclear_radius)
-            return spades.spectra.ecbeta.ClosureSpectrum2nu(q_value=input_config.spectra_config.q_value,
+            return spades.spectra.ecbeta.ClosureSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
+                                                            ei_ef=input_config.spectra_config.ei_ef,
                                                             fermi_functions=fermi_functions,
                                                             bound_handler=wf_handler_init.bound_handler,
                                                             nuclear_radius=input_config.spectra_config.nuclear_radius,
@@ -253,13 +254,13 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
                 elif isinstance(input_config.spectra_config.method["enei"], str):
                     if (input_config.spectra_config.method["enei"] != "auto"):
                         raise ValueError("Cannot interpret enei option")
-                    enei = atilde - 0.5 * \
-                        (input_config.spectra_config.q_value-2.0*ph.electron_mass)
+                    enei = atilde - 0.5 * input_config.spectra_config.ei_ef
 
-            print(enei, atilde, input_config.spectra_config.q_value,
+            print(enei, atilde, input_config.spectra_config.total_ke,
                   input_config.spectra_config.nuclear_radius)
 
-            return spades.spectra.twoec.TwoECSpectrumClosure(q_value=input_config.spectra_config.q_value,
+            return spades.spectra.twoec.TwoECSpectrumClosure(total_ke=input_config.spectra_config.total_ke,
+                                                             ei_ef=input_config.spectra_config.ei_ef,
                                                              bound_handler=wf_handler_init.bound_handler,
                                                              nuclear_radius=input_config.spectra_config.nuclear_radius,
                                                              enei=enei)
@@ -286,6 +287,11 @@ def compute_spectra_and_psfs(input_config: RunConfig, wf_handler_init: WaveFunct
 
         for sp_type in input_config.spectra_config.types:
             spectrum.compute_spectrum(sp_type)
+            # fig, ax = plt.subplots()
+            # print(spectrum.__dict__)
+            # ax.plot(spectrum.energy_points,
+            #         spectrum.spectrum_values[1])
+            # plt.show()
 
         if (input_config.process.type != ph.TWONEUTRINO_TWOEC):
             integrals = spectrum.integrate_spectrum()

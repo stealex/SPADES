@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from logging import config
-from multiprocessing import Value
+from multiprocessing import Value, process
 from optparse import Option
 from tokenize import Double
 from typing import Optional, Dict, Any
@@ -45,7 +45,8 @@ class SpectraConfig:
     energy_grid_type: int
     n_ke_points: int
     min_ke: float
-    q_value: float
+    total_ke: float
+    ei_ef: float = -1.
     corrections: list[str] = field(default_factory=list)
 
     n_points_log_2d: int = 0
@@ -96,36 +97,44 @@ class RunConfig:
         else:
             raise ValueError("Cannot interpret nuclear_radius option")
 
-    def resolve_q_value(self, initial_atom: AtomicSystem, final_atom: AtomicSystem):
+    def resolve_ei_ef(self, initial_atom: AtomicSystem, final_atom: AtomicSystem):
         to_MeV = ph.user_energy_unit/ph.MeV
-        if (type(self._raw_config["spectra_computation"]["q_value"]) is float):
-            print("Received float q_value. All good, continue.")
-            q_val = self._raw_config["spectra_computation"]["q_value"] * to_MeV
-            return
-        elif (type(self._raw_config["spectra_computation"]["q_value"]) is str):
-            if (self._raw_config["spectra_computation"]["q_value"] != "auto"):
+        if (type(self._raw_config["spectra_computation"]["total_ke"]) is float):
+            print("Received float total_ke. All good, continue.")
+            total_ke = self._raw_config["spectra_computation"]["total_ke"] * to_MeV
+        elif (type(self._raw_config["spectra_computation"]["total_ke"]) is str):
+            if (self._raw_config["spectra_computation"]["total_ke"] != "auto"):
                 raise ValueError(
-                    "Cannot interpret q_value. Valid options: float or 'auto' ")
-            # now we know q_value is "auto". Read files
-            print("q_value is 'auto'. Will read from file")
-            delta_m_map = ph.read_mass_difference(ph.q_values_file)
+                    "Cannot interpret total_ke. Valid options: float or 'auto' ")
+            # now we know ei_ef is "auto". Read files
+            print("total_ke is 'auto'. Will read from file")
+            delta_m_map = ph.read_mass_difference(ph.delta_m_files)
             delta_m_tmp = delta_m_map[initial_atom.name_nice]
 
-            # if double beta minus
             if (self.process.type in [ph.TWONEUTRINO_TWOBMINUS, ph.NEUTRINOLESS_TWOBMINUS]):
-                q_val = delta_m_tmp - 2.*ph.electron_mass
+                total_ke = delta_m_tmp
             elif (self.process.type in [ph.TWONEUTRINO_TWOBPLUS, ph.NEUTRINOLESS_TWOBPLUS]):
-                q_val = delta_m_tmp - 4.*ph.electron_mass
-            elif (self.process.type in [ph.TWONEUTRINO_BPLUSEC, ph.NEUTRINOLESS_BPLUSEC]):
-                q_val = delta_m_tmp - 2.*ph.electron_mass
+                total_ke = delta_m_tmp-4.0*ph.electron_mass
             elif (self.process.type in [ph.TWONEUTRINO_TWOEC]):
-                q_val = delta_m_tmp
-            else:
-                raise ValueError("Could not resolve q_value option")
+                total_ke = delta_m_tmp
+            elif (self.process.type in [ph.TWONEUTRINO_BPLUSEC, ph.NEUTRINOLESS_BPLUSEC]):
+                total_ke = delta_m_tmp-2.0*ph.electron_mass
 
-            self._raw_config["spectra_computation"]["q_value"] = q_val
+            self._raw_config["spectra_computation"]["total_ke"] = total_ke
         else:
-            raise TypeError("Cannot interpret q_value")
+            raise TypeError("Cannot interpret total_ke")
+
+        # now compute energy difference between nuclear states
+        if (self.process.type in [ph.TWONEUTRINO_TWOBMINUS, ph.NEUTRINOLESS_TWOBMINUS,
+                                  ph.TWONEUTRINO_TWOBPLUS, ph.NEUTRINOLESS_TWOBPLUS]):
+            ei_ef = total_ke+2.0*ph.electron_mass
+        elif (self.process.type in [ph.TWONEUTRINO_TWOEC]):
+            ei_ef = total_ke-2.0*ph.electron_mass
+        elif (self.process.type in [ph.TWONEUTRINO_BPLUSEC, ph.NEUTRINOLESS_BPLUSEC]):
+            ei_ef = total_ke
+        else:
+            raise TypeError("Logic error, cannot determine ei_ef")
+        self._raw_config["spectra_computation"]["ei_ef"] = ei_ef
 
     def resolve_bound_config(self, initial_atom: AtomicSystem):
         if not ("bound_states" in self._raw_config):
@@ -168,6 +177,6 @@ class RunConfig:
             self.scattering_config = ScatteringConfig(
                 **self._raw_config["scattering_states"],
                 min_ke=self.spectra_config.min_ke,
-                max_ke=self.spectra_config.q_value)
+                max_ke=self.spectra_config.total_ke)
         else:
             self.scattering_config = None

@@ -18,7 +18,7 @@ user_distance_unit_name = "fm"
 user_energy_unit_name = "MeV"
 user_psf_unit_name = "1/year"
 
-q_values_file = "deltaM_KY13.yaml"
+delta_m_files = "deltaM_KY13.yaml"
 
 
 def read_mass_difference(file_name: str):

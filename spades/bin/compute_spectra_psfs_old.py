@@ -48,7 +48,7 @@ class RunConfig:
         fermi_functions = config["spectra_computation"]["fermi_functions"]
         q_value = config["spectra_computation"]["q_value"]
         if q_value == "auto":
-            q_values = ph.read_mass_difference(ph.q_values_file)
+            q_values = ph.read_mass_difference(ph.delta_m_files)
             q_value = q_values[self.initial_atom.name_nice]
         elif (q_value > 0):
             pass
@@ -119,7 +119,7 @@ class RunConfig:
             pass
 
         self.spectra_config = SpectraConfig(method=method, wavefunction_evaluation=wavefunction_eval, nuclear_radius=nuclear_radius,
-                                            types=types, energy_grid_type=energy_grid_type, fermi_functions=fermi_functions, q_value=q_value,
+                                            types=types, energy_grid_type=energy_grid_type, fermi_functions=fermi_functions, total_ke=q_value,
                                             min_ke=min_ke, corrections=corrections, n_ke_points=n_ke_points, ke_step=ke_step, orders=orders)
 
         self.spectra_2d_config = Spectra2DConfig(n_points_log=config["spectra_computation"]["2d_config"]["n_points_log"],
@@ -154,7 +154,7 @@ def main(argv=None):
                         help="File storing Q-values in MeV. YAML file with ANuc: Qval entries",
                         type=str,
                         action="store",
-                        default=ph.q_values_file)
+                        default=ph.delta_m_files)
     parser.add_argument("--compute_2d_spectrum",
                         action="store_true",
                         default=False,
@@ -168,7 +168,7 @@ def main(argv=None):
     ph.user_distance_unit = ph.__dict__[
         args.distance_unit]
     ph.user_energy_unit = ph.__dict__[args.energy_unit]
-    ph.q_values_file = args.qvalues_file
+    ph.delta_m_files = args.qvalues_file
 
     with open(args.config_file, 'r') as f:
         run_conf = yaml.safe_load(f)
@@ -231,18 +231,18 @@ def main(argv=None):
         if input_config.spectra_config.n_ke_points == -1:
             spectrum_energy_grid = np.arange(
                 input_config.spectra_config.min_ke,
-                input_config.spectra_config.q_value -
+                input_config.spectra_config.total_ke -
                 input_config.spectra_config.min_ke,
                 input_config.spectra_config.ke_step)
         else:
             spectrum_energy_grid = np.linspace(input_config.spectra_config.min_ke,
-                                               input_config.spectra_config.q_value-input_config.spectra_config.min_ke,
+                                               input_config.spectra_config.total_ke-input_config.spectra_config.min_ke,
                                                input_config.spectra_config.n_ke_points,
                                                retstep=True)
     elif input_config.spectra_config.energy_grid_type == "log":
         spectrum_energy_grid = np.logspace(
             np.log10(input_config.spectra_config.min_ke),
-            np.log10(input_config.spectra_config.q_value -
+            np.log10(input_config.spectra_config.total_ke -
                      input_config.spectra_config.min_ke),
             input_config.spectra_config.n_ke_points)
 
@@ -255,7 +255,7 @@ def main(argv=None):
     )
     e1_lin = np.linspace(
         input_config.spectra_2d_config.e_max_log,
-        input_config.spectra_config.q_value-input_config.spectra_config.min_ke,
+        input_config.spectra_config.total_ke-input_config.spectra_config.min_ke,
         input_config.spectra_2d_config.n_points_lin
     )
     e1_final = np.concatenate((e1_log, e1_lin[1:]))
@@ -266,16 +266,16 @@ def main(argv=None):
         if input_config.process == ph.TWONEUTRINO_TWOBMINUS:
             atilde = 1.12*(input_config.initial_atom.mass_number**0.5)
             enei = atilde - 0.5 * \
-                (input_config.spectra_config.q_value + 2.0*ph.electron_mass)
+                (input_config.spectra_config.total_ke + 2.0*ph.electron_mass)
             spectrum = twobeta.ClosureSpectrum2nubb(
-                q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, enei=enei)
+                q_value=input_config.spectra_config.total_ke, energy_points=spectrum_energy_grid, enei=enei)
         elif input_config.process == ph.NEUTRINOLESS_TWOBMINUS:
             spectrum = twobeta.spectrum_0nubb(
-                q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, nuclear_radius=nuclear_radius)
+                q_value=input_config.spectra_config.total_ke, energy_points=spectrum_energy_grid, nuclear_radius=nuclear_radius)
     elif input_config.spectra_config.method == ph.TAYLORMETHOD:
         if input_config.process == ph.TWONEUTRINO_TWOBMINUS:
             spectrum = twobeta.TaylorSpectrum2nubb(
-                q_value=input_config.spectra_config.q_value, energy_points=spectrum_energy_grid, orders=input_config.spectra_config.orders
+                q_value=input_config.spectra_config.total_ke, energy_points=spectrum_energy_grid, orders=input_config.spectra_config.orders
             )
 
     print("Computing spectra:")

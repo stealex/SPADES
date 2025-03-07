@@ -7,9 +7,10 @@ from spades.fermi_functions import FermiFunctions
 
 
 class SpectrumBase(ABC):
-    def __init__(self, q_value: float) -> None:
+    def __init__(self, total_ke: float, ei_ef: float) -> None:
         super().__init__()
-        self.q_value = q_value
+        self.total_ke = total_ke
+        self.ei_ef = ei_ef
 
     @abstractmethod
     def compute_spectrum(self, sp_type: int):
@@ -26,9 +27,8 @@ class SpectrumBase(ABC):
 
 
 class BetaSpectrumBase(SpectrumBase):
-    def __init__(self, q_value: float, fermi_functions: FermiFunctions) -> None:
-        super().__init__(q_value)
-        self.q_value = q_value
+    def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions) -> None:
+        super().__init__(total_ke, ei_ef)
         self.energy_points = None
         self.spectrum_values = {}
         self.fermi_functions = fermi_functions

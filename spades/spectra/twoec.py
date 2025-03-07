@@ -12,8 +12,8 @@ from numba import njit
 
 
 class TwoECSpectrum(SpectrumBase):
-    def __init__(self, q_value: float, bound_handler: BoundHandler, nuclear_radius: float) -> None:
-        super().__init__(q_value)
+    def __init__(self, total_ke: float, ei_ef: float, bound_handler: BoundHandler, nuclear_radius: float) -> None:
+        super().__init__(total_ke, ei_ef)
         self.bound_handler = bound_handler
         self.nuclear_radius = nuclear_radius
 
@@ -53,15 +53,15 @@ def kn_ecec(eb1: float, enu: float, w0: float, enei: float):
 
 
 class TwoECSpectrumClosure(TwoECSpectrum):
-    def __init__(self, q_value: float, bound_handler: BoundHandler, nuclear_radius: float, enei: float) -> None:
-        super().__init__(q_value, bound_handler, nuclear_radius)
+    def __init__(self, total_ke: float, ei_ef: float, bound_handler: BoundHandler, nuclear_radius: float, enei: float) -> None:
+        super().__init__(total_ke, ei_ef, bound_handler, nuclear_radius)
         self.enei = enei
-        self.atilde = self.enei+0.5*(self.q_value-2*ph.electron_mass)
+        self.atilde = self.enei+0.5*(self.total_ke-2*ph.electron_mass)
         self.constant_in_front = 2*(self.atilde**2.0)*((ph.fermi_coupling_constant*ph.v_ud)**4) /\
             (48.*(np.pi**3.0)) * (ph.electron_mass**4.0)
 
     def compute_spectrum(self, sp_type: int = ph.SINGLESPECTRUM):
-        print(f"q_value = {self.q_value}")
+        print(f"total_ke = {self.total_ke}")
         for n1 in self.bound_handler.p_grid:
             prob1 = self.bound_handler.probability_in_sphere(
                 self.nuclear_radius, n1, -1)
@@ -74,15 +74,15 @@ class TwoECSpectrumClosure(TwoECSpectrum):
 
                 eb1 = np.abs(self.bound_handler.be[n1][-1])
                 eb2 = np.abs(self.bound_handler.be[n2][-1])
-                integration_end = self.q_value-eb1-eb2
+                integration_end = self.total_ke-eb1-eb2
                 if integration_end < 0:
                     self.spectrum_integrals[n1][-1][n2][-1] = 0.
                     continue
                 tmp_result = integrate.quad(
                     func=lambda x: neutrino_integrand_standard(
-                        x, -(ph.electron_mass-eb1), -(ph.electron_mass-eb2), self.q_value-2*ph.electron_mass, self.enei-ph.electron_mass),
+                        x, -(ph.electron_mass-eb1), -(ph.electron_mass-eb2), self.total_ke-2*ph.electron_mass, self.enei-ph.electron_mass),
                     a=0.,
-                    b=self.q_value-eb1-eb2
+                    b=self.total_ke-eb1-eb2
                 )
 
                 if not isinstance(tmp_result, tuple):

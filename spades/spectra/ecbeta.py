@@ -22,8 +22,8 @@ from spades.math_stuff import kn, ln, neutrino_integrand_closure_standard_00
 
 
 class ECBetaSpectrumBase(BetaSpectrumBase):
-    def __init__(self, q_value: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, **kwargs) -> None:
-        super().__init__(q_value, fermi_functions)
+    def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, **kwargs) -> None:
+        super().__init__(total_ke, ei_ef, fermi_functions)
         self.bound_handler = bound_handler
         self.spectrum_values = {}
         self.g_func = {}
@@ -40,17 +40,17 @@ class ECBetaSpectrumBase(BetaSpectrumBase):
             self.energy_points[n] = {}
             for k in self.bound_handler.p_grid[n]:
                 # build energy points
-                eb = self.bound_handler.be[n][k] - ph.electron_mass
+                eb = - np.abs(self.bound_handler.be[n][k])
                 if self.energy_grid_type == "lin":
                     self.energy_points[n][k] = np.linspace(
                         self.min_ke,
-                        self.q_value+eb-self.min_ke,
+                        self.total_ke+eb-self.min_ke,
                         self.n_ke_points
                     )
                 elif self.energy_grid_type == "log":
                     self.energy_points[n][k] = np.logspace(
                         np.log10(self.min_ke),
-                        np.log10(self.q_value+eb-self.min_ke),
+                        np.log10(self.total_ke+eb-self.min_ke),
                         self.n_ke_points
                     )
                 else:
@@ -74,10 +74,11 @@ class ECBetaSpectrumBase(BetaSpectrumBase):
 
 
 class ClosureSpectrum(ECBetaSpectrumBase):
-    def __init__(self, q_value: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, enei: float, **kwargs) -> None:
-        super().__init__(q_value, fermi_functions, bound_handler, nuclear_radius, **kwargs)
+    def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, enei: float, **kwargs) -> None:
+        super().__init__(total_ke, ei_ef, fermi_functions,
+                         bound_handler, nuclear_radius, **kwargs)
         self.enei = enei
-        self.atilde = self.enei + 0.5*self.q_value
+        self.atilde = self.enei + 0.5*self.ei_ef
         self.constant_in_front = 1.0
 
     @abstractmethod
@@ -113,8 +114,8 @@ class ClosureSpectrum(ECBetaSpectrumBase):
 
 
 class ClosureSpectrum2nu(ClosureSpectrum):
-    def __init__(self, q_value: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, enei: float, **kwargs) -> None:
-        super().__init__(q_value, fermi_functions,
+    def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, enei: float, **kwargs) -> None:
+        super().__init__(total_ke, ei_ef, fermi_functions,
                          bound_handler, nuclear_radius, enei, **kwargs)
         self.constant_in_front = 2*(self.atilde**2.0)*((ph.fermi_coupling_constant*ph.v_ud)**4) /\
             (48.*(np.pi**5.0)) * ph.electron_mass
@@ -128,25 +129,31 @@ class ClosureSpectrum2nu(ClosureSpectrum):
             n = self.bound_handler.config.n_values[i_n]
             spectrum_current = np.zeros_like(self.energy_points[n][-1])
             eb = np.abs(self.bound_handler.be[n][-1])
+            prob = self.bound_handler.probability_in_sphere(
+                self.nuclear_radius, n, -1)
+
             for i_e in range(len(self.energy_points[n][-1])-1):
                 ep = self.energy_points[n][-1][i_e]
                 result = integrate.quad(
                     func=lambda x: neutrino_integrand_closure_standard_00(
-                        x, ep, -(ph.electron_mass-eb), self.q_value, self.enei),
+                        x,
+                        ep+ph.electron_mass,
+                        -(ph.electron_mass-eb),
+                        self.total_ke-ep-x-eb, self.enei),
                     a=0.,
-                    b=self.q_value - eb - ep-ph.electron_mass
+                    b=self.total_ke - eb - ep
                 )
                 if isinstance(result, tuple):
                     spectrum_current[i_e] = result[0]
                 else:
                     raise ValueError("Spectrum integration did not succeed")
+
+                ff_ec_beta = self.fermi_functions.ff_ecbeta_eval(ep)
+                spectrum_current[i_e] = spectrum_current[i_e] *\
+                    ff_ec_beta*prob*np.sqrt(ep*(ep+2.0*ph.electron_mass)) *\
+                    (ep+ph.electron_mass)
+
             spectrum_current[-1] = 0.
 
-            ff_ec_beta = self.fermi_functions.ff_ecbeta_eval(ep)
-            prob = self.bound_handler.probability_in_sphere(
-                self.nuclear_radius, n, -1)
-            self.spectrum_values[n][-1] = spectrum_current *\
-                self.fermi_functions.ff_ecbeta_eval(
-                    ep) * self.bound_handler.probability_in_sphere(self.nuclear_radius, n, -1)
-
+            self.spectrum_values[n][-1] = spectrum_current
         # print(f"spectrum_valeus = {self.spectrum_values}")
