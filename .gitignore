@@ -15,3 +15,5 @@ Universe
 Universe_Taylor
 phase_shift
 notebooks
+spectra.json
+.gitignore
