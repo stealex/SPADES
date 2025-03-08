@@ -176,7 +176,7 @@ class ClosureSpectrumBase(TwoBetaSpectrumBase):
         pass
 
     def integrate_spectrum(self):
-        integrals = {}
+        self.spectrum_integrals = {}
         for key in self.spectrum_values:
             interp_func = interpolate.CubicSpline(
                 self.energy_points, self.spectrum_values[key]
@@ -188,16 +188,17 @@ class ClosureSpectrumBase(TwoBetaSpectrumBase):
                 self.energy_points[-1]
             )
             if isinstance(result, tuple):
-                integrals[key] = result[0]
+                self.spectrum_integrals[key] = result[0]
             else:
                 raise ValueError("Spectrum integration did not succeed")
 
-        return integrals
+            self.spectrum_values[key] = self.spectrum_values[key]/result[0]
 
-    def compute_psf(self, spectrum_integral):
-        psf_mev = spectrum_integral*self.constant_in_front
-        psf_years = psf_mev/(ph.hbar*np.log(2.))/(ph.year**(-1))
-        return psf_years
+    def compute_psf(self):
+        for key in self.spectrum_values:
+            psf_mev = self.spectrum_integrals[key]*self.constant_in_front
+            psf_years = psf_mev/(ph.hbar*np.log(2.))/(ph.year**(-1))
+            self.psfs[key] = psf_years
 
 
 class ClosureSpectrum2nu(ClosureSpectrumBase):

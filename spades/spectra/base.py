@@ -11,6 +11,7 @@ class SpectrumBase(ABC):
         super().__init__()
         self.total_ke = total_ke
         self.ei_ef = ei_ef
+        self.psfs = {}
 
     @abstractmethod
     def compute_spectrum(self, sp_type: int):
@@ -23,7 +24,6 @@ class SpectrumBase(ABC):
     @abstractmethod
     def integrate_spectrum(self):
         pass
-        return
 
 
 class BetaSpectrumBase(SpectrumBase):
@@ -31,6 +31,7 @@ class BetaSpectrumBase(SpectrumBase):
         super().__init__(total_ke, ei_ef)
         self.energy_points = None
         self.spectrum_values = {}
+        self.spectrum_integrals = {}
         self.fermi_functions = fermi_functions
 
     @abstractmethod
@@ -44,4 +45,3 @@ class BetaSpectrumBase(SpectrumBase):
     @abstractmethod
     def integrate_spectrum(self):
         pass
-        return

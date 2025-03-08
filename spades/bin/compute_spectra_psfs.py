@@ -17,6 +17,7 @@ import spades.spectra.twobeta
 import spades.spectra.ecbeta
 import spades.spectra.twoec
 from spades.wavefunctions import WaveFunctionsHandler
+from spades.spectra.spectrum_writer import SpectrumWriter
 
 logger = logging.getLogger(__name__)
 
@@ -271,8 +272,13 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
         raise NotImplementedError()
 
 
-def compute_spectra_and_psfs(input_config: RunConfig, wf_handler_init: WaveFunctionsHandler | None, wf_handler_final: WaveFunctionsHandler | None, eta_total: Callable | None,
-                             final_atom: AtomicSystem, energy_grid_1D: np.ndarray):
+def compute_spectra_and_psfs(input_config: RunConfig,
+                             wf_handler_init: WaveFunctionsHandler | None,
+                             wf_handler_final: WaveFunctionsHandler | None,
+                             eta_total: Callable | None,
+                             final_atom: AtomicSystem,
+                             energy_grid_1D: np.ndarray):
+    spectra = {}
     for ff_type in input_config.spectra_config.fermi_function_types:
         fermi_functions = create_fermi_functions(ff_type,
                                                  input_config,
@@ -294,19 +300,13 @@ def compute_spectra_and_psfs(input_config: RunConfig, wf_handler_init: WaveFunct
             # plt.show()
 
         if (input_config.process.type != ph.TWONEUTRINO_TWOEC):
-            integrals = spectrum.integrate_spectrum()
-            print(f"These are the integrals {integrals}")
+            spectrum.integrate_spectrum()
+        spectrum.compute_psf()
 
-            for key in integrals:
-                if isinstance(integrals[key], dict):
-                    for kk in integrals[key]:
-                        print(
-                            f"{key} {kk} {spectrum.compute_psf(integrals[key][kk])}")
-                else:
-                    print(f"{key} {spectrum.compute_psf(integrals[key])}")
-        else:
-            print(f"Integrals {spectrum.spectrum_integrals}")
-            print(f"PSFs {spectrum.compute_psf()}")
+        print("These are the PSFS ", spectrum.psfs)
+        spectra[ph.FERMIFUNCTIONS_REV[ff_type]] = spectrum
+
+    return spectra
 
 
 def spectra_and_psfs_factory(input_config: RunConfig, wf_handler_init: WaveFunctionsHandler | None, wf_handler_final: WaveFunctionsHandler | None, eta_total,
@@ -339,6 +339,15 @@ def main(argv=None):
     spectra_psfs = spectra_and_psfs_factory(
         input_config, wf_handler_init, wf_handler_final, eta_total,
         initial_atom, final_atom, energy_grid_1D)
+
+    spectrum_writer = SpectrumWriter()
+    if spectra_psfs is None:
+        raise NotImplementedError
+    else:
+        print("Writing output file")
+        for key in spectra_psfs:
+            spectrum_writer.add_spectrum(spectra_psfs[key], key)
+        spectrum_writer.write("spectra.json")
 
 
 if __name__ == "__main__":

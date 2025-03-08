@@ -87,9 +87,9 @@ NUMERIC_FERMIFUNCTIONS = 3
 FERMIFUNCTIONS = {"PointLike": POINTLIKE_FERMIFUNCTIONS,
                   "ChargedSphere": CHARGEDSPHERE_FERMIFUNCTIONS,
                   "Numeric": NUMERIC_FERMIFUNCTIONS}
-FERMIFUNCTIONS_NICE = {POINTLIKE_FERMIFUNCTIONS: "PointLike",
-                       CHARGEDSPHERE_FERMIFUNCTIONS: "ChargedSphere",
-                       NUMERIC_FERMIFUNCTIONS: "Numeric"}
+FERMIFUNCTIONS_REV = {POINTLIKE_FERMIFUNCTIONS: "PointLike",
+                      CHARGEDSPHERE_FERMIFUNCTIONS: "ChargedSphere",
+                      NUMERIC_FERMIFUNCTIONS: "Numeric"}
 
 CLOSUREMETHOD = 1
 TAYLORMETHOD = 2
@@ -104,6 +104,10 @@ SPECTRUM_TYPES = {"Single": SINGLESPECTRUM,
                   "Sum": SUMMEDSPECTRUM,
                   "Angular": ANGULARSPECTRUM,
                   "Alpha": ALPHASPECTRUM}
+SPECTRUM_TYPES_REV = {SINGLESPECTRUM: "Single",
+                      SUMMEDSPECTRUM: "Sum",
+                      ANGULARSPECTRUM: "Angular",
+                      ALPHASPECTRUM: "Alpha"}
 
 SPECTRUM_TYPES_NICE = {SINGLESPECTRUM: "dG/de",
                        SUMMEDSPECTRUM: "dG/dT",
@@ -134,3 +138,8 @@ gs_configurations_path = os.path.join(os.path.dirname(
     __file__), "../data/atomic_gs_configurations")
 q_values_path = os.path.join(os.path.dirname(
     __file__), "../data/mass_difference/deltaM_KY13.yaml")
+
+JSONFORMAT = 1
+HDF5FORMAT = 2
+OUTPUTFILEFORMAT = {"json": JSONFORMAT,
+                    "hdf5": HDF5FORMAT}

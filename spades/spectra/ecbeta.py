@@ -25,7 +25,6 @@ class ECBetaSpectrumBase(BetaSpectrumBase):
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, **kwargs) -> None:
         super().__init__(total_ke, ei_ef, fermi_functions)
         self.bound_handler = bound_handler
-        self.spectrum_values = {}
         self.g_func = {}
         self.f_func = {}
         self.nuclear_radius = nuclear_radius
@@ -39,6 +38,8 @@ class ECBetaSpectrumBase(BetaSpectrumBase):
             self.spectrum_values[n] = {}
             self.energy_points[n] = {}
             for k in self.bound_handler.p_grid[n]:
+                if k != -1:
+                    continue
                 # build energy points
                 eb = - np.abs(self.bound_handler.be[n][k])
                 if self.energy_grid_type == "lin":
@@ -86,10 +87,11 @@ class ClosureSpectrum(ECBetaSpectrumBase):
         pass
 
     def integrate_spectrum(self):
-        integrals = {}
         for n in self.spectrum_values:
-            integrals[n] = {}
+            self.spectrum_integrals[n] = {}
             for k in self.spectrum_values[n]:
+                if k != -1:
+                    continue
                 print(f"Doing for {n} {k}")
                 interp_func = interpolate.CubicSpline(
                     self.energy_points[n][k], self.spectrum_values[n][k]
@@ -101,16 +103,20 @@ class ClosureSpectrum(ECBetaSpectrumBase):
                     self.energy_points[n][k][-1]
                 )
                 if isinstance(result, tuple):
-                    integrals[n][k] = result[0]
+                    self.spectrum_integrals[n][k] = result[0]
                 else:
                     raise ValueError("Spectrum integration did not succeed")
 
-        return integrals
+                # normalize the resulting spectrum
+                self.spectrum_values[n][k] = self.spectrum_values[n][k]/result[0]
 
-    def compute_psf(self, spectrum_integral: float):
-        psf_mev = spectrum_integral*self.constant_in_front
-        psf_years = psf_mev/(ph.hbar*np.log(2.))/(ph.year**(-1))
-        return psf_years
+    def compute_psf(self):
+        for n in self.spectrum_integrals:
+            self.psfs[n] = {}
+            for k in self.spectrum_integrals[n]:
+                psf_mev = self.spectrum_integrals[n][k]*self.constant_in_front
+                psf_years = psf_mev/(ph.hbar*np.log(2.))/(ph.year**(-1))
+                self.psfs[n][k] = psf_years
 
 
 class ClosureSpectrum2nu(ClosureSpectrum):

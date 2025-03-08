@@ -93,14 +93,11 @@ class TwoECSpectrumClosure(TwoECSpectrum):
                 self.spectrum_integrals[n1][-1][n2][-1] = res
 
     def compute_psf(self):
-        psfs = {}
         for n1 in self.spectrum_integrals:
-            psfs[n1] = {-1: {}}
+            self.psfs[n1] = {-1: {}}
             for n2 in self.spectrum_integrals[n1][-1]:
                 psf_mev = self.spectrum_integrals[n1][-1][n2][-1] * \
                     self.constant_in_front
                 psf_years = psf_mev/(ph.hbar*np.log(2.))/(ph.year**(-1))
 
-                psfs[n1][-1][n2] = {-1: psf_years}
-
-        return psfs
+                self.psfs[n1][-1][n2] = {-1: psf_years}

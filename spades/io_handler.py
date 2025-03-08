@@ -460,11 +460,11 @@ def write_fermi_functions(file_name, parent_nucleus: str, process: str, e_grid: 
 
         line = f'{"E":>10s}'
         for ff_type in ff0:
-            line = line+f'{'FF0(' + ph.FERMIFUNCTIONS_NICE[ff_type]+')':>25s}'
+            line = line+f'{'FF0(' + ph.FERMIFUNCTIONS_REV[ff_type]+')':>25s}'
         if not (ff1 is None):
             for ff_type in ff1:
                 line = line + \
-                    f'{'FF1(' + ph.FERMIFUNCTIONS_NICE[ff_type]+')':>25s}'
+                    f'{'FF1(' + ph.FERMIFUNCTIONS_REV[ff_type]+')':>25s}'
 
         line = line + '\n'
         f.write(line)
