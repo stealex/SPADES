@@ -4,6 +4,7 @@ from multiprocessing import Value, process
 from optparse import Option
 from tokenize import Double
 from typing import Optional, Dict, Any
+
 from spades import ph
 from spades.dhfs import AtomicSystem, create_ion
 import logging
@@ -49,9 +50,37 @@ class SpectraConfig:
     ei_ef: float = -1.
     corrections: list[str] = field(default_factory=list)
 
+    compute_2d: bool = False
     n_points_log_2d: int = 0
     n_points_lin_2d: int = 0
     e_max_log_2d: float = -1.
+
+
+@dataclass
+class OutputConfig:
+    location: str
+    what: list[str]
+    file_prefix: str
+
+    def solve_output_config(self):
+        self.bound_wavefunctions = False
+        self.scattering_wavefunctions = False
+        self.spectra = False
+        self.psfs = False
+        self.binding_energies = False
+        for elem in self.what:
+            if elem == "bound wavefunctions":
+                self.bound_wavefunctions = True
+            elif elem == "scattering wavefunctions":
+                self.scattering_wavefunctions = True
+            elif elem == "spectra":
+                self.spectra = True
+            elif elem == "psfs":
+                self.psfs = True
+            elif elem == "binding energies":
+                self.binding_energies = True
+            else:
+                raise NotImplementedError(f"Unknown output option {elem}")
 
 
 class RunConfig:
@@ -180,3 +209,10 @@ class RunConfig:
                 max_ke=self.spectra_config.total_ke)
         else:
             self.scattering_config = None
+
+    def create_output_config(self):
+        if ("output" in self._raw_config):
+            self.output_config = OutputConfig(**self._raw_config["output"])
+            self.output_config.solve_output_config()
+        else:
+            self.output_config = None
