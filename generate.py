@@ -85,6 +85,8 @@ class spectrum_pdf_1d(rv_continuous):
 
 def main():
     # read the spectrum data
+
+    plt.style.use('spectra.mplstyle')
     parser = ArgumentParser(
         description='Generate events from a spectrum file.')
     parser.add_argument('filename', type=str,
@@ -161,7 +163,6 @@ def main():
         t_array[i_ev] = e1_array[i_ev]+e2_array[i_ev]
 
     # load the single spectra
-    data_1d = io_handler.load_data("spectra.dat")
     # e_grid = data_1d['energy_grid']
     # single_pdf = spectrum_pdf_1d(
     #     data_1d['energy_grid'], data_1d['Spectra'][ffs][ph.SPECTRUM_TYPES_NICE[ph.SINGLESPECTRUM]])
@@ -181,25 +182,41 @@ def main():
         sum_pdf[i_e] = scipy.integrate.quad(lambda v: sum_pdf_func(
             v, e_grid[i_e], q_value, data['emin'], spl_single), 0, q_value)[0]
 
-    fig, ax = plt.subplots(ncols=2, figsize=(10, 6))
+    fig, ax = plt.subplots(ncols=2, figsize=(16, 6))
     ax[0].hist(single_energy_spectrum, bins=100, weights=np.concatenate((weights_array, weights_array)),
                density=False,
                label='Single spectrum')
     ax[0].plot(e_grid, single_pdf*args.n_events *
                0.01*2, label='Single pdf')
+    ax[0].set_xlabel(r'E-$m_{e}$ [MeV]')
+    ax[0].set_ylabel('Counts/0.01 MeV')
+    ax[0].legend()
 
-    ax[1].hist(t_array, bins=100, density=True,
+    ax[1].hist(t_array, bins=100, density=False,
                weights=weights_array, label='Sum spectrum')
-    ax[1].plot(e_grid, sum_pdf, label='Sum pdf')
+    ax[1].plot(e_grid, sum_pdf*args.n_events *
+               0.01, label='Sum pdf')
+    ax[1].set_ylabel('Counts/0.01 MeV')
 
-    fig, ax = plt.subplots(ncols=2, figsize=(10, 6))
-    ax[0].hist(cos_theta_array, bins=100, weights=weights_array,
-               density=True,
-               label='Cos theta')
+    ax[1].set_xlabel(r'E$_1$+E$_2$-$2m_{e}$ [MeV]')
+    ax[1].legend()
+
+    fig.savefig("single_spectrum.png", dpi=300,
+                transparent=True, bbox_inches='tight')
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.hist(cos_theta_array, bins=100, weights=weights_array,
+            density=True,
+            label='Cos theta')
     ctheta = np.linspace(-1, 1, 100)
     print(angular_corr_factor)
-    ax[0].plot(ctheta, 0.5+0.5*angular_corr_factor *
-               ctheta, label='Uniform pdf')
+    ax.plot(ctheta, 0.5+0.5*angular_corr_factor *
+            ctheta, label='PDF')
+    ax.set_xlabel(r'cos($\theta_{12}$)')
+    ax.set_ylabel('Counts')
+    ax.legend()
+    fig.savefig("cos_theta.png", dpi=300,
+                bbox_inches='tight', transparent=True)
 
     # compute K from simulations
     wPlus = np.sum(weights_array[cos_theta_array <= 0])
