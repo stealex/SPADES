@@ -152,6 +152,8 @@ def build_energy_grids(input_config: RunConfig):
     else:
         raise ValueError("Could not build 1D energy grid")
 
+    e1_grid_2D = None
+    e2_grid_2D = None
     if (input_config.spectra_config.compute_2d):
         e1_log = np.logspace(
             np.log10(input_config.spectra_config.min_ke),
