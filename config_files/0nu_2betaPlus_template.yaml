@@ -1,0 +1,104 @@
+---
+# name of the task. Used for printing purposes only
+task: {PARENT}_2nu_2betaPlus # name of the task. For printing purposes only
+
+# Specification of the process. The format is a dict of the form:
+# {"name": name, "option1": value1, ...}
+# For 2nu modes the option is "transition". Possible values:
+#   0->0: transition from gs (0+) to gs (0+)
+#   0->2: transition from gs (0+) to first excited 2+ state.
+# For 0nu modes the option "mechanism" can be used. Possible values:
+#   "LNE": light neutrino exchange
+process: 
+  name: 0nu_2betaPlus
+  mechanism: LNE
+  
+# Specification of the initial atom.  
+initial_atom:
+  name: {PARENT} # Has to be given in the form <A><Symbol>
+  weight: -1. # <A> will be used if this value is negative
+  electron_config: auto # auto or a path to the configuration file a la DHFS
+
+# Configuration for bound states computation.
+# NB: length units given in CLI are used. 
+bound_states:
+  max_r: 100
+  n_radial_points: 1000
+  n_values: auto # can be auto, int, (nmin, nmax), [n1,n2,n3...]
+  k_values: auto # can be auto, int, (kmin, kmax), {n1:[k1,k2,...]...}
+
+# Configuration for scattering states computation.
+# NB: length units given in CLI are used
+scattering_states:
+  max_r: 100
+  n_radial_points: 1000
+  n_ke_points: 100 # number of energy points for which scattering wave functions are computed
+  k_values: [-1, 1] # can be auto, int, (kmin, kmax), [k1, k2, ...]
+
+# Configuration for spectra and/or PSFs computation
+spectra_computation:
+# method: a dict with format {"name": value, "option1": value1...}
+#   If "name" == Closure, "option1" is "enei". If used, it must be 
+#         a positive number representing the energy of the first excited state
+#         or "auto" in which case the systematics tilde{A} = 1.12 A^{-1/2} is used
+#         and EN-EI is extracted from there.
+#
+#   If "name" == Taylor, "option1" is "orders". If used, it must be
+#         a list of strings. representing the orders used in the Taylor expansion
+#         The default value in this case is [0, 2, 22, 4] intepreted as strings.
+  method: 
+    name: Closure # allowed values: "Closure" and "Taylor"
+    enei: auto # auto uses \tilde{A} = 1.12 A^{-1/2} and extracts EN-EI from there. 
+               # One can specify a positive excitation energy otherwise.
+# wave_function_evaluation: the method to evaluate wave functions entering the spectra
+#                           and PSFs formulas. 
+# Valid options:
+#   OnSurface: the wave functions will be evaluated on the nuclear radius                           
+  wave_function_evaluation: OnSurface # can be one of: OnSurface, We
+# nuclear_radius: the radius of the nucleus to consider for spectra/PSFs computation
+# Valid options:
+#   auto: the systematics 1.2*A^{1/3} will be used
+#   float: a given positive number
+  nuclear_radius: auto # can be a number or 'auto'
+# types: list of spectra types to compute.
+# NB. the user has to make sure the respective spectra exist for the process
+# for example, there is no Sum or Angular Spectrum for (0/2)nu_ecbetaPlus process  
+# Valid entries:
+#   Single: Single electron/positron energy spectrum
+#   Angular: Angular correlation spectrum between emitted electrons/positrons
+#   Sum: Summed electron/positron energy spectrum 
+  types: [Single, Angular] # a list of any combination of: Single, Sum, Angular
+# energy_grid_type: type of energy grid to use for spectra computation
+# Valid options:
+#   lin: linear grid
+#   log: logarithmic grid
+  energy_grid_type: lin # log available as well
+# corrections: list of corrections to apply to the spectrum
+# Valid entries:
+#   exchange: The exchange correction a la Nitescu et al is applied
+#   radiative: The radiative correction is applied
+  corrections: [] # can be a list of any of: Exchange
+  fermi_function_types: [Numeric] # Can be a list of any of : Numeric, PointLike, ChargedSphere
+# total_ke: Total kinetic energy of the emitted leptons
+# Valid options: 
+#   positive number
+#   "auto": will be computed from the mass difference file based on process
+# N.B.: for modes involving electron capture, the value below should not include
+#       any binding energy
+  total_ke: auto 
+  min_ke: 0.00001 # can be a number
+  n_ke_points: 100 # integer
+  compute_2d: False
+  n_points_log_2d: 100 # integer, number of log points up to e_max_log
+  e_max_log_2d: 0.1 # float, maximum energy in log scale for first domain
+  n_points_lin_2d: 100 # integer, number of linear points from e_max_log to q_value
+output:
+  location: {DEST}
+  what:
+    - bound wavefunctions
+    - scattering wavefunctions
+    - spectra
+    - psfs
+    - binding energies
+  file_prefix: {PARENT}_2nu_2betaPlus
+  
