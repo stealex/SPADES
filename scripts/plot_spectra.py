@@ -29,6 +29,7 @@ def main(argv=None):
         for_ratio = []
         for_ratio_titles = []
         for ff_type in args.ffs:
+            print(ff_type)
             if sp_type_raw == ph.ALPHASPECTRUM:
                 try:
                     dhde = data["PSFs"][ff_type]["H"] * \
@@ -36,6 +37,7 @@ def main(argv=None):
                     dgde = data["PSFs"][ff_type]["G_single"] * \
                         data["Spectra"][ff_type]["dG/de"]
                     to_plot = dhde / dgde
+                    print("to_plot = ", to_plot)
                 except Exception as e:
                     print(f"Error in calculating alpha: {e}")
                     continue
@@ -63,7 +65,7 @@ def main(argv=None):
         axs[1].set_xlabel(r'E-$m_{e}$ [MeV]')
         axs[0].set_ylabel(f'{ph.SPECTRUM_TYPES_LATEX[sp_type_raw]} [1/MeV]')
         axs[1].set_ylabel(f"Ratio")
-        axs[1].set_ylim(0.5, 1.5)
+        # axs[1].set_ylim(0.5, 1.5)
         axs[1].legend()
         axs[0].legend()
 

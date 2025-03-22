@@ -1,6 +1,7 @@
 from . import ph
 import numpy as np
 from scipy.special import gamma
+from numba import njit
 
 
 def hydrogenic_binding_energy(z: int, n: int, k: int):
@@ -34,3 +35,20 @@ def coulomb_phase_shift(energy: float, z_inf: float, kappa: int):
     arg_gamma = np.arctan2(np.imag(gam), np.real(gam))
     result = nu-(dirac_gam-1-l)*np.pi/2. + arg_gamma - sinf*np.pi
     return result
+
+
+@njit
+def kn(e1: float, e2: float, enu1: float, enu2: float, enei: float):
+    return 1./(e1+enu1+enei) + 1./(e2+enu2+enei)
+
+
+@njit
+def ln(e1: float, e2: float, enu1: float, enu2: float, enei: float):
+    return 1./(e1+enu2+enei) + 1./(e2+enu1+enei)
+
+
+@njit
+def neutrino_integrand_closure_standard_00(enu1: float, e1: float, e2: float, enu2: float, enei: float):
+    k = kn(e1, e2, enu1, enu2, enei)
+    l = ln(e1, e2, enu1, enu2, enei)
+    return (k*k+l*l+k*l)*(enu1**2.0)*(enu2**2.0)

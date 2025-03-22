@@ -259,3 +259,25 @@ def call_slag6(y: np.ndarray, n: int):
                       integral.ctypes.data_as(POINTER(c_double)),
                       c_int(n))
     return integral
+
+
+radial_lib.getilast_.argtypes = [POINTER(c_int),  # iLAST
+                                 ]
+radial_lib.getilast_.restype = None
+
+
+def call_getilast():
+    i_last = c_int(0)
+    radial_lib.getilast_(i_last)
+    return i_last.value
+
+
+radial_lib.delinf_.argtypes = [POINTER(c_double),  # delta_infinity
+                               ]
+radial_lib.delinf_.restype = None
+
+
+def call_delinf():
+    del_inf = c_double(0.0)
+    radial_lib.delinf_(del_inf)
+    return del_inf.value

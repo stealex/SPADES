@@ -262,7 +262,7 @@ C  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       MODULE CONSTANTS  ! Array dimensions and physical constants.
       SAVE  ! Saves all items in the module.
 C  ****  Maximum radial grid dimension.
-      INTEGER*4, PARAMETER :: NDIM=25000
+      INTEGER*4, PARAMETER :: NDIM=250000
 C  ****  Maximum number of terms in asymptotic series.
       INTEGER*4, PARAMETER :: MNT=50
 C  ----  Speed of light (1/alpha).
@@ -275,6 +275,14 @@ C  ----  Electron rest energy (eV).
       DOUBLE PRECISION, PARAMETER :: REV=510.9989461D3
       END MODULE CONSTANTS
 C  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+      SUBROUTINE GETILAST(ILAS)
+      USE CONSTANTS
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z), INTEGER*4 (I-N)
+      COMMON/RADWF/RAD(NDIM),P(NDIM),Q(NDIM),NGP,ILAST,IER
+
+      ILAS=ILAST
+      END SUBROUTINE GETILAST
 
       SUBROUTINE DERROR(IERR)
       USE CONSTANTS
@@ -320,6 +328,7 @@ C
       END DO
 
       END SUBROUTINE GETPQ
+
 C  *********************************************************************
 C                       SUBROUTINE VINT
 C  *********************************************************************
@@ -1514,9 +1523,34 @@ C  ****  Finite range potentials.
           BJL1=SBESJN(1,L+KSIGN,X)
           ILAST=IL
           PA(ILAST)=X*BJL
-          PB(ILAST)=-X*BNL
-          QA(ILAST)=-FACTOR*KSIGN*X*BJL1
+          PB(ILAST)=X*BNL
+          QA(ILAST)=FACTOR*KSIGN*X*BJL1
           QB(ILAST)=FACTOR*KSIGN*X*BNL1
+
+          ! LK=-1
+          ! LMK=-1
+          ! IF(K.LT.0) THEN
+          !   LK=-K-1
+          !   LMK=-K
+          !   KSIGN=1
+          ! ELSE
+          !   LK=K
+          !   LMK=K-1
+          !   KSIGN=-1
+          ! ENDIF
+          ! IF(ABS(RVN).GT.T) GO TO 3
+          ! BNL=SBESJN(2,LK,X)
+          ! IF(ABS(BNL).GT.1.0D6) GO TO 3  ! Test cutoff.
+          ! BNL1=SBESJN(2,LMK,X)
+          ! IF(ABS(BNL1).GT.1.0D6) GO TO 3  ! Test cutoff.
+          ! BJL=SBESJN(1,LK,X)
+          ! BJL1=SBESJN(1,LMK,X)
+          ! ILAST=IL
+          ! PA(ILAST)=X*BJL
+          ! PB(ILAST)=X*BNL
+          ! QA(ILAST)=FACTOR*KSIGN*X*BJL1
+          ! QB(ILAST)=FACTOR*KSIGN*X*BNL1
+        
         ENDDO
       ELSE
 C  ****  Coulomb potentials.
@@ -1583,6 +1617,35 @@ C
       PIBP=-K*PIB/RM+FG*QB(ILAST)
 C
       PHASE=ATAN2(POP*PIA-PO*PIAP,PO*PIBP-POP*PIB)
+      ! RM = R(ILAST)
+      ! IL = IND(ILAST-1)
+      ! VF = VA(IL)/RM + VB(IL) + RM*(VC(IL) + RM*VD(IL))
+      ! ! FG = (E - VF + 2.0D0*SL*SL)/SL
+      ! ! EMASS=REV/HREV
+      ! ! ETOTAL = E + EMASS
+      ! ! PDIRAC = SQRT((ETOTAL-VF)**2.0 - EMASS*EMASS)
+      ! ! FACTTEST = PDIRAC/(ETOTAL-VF+EMASS)
+      ! PO = PT(ILAST)
+      ! QO = QT(ILAST)
+      ! PPJ = PA(ILAST)
+      ! PPY = PB(ILAST)
+      ! QQJ = QA(ILAST)
+      ! QQY = QB(ILAST)
+      ! BB1 = QQY*PO - PPY*QO
+      ! BB2 = -QQJ*PO + PPJ*QO
+      ! DETT = PPJ*QQY-QQJ*PPY
+      ! PHASE = ATAN2(-BB2,BB1)
+      ! WRITE(*,*) "PO = ", PO
+      ! WRITE(*,*) "QO = ", QO
+      ! WRITE(*,*) "PPJ = ", PPJ
+      ! WRITE(*,*) "PPY = ", PPY
+      ! WRITE(*,*) "QQJ = ", QQJ
+      ! WRITE(*,*) "QQY = ", QQY
+      ! WRITE(*,*) "BB1 = ", BB1
+      ! WRITE(*,*) "BB2 = ", BB2
+      ! WRITE(*,*) "DETT = ", DETT
+      ! WRITE(*,*) "PHASE = ", PHASE
+
 C  ****  The phase shift is reduced to the interval (-PI/2,PI/2).
       TT=ABS(PHASE)
       IF(TT.GT.PIH) PHASE=PHASE*(1.0D0-PI/TT)

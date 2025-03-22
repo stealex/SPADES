@@ -2,11 +2,11 @@ import numpy as np
 import os
 import yaml
 
-from src import dhfs_wrapper
+from spades import dhfs_wrapper, ph
 
 
 def test_dhfs():
-    input_config_file = "data/ground_state_config_Z020.yaml"
+    input_config_file = "../data/atomic_gs_configurations/ground_state_config_Z020.yaml"
     with open(input_config_file, 'r') as f:
         electron_config = yaml.safe_load(f)
 
@@ -21,8 +21,9 @@ def test_dhfs():
     dhfs_wrapper.call_configuration_input(
         n_values, l_values, jj_values, occ_values, 20)
     dhfs_wrapper.call_set_parameters(40.0, 100., 1000)
-    dhfs_wrapper.call_dhfs_main(1.5, 1)
+    dhfs_wrapper.call_dhfs_main(1.5)
 
 
 if __name__ == "__main__":
+    ph.verbose = 1
     test_dhfs()

@@ -8,30 +8,39 @@ from . import dhfs_wrapper
 from . import ph
 
 
-class atomic_system:
-    def __init__(self, config: dict) -> None:
-        self.name_nice = config["name"]
-        matches = re.match(r'(\d+)([A-Za-z]+)', self.name_nice)
-        if (type(matches) == re.Match):
-            self.mass_number = int(matches.group(1))
-            self.symbol = matches.group(2)
+class AtomicSystem:
+    def __init__(self, name="", atomic_number=-1, mass_number=-1, electron_config="auto", weight=-1.) -> None:
+        if (name != ""):
+            self.name_nice = name
+            matches = re.match(r'(\d+)([A-Za-z]+)', self.name_nice)
+            if (type(matches) == re.Match):
+                self.mass_number = int(matches.group(1))
+                self.symbol = matches.group(2)
+            else:
+                raise ValueError(
+                    "Could not identify mass number and symbol for input atom. Format should be <A><Symbol>")
         else:
-            raise ValueError(
-                "Could not identify mass number and symbol for input atom. Format should be <A><Symbol>")
+            if (mass_number < 0 or atomic_number < 0):
+                raise ValueError(
+                    "Mass number and atomic number need to be positive")
+            self.mass_number = mass_number
+            self.Z = atomic_number
+            self.name_nice = f"{int(self.mass_number):d}{periodictable.elements[self.Z].symbol:s}"
+            self.symbol = periodictable.elements[self.Z].symbol
 
-        if ("weight" in config):
-            self.weight = float(config["weight"])
+        if (weight > 0.):
+            self.weight = weight
         else:
             self.weight = -1.
 
         if (self.weight < 0.):
             self.weight = float(self.mass_number)
 
-        tmp = config["electron_config"]
+        tmp = electron_config
         if (tmp == "auto"):
             z = periodictable.elements.isotope(self.symbol).number
             electron_configuration_filename = os.path.join(os.path.dirname(__file__),
-                                                           f"../data/ground_state_config_Z{z:03d}.yaml")
+                                                           f"../data/atomic_gs_configurations/ground_state_config_Z{z:03d}.yaml")
         else:
             electron_configuration_filename = tmp
 
@@ -60,15 +69,19 @@ configuration:[n,l,2j,occupation]
 
         print(text)
 
+    def net_charge(self):
+        n_electrons = self.occ_values.sum()
+        return self.Z - n_electrons
 
-def create_ion(atom: atomic_system, z_nuc) -> atomic_system:
+
+def create_ion(atom: AtomicSystem, z_nuc) -> AtomicSystem:
     ion = deepcopy(atom)
     ion.Z = z_nuc
-    ion.name = f"{ion.mass_number:d}{periodictable.elements[ion.Z].symbol:s}"
+    ion.name = f"{int(ion.mass_number):d}{periodictable.elements[ion.Z].symbol:s}"
     return ion
 
 
-class dhfs_handler:
+class DHFSHandler:
     """
     Class for handling DHFS calculations and results for a specific system.
     Example usage:
@@ -100,7 +113,7 @@ class dhfs_handler:
         values of the r times exchange potential. Dimensions = len(rad_grid)
     """
 
-    def __init__(self, config: dict | atomic_system, label: str, atomic_weight: float = -1.0) -> None:
+    def __init__(self, config: AtomicSystem, label: str, atomic_weight: float = -1.0) -> None:
         """Handler class for DHFS.f usage.
 
         Args:
@@ -110,8 +123,8 @@ class dhfs_handler:
         """
         self.label = label
         if (type(config) == dict):
-            self.config = atomic_system(config)
-        elif (type(config) == atomic_system):
+            self.config = AtomicSystem(config)
+        elif (type(config) == AtomicSystem):
             self.config = config
         else:
             raise TypeError(
@@ -200,5 +213,3 @@ class dhfs_handler:
         self.rv_modified = self.rv_nuc+self.rv_el + \
             rv_exchange_modified * (ph.hartree_energy*ph.bohr_radius/ph.fm)
         self.rv_modified[0] = 0.
-
-        return self.rv_modified

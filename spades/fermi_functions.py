@@ -1,28 +1,43 @@
+from hepunits import rad
 import numpy as np
 from numba import njit
 from . import ph
 from scipy import special
-from .wavefunctions import wavefunctions_handler, bound_handler, scattering_handler
+from .wavefunctions import WaveFunctionsHandler, BoundHandler, ScatteringHandler
 from scipy.interpolate import Akima1DInterpolator, CubicSpline
 from scipy import integrate
 from typing import Callable
 from functools import lru_cache
-
+from abc import ABC, abstractmethod
 from mpmath import mp, hyp1f1, mpc
 
 
-class fermi_functions:
+class FermiFunctions(ABC):
     def __init__(self) -> None:
         pass
 
-    def ff0_eval(self, ke: float):
+    @abstractmethod
+    def ff0_eval(self, ke: float) -> float:
         pass
 
-    def ff1_eval(self, ke: float):
+    @abstractmethod
+    def ff1_eval(self, ke: float) -> float:
+        pass
+
+    @abstractmethod
+    def ff_ecbeta_eval(self, ke: float):
+        pass
+
+    @abstractmethod
+    def g_eval(self, ke, kappa) -> float:
+        pass
+
+    @abstractmethod
+    def f_eval(self, ke, kappa) -> float:
         pass
 
 
-class point_like(fermi_functions):
+class PointLike(FermiFunctions):
     def __init__(self, z: int, r: float, e_grid: np.ndarray | None = None) -> None:
         self.z = z
         self.r = r
@@ -32,8 +47,8 @@ class point_like(fermi_functions):
             fp1 = np.zeros_like(e_grid)
 
             for ie in range(len(e_grid)):
-                gm1[ie] = self.gk(e_grid[ie], -1)
-                fp1[ie] = self.gk(e_grid[ie], -1)
+                gm1[ie] = self.g_eval(e_grid[ie], -1)
+                fp1[ie] = self.f_eval(e_grid[ie], 1)
 
                 self.ff0 = CubicSpline(
                     e_grid,
@@ -44,7 +59,7 @@ class point_like(fermi_functions):
                     2.0*np.real(gm1*np.conj(fp1))
                 )
 
-    def gk(self, ke, kappa):
+    def g_eval(self, ke, kappa):
         r = self.r
         gamma = np.sqrt(1.0-(ph.fine_structure*self.z)**2.0)
         p = np.sqrt(ke*(ke+2.*ph.electron_mass))
@@ -64,7 +79,7 @@ class point_like(fermi_functions):
             np.exp(np.pi*eta/2.)
         return result
 
-    def fk(self, ke, kappa):
+    def f_eval(self, ke, kappa):
         r = self.r
         gamma = np.sqrt(1.0-(ph.fine_structure*self.z)**2.0)
         p = np.sqrt(ke*(ke+2.*ph.electron_mass))
@@ -84,25 +99,31 @@ class point_like(fermi_functions):
             np.exp(np.pi*eta/2.)
         return result
 
-    @ lru_cache(maxsize=None)
+    @lru_cache(maxsize=None)
     def ff0_eval(self, ke: float):
-        gm1 = self.gk(ke, -1)
-        fp1 = self.fk(ke, 1)
+        gm1 = self.g_eval(ke, -1)
+        fp1 = self.f_eval(ke, 1)
         return np.abs(gm1*gm1) + np.abs(fp1*fp1)
 
-    @ lru_cache(maxsize=None)
+    @lru_cache(maxsize=None)
     def ff1_eval(self, ke: float):
-        gm1 = self.gk(ke, -1)
-        fp1 = self.fk(ke, 1)
+        gm1 = self.g_eval(ke, -1)
+        fp1 = self.f_eval(ke, 1)
         return 2.0*np.real(gm1*np.conj(fp1))
 
+    @lru_cache(maxsize=None)
+    def ff_ecbeta_eval(self, ke: float) -> float:
+        gm1 = self.g_eval(ke, -1)
+        fp1 = self.f_eval(ke, 1)
+        return gm1**2.0 + fp1**2.0
 
-class charged_sphere(fermi_functions):
+
+class ChargedSphere(FermiFunctions):
     def __init__(self, z: int, r: float) -> None:
         self.z = z
         self.r = r
 
-    @ lru_cache(maxsize=None)
+    @lru_cache(maxsize=None)
     def ff0_eval(self, ke):
         gamma = np.sqrt(1.0-(ph.fine_structure*self.z)**2.0)
         p = np.sqrt(ke*(ke+2*ph.electron_mass))
@@ -120,7 +141,7 @@ class charged_sphere(fermi_functions):
         #                                              (gamma-1))*(np.abs(g1)**2.0)*np.exp(np.pi*eta)
         return ff
 
-    @ lru_cache(maxsize=None)
+    @lru_cache(maxsize=None)
     def ff1_eval(self, ke):
         ff0 = self.ff0_eval(ke)
         # fact1 = np.sqrt((ke+2.0*ph.electron_mass)/(2.0*(ke+ph.electron_mass)))
@@ -132,12 +153,23 @@ class charged_sphere(fermi_functions):
         e_total = (ke+ph.electron_mass)
         return momentum/e_total * ff0
 
+    def ff_ecbeta_eval(self, ke: float) -> float:
+        raise NotImplementedError()
 
-class numeric:
-    def __init__(self, scattering_handler: scattering_handler, radius: float, density_function: Callable | None = None) -> None:
+    def f_eval(self, ke, kappa):
+        raise NotImplementedError()
+
+    def g_eval(self, ke, kappa):
+        raise NotImplementedError()
+
+
+class Numeric(FermiFunctions):
+    def __init__(self, scattering_handler: ScatteringHandler, radius: float, density_function: Callable | None = None) -> None:
         self.scattering_handler = scattering_handler
         self.f = {}
         self.g = {}
+        self.g_func = {}
+        self.f_func = {}
         e = self.scattering_handler.energy_grid
         p = np.sqrt(e*(e+2.0*ph.electron_mass))
         norm = self.scattering_handler.norm
@@ -170,7 +202,7 @@ class numeric:
                             self.scattering_handler.r_grid, self.scattering_handler.p_grid[k][i_e]
                         )
                         q_func = Akima1DInterpolator(
-                            self.scattering_handler.r_grid, self.scattering_handler.p_grid[k][i_e]
+                            self.scattering_handler.r_grid, self.scattering_handler.q_grid[k][i_e]
                         )
 
                         p_avg = integrate.quad(lambda r: p_func(r)*density_function(r),
@@ -186,15 +218,33 @@ class numeric:
                             (pr[i_e]) * \
                             np.exp(-1.0j*phase_tot[i_e]) * p_avg
 
+                self.f_func[k] = CubicSpline(
+                    self.scattering_handler.energy_grid,
+                    self.f[k]
+                )
+                self.g_func[k] = CubicSpline(
+                    self.scattering_handler.energy_grid,
+                    self.g[k]
+                )
         self.build_fermi_functions()
 
-    @ lru_cache(maxsize=None)
+    @lru_cache(maxsize=None)
     def ff0_eval(self, energy):
         return self.ff0(energy)
 
-    @ lru_cache(maxsize=None)
+    @lru_cache(maxsize=None)
     def ff1_eval(self, energy):
         return self.ff1(energy)
+
+    @lru_cache(maxsize=None)
+    def ff_ecbeta_eval(self, ke: float):
+        return self.ff_ecbeta(ke)
+
+    def g_eval(self, ke, kappa):
+        return self.g_func[kappa](ke)
+
+    def f_eval(self, ke, kappa):
+        return self.f_func[kappa](ke)
 
     def build_fermi_functions(self):
         self.gm1 = self.g[-1]
@@ -206,4 +256,9 @@ class numeric:
         self.ff1 = CubicSpline(
             self.scattering_handler.energy_grid,
             2.0*np.abs(self.gm1*np.conj(self.fp1))
+        )
+
+        self.ff_ecbeta = CubicSpline(
+            self.scattering_handler.energy_grid,
+            np.abs(self.gm1)**2.0+np.abs(self.fp1)**2.0
         )

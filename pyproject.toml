@@ -1,0 +1,27 @@
+[build-system]
+requires = ["scikit-build-core", "numpy", "scipy"]  # Include dependencies for building
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+cmake.source-dir = 'spades/radial'
+cmake.build-type = "Release"
+cmake.minimum-version = "3.15"
+build.verbose = true
+logging.level = "INFO"
+sdist.cmake = true
+build-dir = "build"
+
+[project]
+name = "spades"
+version = "0.1.0"
+description = "sajkdgh"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Your Name", email = "your.email@example.com" }
+]
+
+[project.urls]
+"Homepage" = "https://github.com/yourusername/spades"
+"Documentation" = "https://yourdocs.example.com"
+"Source" = "https://github.com/yourusername/spades"
