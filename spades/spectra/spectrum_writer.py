@@ -35,7 +35,7 @@ class SpectrumWriter:
             self.has_2D = True
 
     def write(self, file_name: str):
-        if (self.format == ph.JSONFORMAT):
+        if (self.format == ph.OutputFormatTypes.JSONFORMAT):
             self.write_json(file_name)
 
     def write_json(self, file_name: str):

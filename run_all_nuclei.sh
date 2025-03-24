@@ -2,14 +2,14 @@
 
 # 2 beta minus
 # 0 nu
-#FINAL_DIR="ANDT_2betaMinus/KY/0nu"
-#NUCLEI=("48Ca" "76Ge" "82Se" "96Zr" "100Mo" "110Pd" "116Cd" "124Sn" "128Te" "130Te" "136Xe" "148Nd" "150Nd" "154Sm" "160Gd" "198Pt" "232Th" "238U")
-#CONF_FILE_TEMPLATE="config_files/0nu_2betaMinus_template.yaml"
+# FINAL_DIR="ANDT_2betaMinus/KY/0nu/gs_to_gs/LNE"
+# NUCLEI=("48Ca" "76Ge" "82Se" "96Zr" "100Mo" "110Pd" "116Cd" "124Sn" "128Te" "130Te" "136Xe" "148Nd" "150Nd" "154Sm" "160Gd" "198Pt" "232Th" "238U")
+# CONF_FILE_TEMPLATE="config_files/0nu_2betaMinus_template.yaml"
 #
 # 2 nu
-# FINAL_DIR="ANDT_2betaMinus/KY/2nu/gs_to_gs"
-# NUCLEI=("48Ca" "76Ge" "82Se" "96Zr" "100Mo" "110Pd" "116Cd" "124Sn" "128Te" "130Te" "136Xe" "148Nd" "150Nd" "154Sm" "160Gd" "198Pt" "232Th" "238U")
-# CONF_FILE_TEMPLATE="config_files/2nu_2betaMinus_template.yaml"
+FINAL_DIR="ANDT_2betaMinus/KY/2nu/gs_to_gs"
+NUCLEI=("48Ca" "76Ge" "82Se" "96Zr" "100Mo" "110Pd" "116Cd" "124Sn" "128Te" "130Te" "136Xe" "148Nd" "150Nd" "154Sm" "160Gd" "198Pt" "232Th" "238U")
+CONF_FILE_TEMPLATE="config_files/2nu_2betaMinus_template.yaml"
 
 # 2EC
 # 2 nu
@@ -20,20 +20,21 @@
 
 # EC betaPlus
 # 2 nu
-#FINAL_DIR="ANDT_ECbetaPlus/KY/2nu/gs_to_gs"
-#NUCLEI=("50Cr" "58Ni" "64Zn" "74Se" "78Kr" "84Sr" "92Mo" "96Ru" "102Pd" "106Cd" "120Te" "124Xe" "130Ba" "136Ce" "144Sm" "156Dy" "162Er" "168Yb" "174Hf" "184Os" "190Pt" )
-#CONF_FILE_TEMPLATE="config_files/2nu_ECbetaPlus_template.yaml"
+# FINAL_DIR="ANDT_ECbetaPlus/KY/2nu/gs_to_gs"
+# NUCLEI=("50Cr" "58Ni" "64Zn" "74Se" "78Kr" "84Sr" "92Mo" "96Ru" "102Pd" "106Cd" "120Te" "124Xe" "130Ba" "136Ce" "144Sm" "156Dy" "162Er" "168Yb" "174Hf" "184Os" "190Pt" )
+# CONF_FILE_TEMPLATE="config_files/2nu_ECbetaPlus_template.yaml"
+#
 # 0nu
-# FINAL_DIR="ANDT_ECbetaPlus/KY/0nu/gs_to_gs"
+# FINAL_DIR="ANDT_ECbetaPlus/KY/0nu/gs_to_gs/LNE"
 # NUCLEI=("50Cr" "58Ni" "64Zn" "74Se" "78Kr" "84Sr" "92Mo" "96Ru" "102Pd" "106Cd" "120Te" "124Xe" "130Ba" "136Ce" "144Sm" "156Dy" "162Er" "168Yb" "174Hf" "184Os" "190Pt" )
 # CONF_FILE_TEMPLATE="config_files/0nu_ECbetaPlus_template.yaml"
 #
 
 # 2 beta plus
 # 0 nu
-FINAL_DIR="ANDT_2betaPlus/KY/0nu/gs_to_gs"
-NUCLEI=("78Kr" "96Ru" "106Cd" "124Xe" "130Ba" "136Ce")
-CONF_FILE_TEMPLATE="config_files/0nu_2betaPlus_template.yaml"
+# FINAL_DIR="ANDT_2betaPlus/KY/0nu/gs_to_gs/LNE"
+# NUCLEI=("78Kr" "96Ru" "106Cd" "124Xe" "130Ba" "136Ce")
+# CONF_FILE_TEMPLATE="config_files/0nu_2betaPlus_template.yaml"
 #
 # 2nu
 # FINAL_DIR="ANDT_2betaPlus/KY/2nu/gs_to_gs"

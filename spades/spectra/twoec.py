@@ -46,6 +46,9 @@ class TwoECSpectrum(SpectrumBase):
     def compute_psf(self):
         pass
 
+    def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        raise NotImplementedError()
+
 
 @njit
 def kn_ecec(eb1: float, enu: float, w0: float, enei: float):
@@ -60,7 +63,7 @@ class TwoECSpectrumClosure(TwoECSpectrum):
         self.constant_in_front = 2*(self.atilde**2.0)*((ph.fermi_coupling_constant*ph.v_ud)**4) /\
             (48.*(np.pi**3.0)) * (ph.electron_mass**4.0)
 
-    def compute_spectrum(self, sp_type: int = ph.SINGLESPECTRUM):
+    def compute_spectrum(self, sp_type: ph.SpectrumTypes = ph.SpectrumTypes.SINGLESPECTRUM):
         print(f"total_ke = {self.total_ke}")
         for n1 in self.bound_handler.p_grid:
             prob1 = self.bound_handler.probability_in_sphere(

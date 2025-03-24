@@ -13,9 +13,9 @@ logger = logging.Logger(__name__)
 
 @dataclass
 class DoubleBetaProcess:
-    type: int
-    transition: int = ph.ZEROPLUS_TO_ZEROPLUS
-    mechanism: int = ph.LIGHT_NEUTRINO_EXCHANGE
+    type: ph.ProcessTypes
+    transition: ph.TransitionTypes = ph.TransitionTypes.ZEROPLUS_TO_ZEROPLUS
+    mechanism: ph.NeutrinoLessModes = ph.NeutrinoLessModes.LIGHT_NEUTRINO_EXCHANGE
 
 
 @dataclass
@@ -42,13 +42,13 @@ class SpectraConfig:
     wave_function_evaluation: int
     nuclear_radius: float
     types: list[int]
-    fermi_function_types: list[int]
+    fermi_function_types: list[ph.FermiFunctionTypes]
     energy_grid_type: int
     n_ke_points: int
     min_ke: float
     total_ke: float
     ei_ef: float = -1.
-    corrections: list[str] = field(default_factory=list)
+    corrections: list[ph.CorrectionTypes] = field(default_factory=list)
 
     compute_2d: bool = False
     n_points_log_2d: int = 0
@@ -107,11 +107,11 @@ class RunConfig:
         self.task_name = config["task"]
 
         proc_dict = {}
-        proc_dict["type"] = ph.PROCESSES[config["process"]["name"]]
+        proc_dict["type"] = ph.PROCESS_NAMES_MAP[config["process"]["name"]]
         if ("transition" in config["process"]):
-            proc_dict["transition"] = ph.TRANSITION_NAMES[config["process"]["transition"]]
+            proc_dict["transition"] = ph.TRANSITION_NAMES_MAP[config["process"]["transition"]]
         if ("mechanism" in config["process"]):
-            proc_dict["mechanism"] = ph.NEUTRINOLESS_MECHANISMS[config["process"]["mechanism"]]
+            proc_dict["mechanism"] = ph.NEUTRINOLESS_MECHANISMS_MAP[config["process"]["mechanism"]]
 
         self.process = DoubleBetaProcess(**proc_dict)
         self.initial_atom_dict = config["initial_atom"]
@@ -140,13 +140,13 @@ class RunConfig:
             delta_m_map = ph.read_mass_difference(ph.delta_m_files)
             delta_m_tmp = delta_m_map[initial_atom.name_nice]
 
-            if (self.process.type in [ph.TWONEUTRINO_TWOBMINUS, ph.NEUTRINOLESS_TWOBMINUS]):
+            if (self.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOBMINUS, ph.ProcessTypes.NEUTRINOLESS_TWOBMINUS]):
                 total_ke = delta_m_tmp
-            elif (self.process.type in [ph.TWONEUTRINO_TWOBPLUS, ph.NEUTRINOLESS_TWOBPLUS]):
+            elif (self.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOBPLUS, ph.ProcessTypes.NEUTRINOLESS_TWOBPLUS]):
                 total_ke = delta_m_tmp-4.0*ph.electron_mass
-            elif (self.process.type in [ph.TWONEUTRINO_TWOEC]):
+            elif (self.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOEC]):
                 total_ke = delta_m_tmp
-            elif (self.process.type in [ph.TWONEUTRINO_BPLUSEC, ph.NEUTRINOLESS_BPLUSEC]):
+            elif (self.process.type in [ph.ProcessTypes.TWONEUTRINO_BPLUSEC, ph.ProcessTypes.NEUTRINOLESS_BPLUSEC]):
                 total_ke = delta_m_tmp-2.0*ph.electron_mass
 
             self._raw_config["spectra_computation"]["total_ke"] = total_ke
@@ -154,12 +154,12 @@ class RunConfig:
             raise TypeError("Cannot interpret total_ke")
 
         # now compute energy difference between nuclear states
-        if (self.process.type in [ph.TWONEUTRINO_TWOBMINUS, ph.NEUTRINOLESS_TWOBMINUS,
-                                  ph.TWONEUTRINO_TWOBPLUS, ph.NEUTRINOLESS_TWOBPLUS]):
+        if (self.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOBMINUS, ph.ProcessTypes.NEUTRINOLESS_TWOBMINUS,
+                                  ph.ProcessTypes.TWONEUTRINO_TWOBPLUS, ph.ProcessTypes.NEUTRINOLESS_TWOBPLUS]):
             ei_ef = total_ke+2.0*ph.electron_mass
-        elif (self.process.type in [ph.TWONEUTRINO_TWOEC]):
+        elif (self.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOEC]):
             ei_ef = total_ke-2.0*ph.electron_mass
-        elif (self.process.type in [ph.TWONEUTRINO_BPLUSEC, ph.NEUTRINOLESS_BPLUSEC]):
+        elif (self.process.type in [ph.ProcessTypes.TWONEUTRINO_BPLUSEC, ph.ProcessTypes.NEUTRINOLESS_BPLUSEC]):
             ei_ef = total_ke
         else:
             raise TypeError("Logic error, cannot determine ei_ef")
@@ -187,7 +187,7 @@ class RunConfig:
     def create_spectra_config(self):
         for i in range(len(self._raw_config["spectra_computation"]["fermi_function_types"])):
             ft = self._raw_config["spectra_computation"]["fermi_function_types"][i]
-            self._raw_config["spectra_computation"]["fermi_function_types"][i] = ph.FERMIFUNCTIONS[ft]
+            self._raw_config["spectra_computation"]["fermi_function_types"][i] = ph.FERMIFUNCTIONS_MAP[ft]
         for i in range(len(self._raw_config["spectra_computation"]["types"])):
             st = self._raw_config["spectra_computation"]["types"][i]
             self._raw_config["spectra_computation"]["types"][i] = ph.SPECTRUM_TYPES[st]
