@@ -1,14 +1,19 @@
 from abc import abstractmethod
-from unittest import result
 import numpy as np
 from scipy import integrate
 from spades.fermi_functions import FermiFunctions
-from spades.math_stuff import kn
+from spades.math_stuff import neutrino_integrand_closure_standard_00, neutrino_integrand_closure_standard_02
 from spades.spectra.base import SpectrumBase
-from spades.spectra_old import neutrino_integrand_standard
 from spades.wavefunctions import BoundHandler
 from spades import ph
 from numba import njit
+
+
+def neutrino_integrand_closure(enu_1, e_electron_1, e_electron_2, enu_2, enei, transition: ph.TransitionTypes):
+    if transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
+        return neutrino_integrand_closure_standard_02(enu_1, e_electron_1, e_electron_2, enu_2, enei)
+    else:
+        return neutrino_integrand_closure_standard_00(enu_1, e_electron_1, e_electron_2, enu_2, enei)
 
 
 class TwoECSpectrum(SpectrumBase):
@@ -56,12 +61,13 @@ def kn_ecec(eb1: float, enu: float, w0: float, enei: float):
 
 
 class TwoECSpectrumClosure(TwoECSpectrum):
-    def __init__(self, total_ke: float, ei_ef: float, bound_handler: BoundHandler, nuclear_radius: float, enei: float) -> None:
+    def __init__(self, total_ke: float, ei_ef: float, bound_handler: BoundHandler, nuclear_radius: float, enei: float, transition_type: ph.TransitionTypes) -> None:
         super().__init__(total_ke, ei_ef, bound_handler, nuclear_radius)
         self.enei = enei
         self.atilde = self.enei+0.5*(self.total_ke-2*ph.electron_mass)
         self.constant_in_front = 2*(self.atilde**2.0)*((ph.fermi_coupling_constant*ph.v_ud)**4) /\
             (48.*(np.pi**3.0)) * (ph.electron_mass**4.0)
+        self.transition_type = transition_type
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes = ph.SpectrumTypes.SINGLESPECTRUM):
         print(f"total_ke = {self.total_ke}")
@@ -82,8 +88,13 @@ class TwoECSpectrumClosure(TwoECSpectrum):
                     self.spectrum_integrals[n1][-1][n2][-1] = 0.
                     continue
                 tmp_result = integrate.quad(
-                    func=lambda x: neutrino_integrand_standard(
-                        x, -(ph.electron_mass-eb1), -(ph.electron_mass-eb2), self.total_ke-2*ph.electron_mass, self.enei-ph.electron_mass),
+                    func=lambda x: neutrino_integrand_closure(
+                        x,
+                        -(ph.electron_mass-eb1),
+                        -(ph.electron_mass-eb2),
+                        self.total_ke-2*ph.electron_mass,
+                        self.enei-ph.electron_mass,
+                        self.transition_type),
                     a=0.,
                     b=self.total_ke-eb1-eb2
                 )

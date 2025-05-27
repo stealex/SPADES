@@ -3,6 +3,7 @@
 from multiprocessing import Value, process
 from typing import Callable, Type, final
 from matplotlib import pyplot as plt
+from scipy import interpolate
 import yaml
 from argparse import ArgumentParser
 import logging
@@ -10,7 +11,7 @@ import time
 import os
 import numpy as np
 
-from spades import fermi_functions, ph, exchange
+from spades import fermi_functions, math_stuff, ph, exchange
 from spades.config import RunConfig
 from spades.dhfs import AtomicSystem, create_ion
 from spades.spectra.base import SpectrumBase
@@ -126,7 +127,7 @@ def find_wave_functions(input_config: RunConfig, initial_atom: AtomicSystem, fin
 
 
 def build_exchange_correction(wf_handler_init: WaveFunctionsHandler, wf_handler_final: WaveFunctionsHandler):
-    print(f"Computign exchange correction")
+    print(f"Computing exchange correction")
     ex_corr = exchange.ExchangeCorrection(wf_handler_init,
                                           wf_handler_final)
     start_time = time.time()
@@ -247,6 +248,10 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
             raise NotImplementedError()
 
     elif (input_config.process.type == ph.ProcessTypes.TWONEUTRINO_BPLUSEC):
+        if (wf_handler_init is None):
+            raise ValueError(
+                "Received None for wf_handler_init. Cannot compute EC withouot it.")
+
         if input_config.spectra_config.method["name"] == "Closure":
             print(enei, atilde, input_config.spectra_config.total_ke,
                   input_config.spectra_config.nuclear_radius)
@@ -256,6 +261,7 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
                                                             bound_handler=wf_handler_init.bound_handler,
                                                             nuclear_radius=input_config.spectra_config.nuclear_radius,
                                                             enei=enei,
+                                                            transition_type=input_config.process.transition,
                                                             min_ke=input_config.spectra_config.min_ke,
                                                             n_ke_points=input_config.spectra_config.n_ke_points,
                                                             energy_grid_type=input_config.spectra_config.energy_grid_type,
@@ -264,6 +270,9 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
         else:
             raise NotImplementedError()
     elif (input_config.process.type == ph.ProcessTypes.NEUTRINOLESS_BPLUSEC):
+        if (wf_handler_init is None):
+            raise ValueError(
+                "Received None for wf_handler_init. Cannot compute EC withouot it.")
         if input_config.spectra_config.method["name"] == "Closure":
             print(enei, atilde, input_config.spectra_config.total_ke,
                   input_config.spectra_config.nuclear_radius)
@@ -277,6 +286,9 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
             raise NotImplementedError()
 
     elif (input_config.process.type == ph.ProcessTypes.TWONEUTRINO_TWOEC):
+        if (wf_handler_init is None):
+            raise ValueError(
+                "Received None for wf_handler_init. Cannot compute EC withouot it.")
         if input_config.spectra_config.method["name"] == "Closure":
             print(enei, atilde, input_config.spectra_config.total_ke,
                   input_config.spectra_config.nuclear_radius)
@@ -285,7 +297,8 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
                                                              ei_ef=input_config.spectra_config.ei_ef,
                                                              bound_handler=wf_handler_init.bound_handler,
                                                              nuclear_radius=input_config.spectra_config.nuclear_radius,
-                                                             enei=enei)
+                                                             enei=enei,
+                                                             transition_type=input_config.process.transition)
         else:
             raise NotImplementedError()
 
@@ -331,21 +344,48 @@ def compute_spectra_and_psfs(input_config: RunConfig,
     return spectra
 
 
+def build_corrections(input_config: RunConfig, wf_handler_init: WaveFunctionsHandler | None, wf_handler_final: WaveFunctionsHandler | None):
+    eta_total = None
+    e_values = None
+    if (ph.CorrectionTypes.EXCHANGE_CORRECTION in input_config.spectra_config.corrections) and (wf_handler_init != None) and (wf_handler_final != None):
+        exchange_correction = build_exchange_correction(
+            wf_handler_init, wf_handler_final
+        )
+        e_values = ph.electron_mass + \
+            wf_handler_final.scattering_handler.energy_grid
+        eta_total = 1.+exchange_correction.eta_total
+        print(eta_total)
+
+    if (ph.CorrectionTypes.RADIATIVE_CORRECTION in input_config.spectra_config.corrections) and (wf_handler_final != None) and (wf_handler_final.scattering_handler != None):
+        e_values = ph.electron_mass + \
+            wf_handler_final.scattering_handler.energy_grid
+        rad_cor = np.ones_like(e_values)
+        for i_e in range(len(e_values)-1):
+            rad_cor[i_e] = math_stuff.r_radiative(e_values[i_e], e_values[-1])
+            print(e_values[i_e], rad_cor[i_e])
+
+        if (eta_total is None):
+            eta_total = rad_cor
+        else:
+            eta_total = eta_total*rad_cor
+
+    if (e_values is not None):
+        eta_total = interpolate.CubicSpline(
+            e_values-ph.electron_mass, eta_total)
+
+    return eta_total
+
+
 def main(argv=None):
     input_config, initial_atom, final_atom = parse_input()
 
     wf_handler_init, wf_handler_final = find_wave_functions(
         input_config, initial_atom, final_atom)
 
-    # check if we need to build exchange correction
-    eta_total = None
-    if (ph.CorrectionTypes.EXCHANGE_CORRECTION in input_config.spectra_config.corrections) and (wf_handler_init != None) and (wf_handler_final != None):
-        exchange_correction = build_exchange_correction(
-            wf_handler_init, wf_handler_final
-        )
-        eta_total = exchange_correction.eta_total
-
     energy_grid_1D, e1_grid_2D, e2_grid_2D = build_energy_grids(input_config)
+
+    eta_total = build_corrections(
+        input_config, wf_handler_init, wf_handler_final)
 
     # compute the spectra and psfs
     spectra_psfs = compute_spectra_and_psfs(input_config=input_config,
@@ -357,32 +397,35 @@ def main(argv=None):
                                             e1_grid_2D=e1_grid_2D,
                                             e2_grid_2D=e2_grid_2D)
     # write the output
-    output_dir_name = input_config.output_config.location
-    try:
-        os.mkdir(output_dir_name)
-        print(f"Directory {output_dir_name} created successfully.")
-    except FileExistsError:
-        print(
-            f"Directory {output_dir_name} already exists. Contents will be overwritten")
-    except Exception as e:
-        print(f"An error occured {e}")
-        return
-
-    write_spectra = getattr(input_config.output_config, "spectra", False)
-    write_psfs = getattr(input_config.output_config, "psfs", False)
-    print(input_config.output_config)
-    if (write_spectra or write_psfs):
-        spectrum_writer = SpectrumWriter(write_spectra=write_spectra,
-                                         write_psfs=write_psfs)
-        if spectra_psfs is None:
-            raise NotImplementedError
-        else:
-            print("Writing output file")
-            for key in spectra_psfs:
-                spectrum_writer.add_spectrum(spectra_psfs[key], key)
-            spectrum_writer.write(f"{output_dir_name}/spectra.json")
+    if (input_config.output_config is None):
+        print("Did not receive output configuration. Skip writting files...")
     else:
-        print("Will not write spectra and psfs")
+        output_dir_name = input_config.output_config.location
+        try:
+            os.mkdir(output_dir_name)
+            print(f"Directory {output_dir_name} created successfully.")
+        except FileExistsError:
+            print(
+                f"Directory {output_dir_name} already exists. Contents will be overwritten")
+        except Exception as e:
+            print(f"An error occured {e}")
+            return
+
+        write_spectra = getattr(input_config.output_config, "spectra", False)
+        write_psfs = getattr(input_config.output_config, "psfs", False)
+        print(input_config.output_config)
+        if (write_spectra or write_psfs):
+            spectrum_writer = SpectrumWriter(write_spectra=write_spectra,
+                                             write_psfs=write_psfs)
+            if spectra_psfs is None:
+                raise NotImplementedError
+            else:
+                print("Writing output file")
+                for key in spectra_psfs:
+                    spectrum_writer.add_spectrum(spectra_psfs[key], key)
+                spectrum_writer.write(f"{output_dir_name}/spectra.json")
+        else:
+            print("Will not write spectra and psfs")
 
 
 if __name__ == "__main__":

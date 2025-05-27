@@ -5,6 +5,9 @@ import numpy as np
 
 
 class NumpyArrayEncoder(json.JSONEncoder):
+    """Encoder for numpy arrays.
+    """
+
     def default(self, obj):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
@@ -12,13 +15,31 @@ class NumpyArrayEncoder(json.JSONEncoder):
 
 
 class SpectrumWriter:
+    """Class handling writing of spectra to files.
+    """
+
     def __init__(self, format: str = "json", write_spectra=True, write_psfs=True) -> None:
+        """
+        Args:
+            format (str, optional): file format. Defaults to "json".
+            write_spectra (bool, optional): flag for writing spectra. Defaults to True.
+            write_psfs (bool, optional): flag for writing psfs. Defaults to True.
+        """
         self.spectra_to_write = {}
         self.format = ph.OUTPUTFILEFORMAT[format]
         self.write_spectra = write_spectra
         self.wrtie_psfs = write_psfs
 
     def add_spectrum(self, spectrum: SpectrumBase, name: str):
+        """Add spectrum object to output structure
+
+        Args:
+            spectrum (SpectrumBase): spectrum object to be added
+            name (str): this will become the "key" in the output
+
+        Raises:
+            ValueError: if the given key already exists in the output structure
+        """
         if (name in self.spectra_to_write):
             raise ValueError(f"key {name} already present")
         self.spectra_to_write[name] = spectrum
@@ -35,10 +56,20 @@ class SpectrumWriter:
             self.has_2D = True
 
     def write(self, file_name: str):
+        """Master method delegating writing based on format
+
+        Args:
+            file_name (str): name of the output file
+        """
         if (self.format == ph.OutputFormatTypes.JSONFORMAT):
             self.write_json(file_name)
 
     def write_json(self, file_name: str):
+        """Specialized method for writing to json
+
+        Args:
+            file_name (str): output file name
+        """
         output_structure = {}
         output_structure_2D = {}
         some_key = next(iter(self.spectra_to_write))

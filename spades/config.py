@@ -41,7 +41,7 @@ class SpectraConfig:
     method: dict
     wave_function_evaluation: int
     nuclear_radius: float
-    types: list[int]
+    types: list[ph.SpectrumTypes]
     fermi_function_types: list[ph.FermiFunctionTypes]
     energy_grid_type: int
     n_ke_points: int
@@ -138,7 +138,8 @@ class RunConfig:
             # now we know ei_ef is "auto". Read files
             print("total_ke is 'auto'. Will read from file")
             delta_m_map = ph.read_mass_difference(ph.delta_m_files)
-            delta_m_tmp = delta_m_map[initial_atom.name_nice]
+            delta_m_tmp = delta_m_map[initial_atom.name_nice]["delta_M"]
+            print(f"Found delta_M = {delta_m_tmp}")
 
             if (self.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOBMINUS, ph.ProcessTypes.NEUTRINOLESS_TWOBMINUS]):
                 total_ke = delta_m_tmp
@@ -149,7 +150,22 @@ class RunConfig:
             elif (self.process.type in [ph.ProcessTypes.TWONEUTRINO_BPLUSEC, ph.ProcessTypes.NEUTRINOLESS_BPLUSEC]):
                 total_ke = delta_m_tmp-2.0*ph.electron_mass
 
+            if (self.process.transition == ph.TransitionTypes.ZEROPLUS_TO_ZEROPLUS):
+                total_ke = total_ke
+            elif (self.process.transition == ph.TransitionTypes.ZEROPLUS_TO_ZEROTWOPLUS):
+                if (delta_m_map[initial_atom.name_nice]["E02"] < 0.):
+                    raise ValueError(
+                        "Unknown excitation energy of the 0_2^+ state")
+                total_ke = total_ke - \
+                    delta_m_map[initial_atom.name_nice]["E02"]
+            elif (self.process.transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS):
+                if (delta_m_map[initial_atom.name_nice]["E2"] < 0.):
+                    raise ValueError(
+                        "Unknown excitation energy of the 2_1^+ state")
+                total_ke = total_ke - delta_m_map[initial_atom.name_nice]["E2"]
             self._raw_config["spectra_computation"]["total_ke"] = total_ke
+
+            print(f"Q-value = {total_ke}")
         else:
             raise TypeError("Cannot interpret total_ke")
 
@@ -191,6 +207,9 @@ class RunConfig:
         for i in range(len(self._raw_config["spectra_computation"]["types"])):
             st = self._raw_config["spectra_computation"]["types"][i]
             self._raw_config["spectra_computation"]["types"][i] = ph.SPECTRUM_TYPES[st]
+        for i in range(len(self._raw_config["spectra_computation"]["corrections"])):
+            corr = self._raw_config["spectra_computation"]["corrections"][i]
+            self._raw_config["spectra_computation"]["corrections"][i] = ph.CORRECTIONS[corr]
         self.spectra_config = SpectraConfig(
             **self._raw_config["spectra_computation"])
 

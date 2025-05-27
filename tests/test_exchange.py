@@ -2,20 +2,20 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-from src.dhfs import atomic_system, create_ion
-from src import wavefunctions, ph, exchange, math_stuff
+from spades.dhfs import AtomicSystem, create_ion
+from spades import wavefunctions, ph, exchange, math_stuff
 
 
 def test_exchange():
     dir_name = os.path.dirname(__file__)
-    initial_atom = atomic_system({
-        "name": "45Ca",
-        "electron_config": "auto"
-    })
+    initial_atom = AtomicSystem(
+        name="45Ca",
+        electron_config="auto"
+    )
     initial_atom.print()
 
     final_atom = create_ion(
-        initial_atom, initial_atom.Z+2)
+        initial_atom, initial_atom.Z+1)
     ke_min = 2E-4  # MeV
     ke_max = 1E-1  # MeV
     k_values = {}
@@ -29,29 +29,31 @@ def test_exchange():
         k_values[n].append(k)
 
     n_values = list(set(initial_atom.n_values.tolist()))
-    bound_config = wavefunctions.bound_config(
+    bound_config = wavefunctions.BoundConfig(
         100*ph.bohr_radius/ph.fm, 5000, n_values, k_values)
-    bound_config.print()
-    scattering_config = wavefunctions.scattering_config(
+    scattering_config = wavefunctions.ScatteringConfig(
         100*ph.bohr_radius/ph.fm, 5000, ke_min, ke_max,
         100, [-1, 1])
-    scattering_config.print()
-    wf_handler_initial = wavefunctions.wavefunctions_handler(
+    wf_handler_initial = wavefunctions.WaveFunctionsHandler(
         initial_atom, bound_conf=bound_config)
 
-    wf_handler_final = wavefunctions.wavefunctions_handler(
+    wf_handler_final = wavefunctions.WaveFunctionsHandler(
         final_atom, bound_config, scattering_config
     )
+
     print("computing wf for initial atom")
     wf_handler_initial.find_all_wavefunctions()
 
     print("computing wf for final atom")
     wf_handler_final.find_all_wavefunctions()
+
+    print(
+        f"Max diff = {np.argmax(np.abs(wf_handler_final.scattering_handler.r_grid - wf_handler_initial.bound_handler.r_grid))}")
     r_nuc = 1.2 * \
         ((wf_handler_initial.atomic_system.mass_number)**(1./3.))
     ir_nuc = np.abs(r_nuc -
                     wf_handler_final.bound_handler.r_grid).argmin()
-    exchange_correction = exchange.exchange_correction(
+    exchange_correction = exchange.ExchangeCorrection(
         wf_handler_initial, wf_handler_final)
     print("computing exchange")
 
@@ -114,7 +116,7 @@ def test_exchange():
             continue
         ax.plot(1E3*wf_handler_final.scattering_handler.energy_grid,
                 eta[n][1])
-
+    ax.legend()
     plt.show()
 
 

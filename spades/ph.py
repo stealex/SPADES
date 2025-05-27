@@ -6,6 +6,7 @@ import yaml
 import logging
 from enum import IntEnum
 electron_mass = 0.51099895000*MeV
+proton_mass = 938.27208943*MeV
 hartree_energy = 2.0*13.605693122994*eV
 bohr_radius = 0.529177210903*angstrom
 fine_structure = 1/137.035999084
@@ -19,7 +20,7 @@ user_distance_unit_name = "fm"
 user_energy_unit_name = "MeV"
 user_psf_unit_name = "1/year"
 
-delta_m_files = "deltaM_KY13.yaml"
+delta_m_files = "deltaM_KI_2012_2013.yaml"
 
 
 def read_mass_difference(file_name: str):
@@ -67,12 +68,15 @@ PROCESS_NAMES_MAP = {"2nu_2betaMinus": ProcessTypes.TWONEUTRINO_TWOBMINUS,
 
 class TransitionTypes(IntEnum):
     ZEROPLUS_TO_ZEROPLUS = 1
-    ZEROPLUS_TO_TWOPLUS = 2
+    ZEROPLUS_TO_ZEROTWOPLUS = 2
+    ZEROPLUS_TO_TWOPLUS = 3
 
 
 TRANSITION_NAMES_MAP = {"0->0": TransitionTypes.ZEROPLUS_TO_ZEROPLUS,
+                        "0->02": TransitionTypes.ZEROPLUS_TO_ZEROTWOPLUS,
                         "0->2": TransitionTypes.ZEROPLUS_TO_TWOPLUS}
 TRANSITION_NAMES_MAP_REV = {TransitionTypes.ZEROPLUS_TO_ZEROPLUS: "0->0",
+                            TransitionTypes.ZEROPLUS_TO_ZEROTWOPLUS: "0->02",
                             TransitionTypes.ZEROPLUS_TO_TWOPLUS: "0->2"}
 
 

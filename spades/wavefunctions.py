@@ -244,22 +244,22 @@ class ScatteringHandler:
                 self.p_grid[k][i_e] = p
                 self.q_grid[k][i_e] = q
 
-                self.phase_grid[k][i_e] = phase  # + coul_phase_shift
+                self.phase_grid[k][i_e] = phase  # coul_phase_shift
                 self.coul_phase_grid[k][i_e] = coul_phase_shift
 
-            delta_corr = self.phase_grid[k].copy()
-            p_corr = self.p_grid[k].copy()
-            q_corr = self.q_grid[k].copy()
-            for i in range(len(delta_corr)-1, 0, -1):
-                if (np.abs(delta_corr[i] - delta_corr[i-1]) > 1.0):
-                    # print("found discontinuity at ", i)
-                    delta_corr[:i] = delta_corr[:i] + np.pi
-                    p_corr[:i] = -1.*p_corr[:i]
-                    q_corr[:i] = -1.*q_corr[:i]
+            # delta_corr = self.phase_grid[k].copy()
+            # p_corr = self.p_grid[k].copy()
+            # q_corr = self.q_grid[k].copy()
+            # for i in range(len(delta_corr)-1, 0, -1):
+            #     if (np.abs(delta_corr[i] - delta_corr[i-1]) > 1.0):
+            #         # print("found discontinuity at ", i)
+            #         delta_corr[:i] = delta_corr[:i] + np.pi
+            #         p_corr[:i] = -1.*p_corr[:i]
+            #         q_corr[:i] = -1.*q_corr[:i]
 
-            self.phase_grid[k] = delta_corr
-            self.p_grid[k] = p_corr
-            self.q_grid[k] = q_corr
+            # self.phase_grid[k] = delta_corr
+            # self.p_grid[k] = p_corr
+            # self.q_grid[k] = q_corr
 
 
 class WaveFunctionsHandler:

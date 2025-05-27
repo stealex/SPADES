@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Callable
 import numpy as np
 from scipy import integrate, interpolate
+from spades import ph
 
 from spades.fermi_functions import FermiFunctions
 
@@ -30,16 +31,16 @@ class SpectrumBase(ABC):
         self.e2_grid_2D = None
 
     @abstractmethod
-    def compute_spectrum(self, sp_type: int):
+    def compute_spectrum(self, sp_type: ph.SpectrumTypes):
         """Abstract method for computation of spectra
 
         Args:
-            sp_type (int): type of spectrum (e.g. ph.SINGLESPECTRUM, ph.SUMSPECTRUM, ph.ANGULARSPECTRUM)
+            sp_type (SpectrumTypes): type of spectrum 
         """
         pass
 
     @abstractmethod
-    def compute_2D_spectrum(self, sp_type: int):
+    def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
         """Abstract method for computation of 2D spectra
 
         Args:
@@ -76,10 +77,11 @@ class BetaSpectrumBase(SpectrumBase):
         self.fermi_functions = fermi_functions
 
     @abstractmethod
-    def compute_spectrum(self, sp_type: int):
+    def compute_spectrum(self, sp_type: ph.SpectrumTypes):
         pass
 
-    def compute_2D_spectrum(self, sp_type: int):
+    @abstractmethod
+    def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
         pass
 
     @abstractmethod
