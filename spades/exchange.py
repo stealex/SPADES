@@ -74,8 +74,7 @@ class ExchangeCorrection:
                                   self.final_handler.scattering_handler.r_grid,
                                   self.initial_handler.bound_handler.r_grid)
 
-                scattering_bound[i_e, i_n] = self.final_handler.scattering_handler.norm[i_e]*gg +\
-                    self.final_handler.scattering_handler.norm[i_e]*ff
+                scattering_bound[i_e, i_n] = gg+ff
 
             gg = integrate_wf(self.final_handler.bound_handler.p_grid[n][k],
                               self.initial_handler.bound_handler.p_grid[n][k],
@@ -100,7 +99,6 @@ class ExchangeCorrection:
 
         ir_nuc = np.abs(
             r_nuc - self.final_handler.bound_handler.r_grid).argmin()
-
         for k in [-1, 1]:
             scattering_bound, bound_bound = self.compute_overlaps(k)
 
@@ -116,14 +114,12 @@ class ExchangeCorrection:
                     np.array(self.final_handler.scattering_config.k_values) - k).argmin()
                 if k == -1:
                     g_prime_n = self.final_handler.bound_handler.p_grid[n][k][ir_nuc]
-                    g_prim_e = self.final_handler.scattering_handler.norm * \
-                        self.final_handler.scattering_handler.p_grid[k][:, ir_nuc]
-                    ratio = g_prime_n/g_prim_e
+                    g_prime_e = self.final_handler.scattering_handler.p_grid[k][:, ir_nuc]
+                    ratio = g_prime_n/g_prime_e
                 else:
                     f_prime_n = self.final_handler.bound_handler.q_grid[n][k][ir_nuc]
-                    f_prim_e = self.final_handler.scattering_handler.norm * \
-                        self.final_handler.scattering_handler.q_grid[k][:, ir_nuc]
-                    ratio = f_prime_n/f_prim_e
+                    f_prime_e = self.final_handler.scattering_handler.q_grid[k][:, ir_nuc]
+                    ratio = f_prime_n/f_prime_e
 
                 self.t[n][k] = -1.0*scattering_bound[:, i_n] / \
                     bound_bound[i_n] * ratio

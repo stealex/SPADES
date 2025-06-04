@@ -255,7 +255,7 @@ class Numeric(FermiFunctions):
         )
         self.ff1 = CubicSpline(
             self.scattering_handler.energy_grid,
-            2.0*np.abs(self.gm1*np.conj(self.fp1))
+            2.0*np.real(self.gm1*np.conj(self.fp1))
         )
 
         self.ff_ecbeta = CubicSpline(

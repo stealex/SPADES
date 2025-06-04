@@ -4,7 +4,9 @@ from hepunits.constants import *
 import os
 import yaml
 import logging
+from enum import IntEnum
 electron_mass = 0.51099895000*MeV
+proton_mass = 938.27208943*MeV
 hartree_energy = 2.0*13.605693122994*eV
 bohr_radius = 0.529177210903*angstrom
 fine_structure = 1/137.035999084
@@ -18,7 +20,7 @@ user_distance_unit_name = "fm"
 user_energy_unit_name = "MeV"
 user_psf_unit_name = "1/year"
 
-delta_m_files = "deltaM_KY13.yaml"
+delta_m_files = "deltaM_KI_2012_2013.yaml"
 
 
 def read_mass_difference(file_name: str):
@@ -45,93 +47,128 @@ v_ud = 0.97373
 verbose = 0
 
 
-TWONEUTRINO_TWOBMINUS = 1
-NEUTRINOLESS_TWOBMINUS = 2
-TWONEUTRINO_TWOBPLUS = 3
-NEUTRINOLESS_TWOBPLUS = 4
-TWONEUTRINO_BPLUSEC = 5
-NEUTRINOLESS_BPLUSEC = 6
-TWONEUTRINO_TWOEC = 7
-PROCESSES = {"2nu_2betaMinus": TWONEUTRINO_TWOBMINUS,
-             "0nu_2betaMinus": NEUTRINOLESS_TWOBMINUS,
-             "2nu_2betaPlus": TWONEUTRINO_TWOBPLUS,
-             "0nu_2betaPlus": NEUTRINOLESS_TWOBPLUS,
-             "2nu_ECbetaPlus": TWONEUTRINO_BPLUSEC,
-             "0nu_ECbetaPlus": NEUTRINOLESS_BPLUSEC,
-             "2nu_2EC": TWONEUTRINO_TWOEC}
-
-ZEROPLUS_TO_ZEROPLUS = 1
-ZEROPLUS_TO_TWOPLUS = 2
-TRANSITION_NAMES = {"0->0": ZEROPLUS_TO_ZEROPLUS,
-                    "0->2": ZEROPLUS_TO_TWOPLUS}
-TRANSITION_NAMES_REV = {ZEROPLUS_TO_ZEROPLUS: "0->0",
-                        ZEROPLUS_TO_TWOPLUS: "0->2"}
-
-LIGHT_NEUTRINO_EXCHANGE = 1
-NEUTRINOLESS_MECHANISMS = {"LNE": LIGHT_NEUTRINO_EXCHANGE}
-NEUTRINOLESS_MECHANISMS_REV = {LIGHT_NEUTRINO_EXCHANGE: "LNE"}
+class ProcessTypes(IntEnum):
+    TWONEUTRINO_TWOBMINUS = 1
+    NEUTRINOLESS_TWOBMINUS = 2
+    TWONEUTRINO_TWOBPLUS = 3
+    NEUTRINOLESS_TWOBPLUS = 4
+    TWONEUTRINO_BPLUSEC = 5
+    NEUTRINOLESS_BPLUSEC = 6
+    TWONEUTRINO_TWOEC = 7
 
 
-PROCESS_IONISATION = {TWONEUTRINO_TWOBMINUS: 2,
-                      NEUTRINOLESS_TWOBMINUS: 2,
-                      TWONEUTRINO_BPLUSEC: -1,
-                      NEUTRINOLESS_BPLUSEC: -1,
-                      TWONEUTRINO_TWOBPLUS: -2,
-                      NEUTRINOLESS_TWOBPLUS: -2,
-                      TWONEUTRINO_TWOEC: 0}
+PROCESS_NAMES_MAP = {"2nu_2betaMinus": ProcessTypes.TWONEUTRINO_TWOBMINUS,
+                     "0nu_2betaMinus": ProcessTypes.NEUTRINOLESS_TWOBMINUS,
+                     "2nu_2betaPlus": ProcessTypes.TWONEUTRINO_TWOBPLUS,
+                     "0nu_2betaPlus": ProcessTypes.NEUTRINOLESS_TWOBPLUS,
+                     "2nu_ECbetaPlus": ProcessTypes.TWONEUTRINO_BPLUSEC,
+                     "0nu_ECbetaPlus": ProcessTypes.NEUTRINOLESS_BPLUSEC,
+                     "2nu_2EC": ProcessTypes.TWONEUTRINO_TWOEC}
 
 
-POINTLIKE_FERMIFUNCTIONS = 1
-CHARGEDSPHERE_FERMIFUNCTIONS = 2
-NUMERIC_FERMIFUNCTIONS = 3
-FERMIFUNCTIONS = {"PointLike": POINTLIKE_FERMIFUNCTIONS,
-                  "ChargedSphere": CHARGEDSPHERE_FERMIFUNCTIONS,
-                  "Numeric": NUMERIC_FERMIFUNCTIONS}
-FERMIFUNCTIONS_REV = {POINTLIKE_FERMIFUNCTIONS: "PointLike",
-                      CHARGEDSPHERE_FERMIFUNCTIONS: "ChargedSphere",
-                      NUMERIC_FERMIFUNCTIONS: "Numeric"}
+class TransitionTypes(IntEnum):
+    ZEROPLUS_TO_ZEROPLUS = 1
+    ZEROPLUS_TO_ZEROTWOPLUS = 2
+    ZEROPLUS_TO_TWOPLUS = 3
 
-CLOSUREMETHOD = 1
-TAYLORMETHOD = 2
-SPECTRUM_METHODS = {"Closure": CLOSUREMETHOD,
-                    "Taylor": TAYLORMETHOD}
 
-SINGLESPECTRUM = 1
-SUMMEDSPECTRUM = 2
-ANGULARSPECTRUM = 3
-ALPHASPECTRUM = 4
-SPECTRUM_TYPES = {"Single": SINGLESPECTRUM,
-                  "Sum": SUMMEDSPECTRUM,
-                  "Angular": ANGULARSPECTRUM,
-                  "Alpha": ALPHASPECTRUM}
-SPECTRUM_TYPES_REV = {SINGLESPECTRUM: "Single",
-                      SUMMEDSPECTRUM: "Sum",
-                      ANGULARSPECTRUM: "Angular",
-                      ALPHASPECTRUM: "Alpha"}
+TRANSITION_NAMES_MAP = {"0->0": TransitionTypes.ZEROPLUS_TO_ZEROPLUS,
+                        "0->02": TransitionTypes.ZEROPLUS_TO_ZEROTWOPLUS,
+                        "0->2": TransitionTypes.ZEROPLUS_TO_TWOPLUS}
+TRANSITION_NAMES_MAP_REV = {TransitionTypes.ZEROPLUS_TO_ZEROPLUS: "0->0",
+                            TransitionTypes.ZEROPLUS_TO_ZEROTWOPLUS: "0->02",
+                            TransitionTypes.ZEROPLUS_TO_TWOPLUS: "0->2"}
 
-SPECTRUM_TYPES_NICE = {SINGLESPECTRUM: "dG/de",
-                       SUMMEDSPECTRUM: "dG/dT",
-                       ANGULARSPECTRUM: "dH/de",
-                       ALPHASPECTRUM: "alpha"}
-SPECTRUM_TYPES_LATEX = {SINGLESPECTRUM: r"$\frac{1}{G}\frac{dG}{d\epsilon_1}$",
-                        SUMMEDSPECTRUM: r"$\frac{1}{G}\frac{dG}{dT}$",
-                        ANGULARSPECTRUM: r"$\frac{1}{H}\frac{dH}{d\epsilon_1}$",
-                        ALPHASPECTRUM: r"$\alpha(\epsilon_1)$"}
 
-PSF_TYPES_NICE = {SINGLESPECTRUM: "G_single",
-                  SUMMEDSPECTRUM: "G_sum",
-                  ANGULARSPECTRUM: "H",
-                  ALPHASPECTRUM: "K"}
+class NeutrinoLessModes(IntEnum):
+    LIGHT_NEUTRINO_EXCHANGE = 1
 
-EXCHANGE_CORRECTION = 1
-RADIATIVE_CORRECTION = 2
-CORRECTIONS = {"Exchange": EXCHANGE_CORRECTION,
-               "Radiative": RADIATIVE_CORRECTION}
 
-ONSURFACE = 1
-WEIGHTED = 2
-WAVEFUNCTIONEVALUATION = {"OnSurface": ONSURFACE,
-                          "Weighted": WEIGHTED}
+NEUTRINOLESS_MECHANISMS_MAP = {
+    "LNE": NeutrinoLessModes.LIGHT_NEUTRINO_EXCHANGE}
+NEUTRINOLESS_MECHANISMS_MAP_REV = {
+    NeutrinoLessModes.LIGHT_NEUTRINO_EXCHANGE: "LNE"}
+
+
+PROCESS_IONISATION = {ProcessTypes.TWONEUTRINO_TWOBMINUS: 2,
+                      ProcessTypes.NEUTRINOLESS_TWOBMINUS: 2,
+                      ProcessTypes.TWONEUTRINO_BPLUSEC: -1,
+                      ProcessTypes.NEUTRINOLESS_BPLUSEC: -1,
+                      ProcessTypes.TWONEUTRINO_TWOBPLUS: -2,
+                      ProcessTypes.NEUTRINOLESS_TWOBPLUS: -2,
+                      ProcessTypes.TWONEUTRINO_TWOEC: 0}
+
+
+class FermiFunctionTypes(IntEnum):
+    POINTLIKE_FERMIFUNCTIONS = 1
+    CHARGEDSPHERE_FERMIFUNCTIONS = 2
+    NUMERIC_FERMIFUNCTIONS = 3
+
+
+FERMIFUNCTIONS_MAP = {"PointLike": FermiFunctionTypes.POINTLIKE_FERMIFUNCTIONS,
+                      "ChargedSphere": FermiFunctionTypes.CHARGEDSPHERE_FERMIFUNCTIONS,
+                      "Numeric": FermiFunctionTypes.NUMERIC_FERMIFUNCTIONS}
+FERMIFUNCTIONS_MAP_REV = {FermiFunctionTypes.POINTLIKE_FERMIFUNCTIONS: "PointLike",
+                          FermiFunctionTypes.CHARGEDSPHERE_FERMIFUNCTIONS: "ChargedSphere",
+                          FermiFunctionTypes.NUMERIC_FERMIFUNCTIONS: "Numeric"}
+
+
+class SpectrumMethod(IntEnum):
+    CLOSUREMETHOD = 1
+    TAYLORMETHOD = 2
+
+
+SPECTRUM_METHODS = {"Closure": SpectrumMethod.CLOSUREMETHOD,
+                    "Taylor": SpectrumMethod.TAYLORMETHOD}
+
+
+class SpectrumTypes(IntEnum):
+    SINGLESPECTRUM = 1
+    SUMMEDSPECTRUM = 2
+    ANGULARSPECTRUM = 3
+    ALPHASPECTRUM = 4
+
+
+SPECTRUM_TYPES = {"Single": SpectrumTypes.SINGLESPECTRUM,
+                  "Sum": SpectrumTypes.SUMMEDSPECTRUM,
+                  "Angular": SpectrumTypes.ANGULARSPECTRUM,
+                  "Alpha": SpectrumTypes.ALPHASPECTRUM}
+SPECTRUM_TYPES_REV = {SpectrumTypes.SINGLESPECTRUM: "Single",
+                      SpectrumTypes.SUMMEDSPECTRUM: "Sum",
+                      SpectrumTypes.ANGULARSPECTRUM: "Angular",
+                      SpectrumTypes.ALPHASPECTRUM: "Alpha"}
+
+SPECTRUM_TYPES_NICE = {SpectrumTypes.SINGLESPECTRUM: "dG/de",
+                       SpectrumTypes.SUMMEDSPECTRUM: "dG/dT",
+                       SpectrumTypes.ANGULARSPECTRUM: "dH/de",
+                       SpectrumTypes.ALPHASPECTRUM: "alpha"}
+SPECTRUM_TYPES_LATEX = {SpectrumTypes.SINGLESPECTRUM: r"$\frac{1}{G}\frac{dG}{d\epsilon_1}$",
+                        SpectrumTypes.SUMMEDSPECTRUM: r"$\frac{1}{G}\frac{dG}{dT}$",
+                        SpectrumTypes.ANGULARSPECTRUM: r"$\frac{1}{H}\frac{dH}{d\epsilon_1}$",
+                        SpectrumTypes.ALPHASPECTRUM: r"$\alpha(\epsilon_1)$"}
+
+PSF_TYPES_NICE = {SpectrumTypes.SINGLESPECTRUM: "G_single",
+                  SpectrumTypes.SUMMEDSPECTRUM: "G_sum",
+                  SpectrumTypes.ANGULARSPECTRUM: "H",
+                  SpectrumTypes.ALPHASPECTRUM: "K"}
+
+
+class CorrectionTypes(IntEnum):
+    EXCHANGE_CORRECTION = 1
+    RADIATIVE_CORRECTION = 2
+
+
+CORRECTIONS = {"Exchange": CorrectionTypes.EXCHANGE_CORRECTION,
+               "Radiative": CorrectionTypes.RADIATIVE_CORRECTION}
+
+
+class WFEvaluationTypes(IntEnum):
+    ONSURFACE = 1
+    WEIGHTED = 2
+
+
+WAVEFUNCTIONEVALUATION = {"OnSurface": WFEvaluationTypes.ONSURFACE,
+                          "Weighted": WFEvaluationTypes.WEIGHTED}
 
 # PATHS
 gs_configurations_path = os.path.join(os.path.dirname(
@@ -139,7 +176,11 @@ gs_configurations_path = os.path.join(os.path.dirname(
 q_values_path = os.path.join(os.path.dirname(
     __file__), "../data/mass_difference/deltaM_KY13.yaml")
 
-JSONFORMAT = 1
-HDF5FORMAT = 2
-OUTPUTFILEFORMAT = {"json": JSONFORMAT,
-                    "hdf5": HDF5FORMAT}
+
+class OutputFormatTypes(IntEnum):
+    JSONFORMAT = 1
+    HDF5FORMAT = 2
+
+
+OUTPUTFILEFORMAT = {"json": OutputFormatTypes.JSONFORMAT,
+                    "hdf5": OutputFormatTypes.HDF5FORMAT}
