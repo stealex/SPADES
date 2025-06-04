@@ -10,7 +10,7 @@ from tqdm import tqdm
 from spades import ph
 import numpy as np
 from numba import njit
-from spades.math_stuff import kn, ln, neutrino_integrand_closure_standard_00, neutrino_integrand_closure_standard_02, neutrino_integrand_closure_angular_00
+from spades.math_stuff import kn, ln, neutrino_integrand_closure_standard_00, neutrino_integrand_closure_standard_02, neutrino_integrand_closure_angular_00, neutrino_integrand_closure_angular_02
 
 
 @lru_cache(maxsize=None)
