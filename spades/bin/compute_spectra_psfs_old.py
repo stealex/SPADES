@@ -17,7 +17,7 @@ class RunConfig:
     def __init__(self, config: dict) -> None:
         self.task_name = config["task"]
         self.process_name = config["process"]
-        self.process = ph.PROCESSES[self.process_name]
+        self.process = ph.PROCESS_NAMES_MAP[self.process_name]
 
         # atoms
         self.initial_atom = AtomicSystem(config["initial_atom"])
@@ -290,7 +290,7 @@ def main(argv=None):
 
     for ff_type in input_config.spectra_config.fermi_functions:
         ff_type_nice = list(
-            filter(lambda x: ph.FERMIFUNCTIONS[x] == ff_type, ph.FERMIFUNCTIONS))[0]
+            filter(lambda x: ph.FERMIFUNCTIONS_MAP[x] == ff_type, ph.FERMIFUNCTIONS_MAP))[0]
         psf_collection[ff_type_nice] = {}
         spectra_collection[ff_type_nice] = {}
         spectra_2d_collection[ff_type_nice] = {}

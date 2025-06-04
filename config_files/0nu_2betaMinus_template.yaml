@@ -6,14 +6,15 @@ task: {PARENT}_0nu_2betaMinus # name of the task. For printing purposes only
 # {"name": name, "option1": value1, ...}
 # For 2nu modes the option is "transition". Possible values:
 #   0->0: transition from gs (0+) to gs (0+)
+#   0->02: transition from gs (0+) to first excited 0+ state
 #   0->2: transition from gs (0+) to first excited 2+ state.
 # For 0nu modes the option "mechanism" can be used. Possible values:
 #   "LNE": light neutrino exchange
 process: 
   name: 0nu_2betaMinus
-  #transition: 0->0
+  transition: {TRANSITION}
   mechanism: LNE
-
+  
 # Specification of the initial atom.  
 initial_atom:
   name: {PARENT} # Has to be given in the form <A><Symbol>
@@ -24,7 +25,7 @@ initial_atom:
 # NB: length units given in CLI are used. 
 bound_states:
   max_r: 100
-  n_radial_points: 1000
+  n_radial_points: 10000
   n_values: auto # can be auto, int, (nmin, nmax), [n1,n2,n3...]
   k_values: auto # can be auto, int, (kmin, kmax), {n1:[k1,k2,...]...}
 
@@ -32,7 +33,7 @@ bound_states:
 # NB: length units given in CLI are used
 scattering_states:
   max_r: 100
-  n_radial_points: 1000
+  n_radial_points: 10000
   n_ke_points: 100 # number of energy points for which scattering wave functions are computed
   k_values: [-1, 1] # can be auto, int, (kmin, kmax), [k1, k2, ...]
 
@@ -78,7 +79,7 @@ spectra_computation:
 # Valid entries:
 #   exchange: The exchange correction a la Nitescu et al is applied
 #   radiative: The radiative correction is applied
-  corrections: [] # can be a list of any of: Exchange
+  corrections: [Exchange, Radiative] # can be a list of any of: Exchange
   fermi_function_types: [Numeric] # Can be a list of any of : Numeric, PointLike, ChargedSphere
 # total_ke: Total kinetic energy of the emitted leptons
 # Valid options: 
@@ -96,10 +97,6 @@ spectra_computation:
 output:
   location: {DEST}
   what:
-    - bound wavefunctions
-    - scattering wavefunctions
-    - spectra
     - psfs
-    - binding energies
-  file_prefix: {PARENT}_0nu_2betaPlus
+  file_prefix: {PARENT}_0nu_2betaMinus
   

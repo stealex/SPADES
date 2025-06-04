@@ -311,8 +311,6 @@ class ClosureSpectrum2nu(ClosureSpectrumBase):
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
         self.spectrum_values[sp_type] = np.zeros_like(self.energy_points)
-        if (sp_type == ph.SpectrumTypes.ANGULARSPECTRUM) and (self.transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS):
-            return
         for i_e in tqdm(range(len(self.energy_points)-1),
                         desc="\t"*2 +
                         f"- {ph.SPECTRUM_TYPES_NICE[sp_type]}",
