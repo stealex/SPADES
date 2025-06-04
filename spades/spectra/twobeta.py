@@ -98,7 +98,10 @@ def spectrum_integrant_closure_2nubb(enu: float, e2: float, e1: float, total_ke:
                 neutrino_integrand_closure_angular_00(
                     enu, et1, et2, enu2, enei)
         else:
-            raise NotImplementedError()
+            return -1.0*standard_electron_integrant_2nubb(e1, e2, full_func) *\
+                neutrino_integrand_closure_angular_02(
+                    enu, et1, et2, enu2, enei)
+
     else:
         raise NotImplementedError("Unknown spectrum type")
 
@@ -308,6 +311,8 @@ class ClosureSpectrum2nu(ClosureSpectrumBase):
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
         self.spectrum_values[sp_type] = np.zeros_like(self.energy_points)
+        if (sp_type == ph.SpectrumTypes.ANGULARSPECTRUM) and (self.transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS):
+            return
         for i_e in tqdm(range(len(self.energy_points)-1),
                         desc="\t"*2 +
                         f"- {ph.SPECTRUM_TYPES_NICE[sp_type]}",

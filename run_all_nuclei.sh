@@ -7,7 +7,8 @@
 # CONF_FILE_TEMPLATE="config_files/0nu_2betaMinus_template.yaml"
 #
 # 2 nu
-FINAL_DIR="ANDT_2betaMinus/KY/2nu/gs_to_gs"
+TRANSITION="0->2"
+FINAL_DIR="AME2020_ENSDF2025/2betaMinus/2nu/0_to_2"
 NUCLEI=("48Ca" "76Ge" "82Se" "96Zr" "100Mo" "110Pd" "116Cd" "124Sn" "128Te" "130Te" "136Xe" "148Nd" "150Nd" "154Sm" "160Gd" "198Pt" "232Th" "238U")
 CONF_FILE_TEMPLATE="config_files/2nu_2betaMinus_template.yaml"
 
@@ -41,18 +42,18 @@ CONF_FILE_TEMPLATE="config_files/2nu_2betaMinus_template.yaml"
 # NUCLEI=("78Kr" "96Ru" "106Cd" "124Xe" "130Ba" "136Ce")
 # CONF_FILE_TEMPLATE="config_files/2nu_2betaPlus_template.yaml"
 
-
-rm -rf "${FINAL_DIR}"
-
 for NUC in "${NUCLEI[@]}"
 do
     echo "Computing for ${NUC}"
     TMP_DIR="${FINAL_DIR}/${NUC}"
-    mkdir -p  "${FINAL_DIR}/${NUC}"
+    rm -rf "${TMP_DIR}"
+    mkdir -p  "${TMP_DIR}"
     sed -e "s/{PARENT}/${NUC}/g" ${CONF_FILE_TEMPLATE} > ${TMP_DIR}/config.yaml
     sed -i -e "s#{DEST}#${TMP_DIR}#g" ${TMP_DIR}/config.yaml
+    sed -i -e "s#{TRANSITION}#${TRANSITION}#g" ${TMP_DIR}/config.yaml
 
-    ./spades/bin/compute_spectra_psfs.py ${TMP_DIR}/config.yaml --energy_unit MeV --distance_unit bohr_radius > log.txt 2>&1
+    ./spades/bin/compute_spectra_psfs.py ${TMP_DIR}/config.yaml --energy_unit MeV --distance_unit bohr_radius --qvalues_file /home/stefan/CIFRA/2nubbspectra/data/mass_difference/deltaM_AME2020_ENSDF2025_best2BetaMinus2024.yaml > log.txt 2>&1
+    #./spades/bin/compute_spectra_psfs.py ${TMP_DIR}/config.yaml --energy_unit MeV --distance_unit bohr_radius > log.txt 2>&1 # KI q-values by default
     mv log.txt ${TMP_DIR}/.
     echo "Done!"
 done
