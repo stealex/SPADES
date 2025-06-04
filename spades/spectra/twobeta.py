@@ -386,7 +386,10 @@ class ClosureSpectrum0nu_LNE(ClosureSpectrumBase):
             self.eta_total = eta_total
 
     @lru_cache(maxsize=None)
-    def full_func(self, x, sp_type):
+    def full_func(self, x, sp_type, tr_type: ph.TransitionTypes = ph.TransitionTypes.ZEROPLUS_TO_ZEROPLUS):
+        if tr_type == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
+            raise NotImplementedError()
+
         if sp_type == ph.SpectrumTypes.ANGULARSPECTRUM:
             return self.fermi_functions.ff1_eval(x)*self.eta_total(x)
         else:

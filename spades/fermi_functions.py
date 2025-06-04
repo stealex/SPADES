@@ -249,6 +249,9 @@ class Numeric(FermiFunctions):
     def build_fermi_functions(self):
         self.gm1 = self.g[-1]
         self.fp1 = self.f[1]
+        self.gm2 = self.g[-2]
+        self.fp2 = self.f[2]
+
         self.ff0 = CubicSpline(
             self.scattering_handler.energy_grid,
             np.abs(self.gm1*self.gm1) + np.abs(self.fp1*self.fp1)
@@ -261,4 +264,22 @@ class Numeric(FermiFunctions):
         self.ff_ecbeta = CubicSpline(
             self.scattering_handler.energy_grid,
             np.abs(self.gm1)**2.0+np.abs(self.fp1)**2.0
+        )
+
+        # cf. https://rrp.nipne.ro/2015_67_3/A12.pdf
+        self.gm2_sq_interp = CubicSpline(
+            self.scattering_handler.energy_grid,
+            np.abs(self.gm2)**2.0
+        )
+        self.gm1_sq_interp = CubicSpline(
+            self.scattering_handler.energy_grid,
+            np.abs(self.gm1)**2.0
+        )
+        self.fp1_sq_interp = CubicSpline(
+            self.scattering_handler.energy_grid,
+            np.abs(self.fp1)**2.0
+        )
+        self.fp2_sq_interp = CubicSpline(
+            self.scattering_handler.energy_grid,
+            np.abs(self.fp2)**2.0
         )
