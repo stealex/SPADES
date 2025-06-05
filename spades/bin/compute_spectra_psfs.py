@@ -334,7 +334,7 @@ def compute_spectra_and_psfs(input_config: RunConfig,
             if (input_config.spectra_config.compute_2d):
                 spectrum.compute_2D_spectrum(sp_type)
 
-        if (input_config.process.type != ph.ProcessTypes.TWONEUTRINO_TWOEC):
+        if not (input_config.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOEC, ph.ProcessTypes.NEUTRINOLESS_BPLUSEC]):
             spectrum.integrate_spectrum()
         spectrum.compute_psf()
 

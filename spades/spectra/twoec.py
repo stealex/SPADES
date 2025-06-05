@@ -92,7 +92,7 @@ class TwoECSpectrumClosure(TwoECSpectrum):
                         x,
                         -(ph.electron_mass-eb1),
                         -(ph.electron_mass-eb2),
-                        self.total_ke-2*ph.electron_mass,
+                        self.total_ke-x-eb1-eb2,
                         self.enei-ph.electron_mass,
                         self.transition_type),
                     a=0.,
