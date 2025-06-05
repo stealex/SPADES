@@ -25,7 +25,7 @@ def neutrino_integrand_closure(enu_1, e_positron, e_electron, enu_2, enei, trans
     if transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
         return neutrino_integrand_closure_standard_02(enu_1, e_positron, e_electron, enu_2, enei)
     else:
-        return neutrino_integrand_closure_standard_00(enu_2, e_positron, e_electron, enu_2, enei)
+        return neutrino_integrand_closure_standard_00(enu_1, e_positron, e_electron, enu_2, enei)
 
 
 class ECBetaSpectrumBase(BetaSpectrumBase):
