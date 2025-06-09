@@ -11,6 +11,7 @@ from spades import ph
 import numpy as np
 from numba import njit
 from spades.math_stuff import kn, ln, neutrino_integrand_closure_standard_00, neutrino_integrand_closure_standard_02, neutrino_integrand_closure_angular_00, neutrino_integrand_closure_angular_02
+from spades.spectra_old import neutrino_integrand_angular
 
 
 @lru_cache(maxsize=None)
@@ -208,11 +209,195 @@ class TwoBetaSpectrumBase(BetaSpectrumBase):
         pass
 
 
-def func1(a: int, *args, **kwargs):
-    c = args[0] + 2
-    d = kwargs["d"]
-    b = a+1
-    return b
+class TaylorSpectrumBase(TwoBetaSpectrumBase):
+    def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, taylor_order: ph.TaylorOrders, **kwargs) -> None:
+        super().__init__(total_ke, ei_ef, fermi_functions, **kwargs)
+        self.taylor_order = taylor_order
+        self.constant_in_front = 1.0
+
+    @abstractmethod
+    def compute_spectrum(self, sp_type: ph.SpectrumTypes):
+        pass
+
+    @abstractmethod
+    def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        pass
+
+    def integrate_spectrum(self):
+        self.spectrum_integrals = {}
+        for key in self.spectrum_values:
+            interp_func = interpolate.CubicSpline(
+                self.energy_points, self.spectrum_values[key]
+            )
+
+            result = integrate.qmc_quad(
+                interp_func,
+                self.energy_points[0],
+                self.energy_points[-1]
+            )
+            if isinstance(result, tuple):
+                self.spectrum_integrals[key] = result[0]
+            else:
+                raise ValueError("Spectrum integration did not succeed")
+
+            self.spectrum_values[key] = self.spectrum_values[key]/result[0]
+            if key in self.spectrum_2D_values:
+                self.spectrum_2D_values[key] = self.spectrum_2D_values[key]/result[0]
+
+    def compute_psf(self):
+        for key in self.spectrum_values:
+            psf_mev = self.spectrum_integrals[key] * self.constant_in_front
+            psf_years = psf_mev/(ph.hbar*np.log(2.))/(ph.year**(-1))
+            self.psfs[key] = psf_years
+
+
+# Notation as in Nitescu  Universe 2021, 7(5), 147; https://doi.org/10.3390/universe7050147
+@njit
+def small_a(e1: float, e2: float, total_ke: float):
+    return total_ke - e1 - e2
+
+
+@njit
+def small_b(e1: float, e2: float):
+    return e1 - e2
+
+
+@njit
+def integral_order_0_00(e1: float, e2: float, total_ke: float):
+    return 1./30. * small_a(e1, e2, total_ke)**5.0
+
+
+@njit
+def integral_order_2_00(e1: float, e2: float, total_ke: float):
+    a = small_a(e1, e2, total_ke)
+    b = small_b(e1, e2)
+    return 1./(1680.*ph.electron_mass**2.0) *\
+        a**5 * (a**2 + 7.*b**2)
+
+
+@njit
+def integral_order_22_00(e1: float, e2: float, total_ke: float):
+    a = small_a(e1, e2, total_ke)
+    b = small_b(e1, e2)
+    return 1./(161280.*ph.electron_mass**4.0) *\
+        a**5 * (a**4 - 6*(a**2) * (b**2) + 21.*b**4)
+
+
+@njit
+def integral_order_4_00(e1: float, e2: float, total_ke: float):
+    a = small_a(e1, e2, total_ke)
+    b = small_b(e1, e2)
+    return 1./(80640.*ph.electron_mass**4) *\
+        a**5 * (a**4 + 18.*(a**2)*(b**2) + 21*b**4)
+
+
+@njit
+def integral_order_22_02(e1: float, e2: float, total_ke: float):
+    a = small_a(e1, e2, total_ke)
+    b = small_b(e1, e2)
+    return (a**7) * (b**2)/(3360.*(ph.electron_mass**4.0))
+
+
+@njit
+def integral_order_6_02(e1: float, e2: float, total_ke: float):
+    a = small_a(e1, e2, total_ke)
+    b = small_b(e1, e2)
+    return (a**7) * (b**2)/(40320.*(ph.electron_mass**6.0)) * (a**2.0+3*b**2.0)
+
+
+@njit
+def integral_order(e1: float, e2: float, total_ke: float, order: ph.TaylorOrders, transition_type: ph.TransitionTypes):
+    if transition_type == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
+        if order == ph.TaylorOrders.TWOTWO:
+            return integral_order_22_02(e1, e2, total_ke)
+        elif order == ph.TaylorOrders.SIX:
+            return integral_order_6_02(e1, e2, total_ke)
+        else:
+            raise NotImplementedError
+    else:
+        if order == ph.TaylorOrders.ZERO:
+            return integral_order_0_00(e1, e2, total_ke)
+        elif order == ph.TaylorOrders.TWO:
+            return integral_order_2_00(e1, e2, total_ke)
+        elif order == ph.TaylorOrders.TWOTWO:
+            return integral_order_22_00(e1, e2, total_ke)
+        elif order == ph.TaylorOrders.FOUR:
+            return integral_order_4_00(e1, e2, total_ke)
+        else:
+            raise NotImplementedError
+
+
+def spectrum_integrant_taylor_2nubb(e2, e1, total_ke: float, sp_type: ph.SpectrumTypes, transition_type: ph.TransitionTypes, order: ph.TaylorOrders, full_func: Callable, emin: float):
+    if sp_type == ph.SpectrumTypes.SINGLESPECTRUM:
+        return standard_electron_integrant_2nubb(e1, e2, full_func)*integral_order(e1, e2, total_ke, order, transition_type)
+    elif sp_type == ph.SpectrumTypes.SUMMEDSPECTRUM:
+        t = e1
+        v = e2
+        ee2 = t*v/total_ke
+        ee1 = t - ee2
+
+        if (ee1 < emin) or (ee2 < emin):
+            return 0.
+
+        return t/total_ke * standard_electron_integrant_2nubb(ee1, ee2, full_func) * integral_order(ee1, ee2, total_ke, order, transition_type)
+    elif sp_type == ph.SpectrumTypes.ANGULARSPECTRUM:
+        return -1.0*standard_electron_integrant_2nubb(e1, e2, full_func)*integral_order(e1, e2, total_ke, order, transition_type)
+    else:
+        raise NotImplementedError
+
+
+class TaylorSpectrum2nu(TaylorSpectrumBase):
+    def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, taylor_order: ph.TaylorOrders, eta_total: Callable | None, transition, **kwargs) -> None:
+        super().__init__(total_ke, ei_ef, fermi_functions, taylor_order, **kwargs)
+        self.transition = transition
+        if (transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS):
+            pass
+        else:
+            self.constant_in_front = ((ph.fermi_coupling_constant*ph.v_ud)**4) / \
+                (8.*(np.pi**7)*ph.electron_mass**2.0)
+
+        if (eta_total is None):
+            self.eta_total = lambda x: 1.0
+        else:
+            self.eta_total = eta_total
+
+    def full_func(self, x, sp_type):
+        if sp_type == ph.SpectrumTypes.ANGULARSPECTRUM:
+            return self.fermi_functions.ff1_eval(x)*self.eta_total(x)
+        else:
+            return self.fermi_functions.ff0_eval(x)*self.eta_total(x)
+
+    def compute_spectrum(self, sp_type: ph.SpectrumTypes):
+        self.spectrum_values[sp_type] = np.zeros_like(self.energy_points)
+        for i_e in tqdm(range(len(self.energy_points)-1),
+                        desc="\t"*2 +
+                        f"- {ph.SPECTRUM_TYPES_NICE[sp_type]}",
+                        ncols=100):
+            e1 = self.energy_points[i_e]
+            range_list = range_e2(e1, self.total_ke, sp_type,
+                                  self.energy_points[0], 0, self.full_func, self.transition)
+            result = integrate.quad(
+                spectrum_integrant_taylor_2nubb,
+                a=range_list[0],
+                b=range_list[1],
+                args=(e1,
+                      self.total_ke,
+                      sp_type,
+                      self.transition,
+                      self.taylor_order,
+                      lambda x: self.full_func(x, sp_type),
+                      self.energy_points[0]
+                      ),
+            )
+            # print(result)
+            if isinstance(result, tuple):
+                self.spectrum_values[sp_type][i_e] = result[0]
+            else:
+                raise ValueError("Spectrum integration did not succeed")
+        self.spectrum_values[sp_type][-1] = 0.
+
+    def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        raise NotImplementedError()
 
 
 class ClosureSpectrumBase(TwoBetaSpectrumBase):

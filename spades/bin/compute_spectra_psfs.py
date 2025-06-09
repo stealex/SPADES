@@ -203,7 +203,7 @@ def compute_two_ec_psfs(input_config: RunConfig, wf_handler_init: WaveFunctionsH
 
 
 def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.FermiFunctions, eta_total: Callable | None,
-                    final_atom: AtomicSystem, wf_handler_init: WaveFunctionsHandler | None, e1_grid_2D: np.ndarray | None = None, e2_grid_2D: np.ndarray | None = None) -> SpectrumBase:
+                    final_atom: AtomicSystem, wf_handler_init: WaveFunctionsHandler | None, e1_grid_2D: np.ndarray | None = None, e2_grid_2D: np.ndarray | None = None) -> dict[str, SpectrumBase] | SpectrumBase:
     # prepare for all options
     atilde = 1.12*(final_atom.mass_number**0.5)
     if ("enei" in input_config.spectra_config.method):
@@ -213,6 +213,20 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
             if (input_config.spectra_config.method["enei"] != "auto"):
                 raise ValueError("Cannot interpret enei option")
             enei = atilde - 0.5 * input_config.spectra_config.ei_ef
+
+    if ("orders" in input_config.spectra_config.method):
+        if (isinstance(input_config.spectra_config.method["orders"], list)):
+            orders = []
+            for key in input_config.spectra_config.method["orders"]:
+                orders.append(ph.TAYLOR_ORDER_NAMES_MAP[str(key)])
+        elif (isinstance(input_config.spectra_config.method["orders"], str)):
+            if (input_config.spectra_config.method["orders"] != "auto"):
+                raise ValueError("Cannot interpret orders option")
+            if input_config.process.transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
+                orders = [ph.TaylorOrders.TWOTWO, ph.TaylorOrders.SIX]
+            else:
+                orders = [ph.TaylorOrders.ZERO, ph.TaylorOrders.TWO,
+                          ph.TaylorOrders.TWOTWO, ph.TaylorOrders.FOUR]
 
     if (input_config.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOBMINUS, ph.ProcessTypes.TWONEUTRINO_TWOBPLUS]):
         if (input_config.spectra_config.method["name"] == "Closure"):
@@ -229,6 +243,25 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
                                                              energy_grid_type=input_config.spectra_config.energy_grid_type,
                                                              e1_grid_2D=e1_grid_2D,
                                                              e2_grid_2D=e2_grid_2D)
+
+        elif (input_config.spectra_config.method["name"] == "Taylor"):
+            print("Computing with Taylor")
+            spectra = {}
+            for ord in orders:
+                spectra[ord] = spades.spectra.twobeta.TaylorSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
+                                                                        ei_ef=input_config.spectra_config.ei_ef,
+                                                                        fermi_functions=fermi_functions,
+                                                                        eta_total=eta_total,
+                                                                        taylor_order=ord,
+                                                                        transition=input_config.process.transition,
+                                                                        min_ke=input_config.spectra_config.min_ke,
+                                                                        n_ke_points=input_config.spectra_config.n_ke_points,
+                                                                        energy_grid_type=input_config.spectra_config.energy_grid_type,
+                                                                        e1_grid_2D=e1_grid_2D,
+                                                                        e2_grid_2D=e2_grid_2D)
+
+            return spectra
+
         else:
             raise NotImplementedError()
     elif (input_config.process.type in [ph.ProcessTypes.NEUTRINOLESS_TWOBMINUS, ph.ProcessTypes.NEUTRINOLESS_TWOBPLUS]):
@@ -328,19 +361,32 @@ def compute_spectra_and_psfs(input_config: RunConfig,
                                    wf_handler_init,
                                    e1_grid_2D=e1_grid_2D,
                                    e2_grid_2D=e2_grid_2D)
+        if isinstance(spectrum, SpectrumBase):
+            for sp_type in input_config.spectra_config.types:
+                spectrum.compute_spectrum(sp_type)
+                if (input_config.spectra_config.compute_2d):
+                    spectrum.compute_2D_spectrum(sp_type)
 
-        for sp_type in input_config.spectra_config.types:
-            spectrum.compute_spectrum(sp_type)
-            if (input_config.spectra_config.compute_2d):
-                spectrum.compute_2D_spectrum(sp_type)
+            if not (input_config.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOEC, ph.ProcessTypes.NEUTRINOLESS_BPLUSEC]):
+                spectrum.integrate_spectrum()
+            spectrum.compute_psf()
 
-        if not (input_config.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOEC, ph.ProcessTypes.NEUTRINOLESS_BPLUSEC]):
-            spectrum.integrate_spectrum()
-        spectrum.compute_psf()
+            print("These are the PSFS ", spectrum.psfs)
+            spectra[ph.FERMIFUNCTIONS_MAP_REV[ff_type]] = spectrum
+        elif isinstance(spectrum, dict):
+            spectra[ph.FERMIFUNCTIONS_MAP_REV[ff_type]] = {}
+            for key in spectrum:
+                for sp_type in input_config.spectra_config.types:
+                    spectrum[key].compute_spectrum(sp_type)
+                    if (input_config.spectra_config.compute_2d):
+                        spectrum[key].compute_2D_spectrum(sp_type)
 
-        print("These are the PSFS ", spectrum.psfs)
-        spectra[ph.FERMIFUNCTIONS_MAP_REV[ff_type]] = spectrum
+                if not (input_config.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOEC, ph.ProcessTypes.NEUTRINOLESS_BPLUSEC]):
+                    spectrum[key].integrate_spectrum()
+                spectrum[key].compute_psf()
 
+                print(f"These are the PSFs for {key} ", spectrum[key].psfs)
+                spectra[ph.FERMIFUNCTIONS_MAP_REV[ff_type]] = spectrum
     return spectra
 
 
@@ -422,7 +468,12 @@ def main(argv=None):
             else:
                 print("Writing output file")
                 for key in spectra_psfs:
-                    spectrum_writer.add_spectrum(spectra_psfs[key], key)
+                    if isinstance(spectra_psfs[key], SpectrumBase):
+                        spectrum_writer.add_spectrum(spectra_psfs[key], key)
+                    elif isinstance(spectra_psfs[key], dict):
+                        for key1 in spectra_psfs[key]:
+                            spectrum_writer.add_spectrum(
+                                spectra_psfs[key][key1], f"{key}_{key1}")
                 spectrum_writer.write(f"{output_dir_name}/spectra.json")
         else:
             print("Will not write spectra and psfs")
