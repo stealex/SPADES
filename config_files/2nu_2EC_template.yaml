@@ -47,8 +47,8 @@ spectra_computation:
 #         a list of strings. representing the orders used in the Taylor expansion
 #         The default value in this case is [0, 2, 22, 4] intepreted as strings.
   method: 
-    name: Closure # allowed values: "Closure" and "Taylor"
-    enei: auto # auto uses \tilde{A} = 1.12 A^{-1/2} and extracts EN-EI from there. 
+    name: {METHOD} # allowed values: "Closure" and "Taylor"
+    {OPTIONS} # auto uses \tilde{A} = 1.12 A^{-1/2} and extracts EN-EI from there. 
                # One can specify a positive excitation energy otherwise.
 # wave_function_evaluation: the method to evaluate wave functions entering the spectra
 #                           and PSFs formulas. 
