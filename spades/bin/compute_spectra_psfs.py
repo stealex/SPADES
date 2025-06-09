@@ -332,8 +332,18 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
                                                              nuclear_radius=input_config.spectra_config.nuclear_radius,
                                                              enei=enei,
                                                              transition_type=input_config.process.transition)
+        elif input_config.spectra_config.method["name"] == "Taylor":
+            spectra = {}
+            for ord in orders:
+                spectra[ord] = spades.spectra.twoec.TwoECSpectrumTaylor(total_ke=input_config.spectra_config.total_ke,
+                                                                        ei_ef=input_config.spectra_config.ei_ef,
+                                                                        bound_handler=wf_handler_init.bound_handler,
+                                                                        nuclear_radius=input_config.spectra_config.nuclear_radius,
+                                                                        transition_type=input_config.process.transition,
+                                                                        order=ord)
+            return spectra
         else:
-            raise NotImplementedError()
+            raise NotImplementedError
 
     else:
         raise NotImplementedError()
@@ -374,6 +384,7 @@ def compute_spectra_and_psfs(input_config: RunConfig,
             print("These are the PSFS ", spectrum.psfs)
             spectra[ph.FERMIFUNCTIONS_MAP_REV[ff_type]] = spectrum
         elif isinstance(spectrum, dict):
+            print("Doing this")
             spectra[ph.FERMIFUNCTIONS_MAP_REV[ff_type]] = {}
             for key in spectrum:
                 for sp_type in input_config.spectra_config.types:

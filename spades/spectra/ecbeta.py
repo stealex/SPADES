@@ -18,7 +18,7 @@ from scipy import integrate
 from spades import fermi_functions, ph
 from spades.fermi_functions import FermiFunctions
 from spades.wavefunctions import BoundHandler
-from spades.math_stuff import kn, ln, neutrino_integrand_closure_standard_00, neutrino_integrand_closure_standard_02
+from spades.spectra.closure_helpers import neutrino_integrand_closure_standard_00, neutrino_integrand_closure_standard_02
 
 
 def neutrino_integrand_closure(enu_1, e_positron, e_electron, enu_2, enei, transition: ph.TransitionTypes):
