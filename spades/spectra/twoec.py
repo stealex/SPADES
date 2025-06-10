@@ -93,10 +93,10 @@ class TwoECSpectrumClosure(TwoECSpectrum):
                 tmp_result = integrate.quad(
                     func=lambda x: neutrino_integrand_closure(
                         x,
-                        eb1,
-                        eb2,
+                        -(ph.electron_mass - eb1),
+                        -(ph.electron_mass - eb2),
                         self.total_ke-x-eb1-eb2,
-                        self.enei-ph.electron_mass,
+                        self.enei,
                         self.transition_type),
                     a=0.,
                     b=self.total_ke-eb1-eb2

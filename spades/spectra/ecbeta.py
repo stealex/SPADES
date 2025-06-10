@@ -196,7 +196,8 @@ class ClosureSpectrum2nu(ClosureSpectrum):
                         x,
                         ep+ph.electron_mass,
                         eb,
-                        self.total_ke-ep-x-eb, self.enei,
+                        self.total_ke-ep-x-eb,
+                        self.enei,
                         self.transition_type),
                     a=0.,
                     b=self.total_ke - eb - ep
