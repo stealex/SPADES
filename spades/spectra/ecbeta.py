@@ -195,7 +195,7 @@ class ClosureSpectrum2nu(ClosureSpectrum):
                     func=lambda x: neutrino_integrand_closure(
                         x,
                         ep+ph.electron_mass,
-                        -(ph.electron_mass-eb),
+                        eb,
                         self.total_ke-ep-x-eb, self.enei,
                         self.transition_type),
                     a=0.,
