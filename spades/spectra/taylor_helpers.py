@@ -68,9 +68,7 @@ def integral_order(e1: float, e2: float, total_ke: float, order: ph.TaylorOrders
             raise NotImplementedError
     else:
         if order == ph.TaylorOrders.ZERO:
-            res = integral_order_0_00(e1, e2, total_ke)
-            print(res)
-            return res
+            return integral_order_0_00(e1, e2, total_ke)
         elif order == ph.TaylorOrders.TWO:
             return integral_order_2_00(e1, e2, total_ke)
         elif order == ph.TaylorOrders.TWOTWO:
