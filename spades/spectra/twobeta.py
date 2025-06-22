@@ -274,7 +274,8 @@ class TaylorSpectrum2nu(TaylorSpectrumBase):
         super().__init__(total_ke, ei_ef, fermi_functions, taylor_order, **kwargs)
         self.transition = transition
         if (transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS):
-            pass
+            self.constant_in_front = ((ph.fermi_coupling_constant*ph.v_ud)**4) / \
+                (8.*(np.pi**7)*ph.electron_mass**2.0)
         else:
             self.constant_in_front = ((ph.fermi_coupling_constant*ph.v_ud)**4) / \
                 (8.*(np.pi**7)*ph.electron_mass**2.0)
@@ -312,7 +313,7 @@ class TaylorSpectrum2nu(TaylorSpectrumBase):
                       self.energy_points[0]
                       ),
             )
-            # print(result)
+
             if isinstance(result, tuple):
                 self.spectrum_values[sp_type][i_e] = result[0]
             else:
