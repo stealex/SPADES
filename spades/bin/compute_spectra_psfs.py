@@ -126,12 +126,16 @@ def find_wave_functions(input_config: RunConfig, initial_atom: AtomicSystem, fin
     return (wf_handler_init, wf_handler_final)
 
 
-def build_exchange_correction(wf_handler_init: WaveFunctionsHandler, wf_handler_final: WaveFunctionsHandler):
+def build_exchange_correction(wf_handler_init: WaveFunctionsHandler, wf_handler_final: WaveFunctionsHandler, nuclear_radius: float):
     print(f"Computing exchange correction")
     ex_corr = exchange.ExchangeCorrection(wf_handler_init,
-                                          wf_handler_final)
+                                          wf_handler_final,
+                                          nuclear_radius)
+    p_new, q_new = ex_corr.transform_scattering_wavefunctions()
+    wf_handler_final.scattering_handler.p_grid = p_new
+    wf_handler_final.scattering_handler.q_grid = q_new
     start_time = time.time()
-    ex_corr.compute_eta_total()
+    # ex_corr.compute_eta_total()
     stop_time = time.time()
     print(f"... took {stop_time-start_time: .2f} seconds")
     return ex_corr
@@ -406,12 +410,12 @@ def build_corrections(input_config: RunConfig, wf_handler_init: WaveFunctionsHan
     e_values = None
     if (ph.CorrectionTypes.EXCHANGE_CORRECTION in input_config.spectra_config.corrections) and (wf_handler_init != None) and (wf_handler_final != None):
         exchange_correction = build_exchange_correction(
-            wf_handler_init, wf_handler_final
+            wf_handler_init, wf_handler_final, input_config.spectra_config.nuclear_radius
         )
-        e_values = ph.electron_mass + \
-            wf_handler_final.scattering_handler.energy_grid
-        eta_total = 1.+exchange_correction.eta_total
-        print(eta_total)
+        # e_values = ph.electron_mass + \
+        #     wf_handler_final.scattering_handler.energy_grid
+        # eta_total = 1.+exchange_correction.eta_total
+        # print(eta_total)
 
     if (ph.CorrectionTypes.RADIATIVE_CORRECTION in input_config.spectra_config.corrections) and (wf_handler_final != None) and (wf_handler_final.scattering_handler != None):
         e_values = ph.electron_mass + \
