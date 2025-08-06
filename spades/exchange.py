@@ -89,6 +89,10 @@ class ExchangeCorrection:
         return (scattering_bound, bound_bound)
 
     def transform_scattering_wavefunctions(self):
+        """Transformation according to AIP Conf. Proc. 3138, 020012 (2024)
+        https://doi.org/10.1063/5.0205270
+
+        """
         print("Transforming scattering wavefunctions")
         n_values = self.initial_handler.bound_config.n_values
         k_values = self.initial_handler.bound_config.k_values
