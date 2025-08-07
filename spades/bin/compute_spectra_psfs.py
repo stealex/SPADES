@@ -131,10 +131,10 @@ def build_exchange_correction(wf_handler_init: WaveFunctionsHandler, wf_handler_
     ex_corr = exchange.ExchangeCorrection(wf_handler_init,
                                           wf_handler_final,
                                           nuclear_radius)
+    start_time = time.time()
     p_new, q_new = ex_corr.transform_scattering_wavefunctions()
     wf_handler_final.scattering_handler.p_grid = p_new
     wf_handler_final.scattering_handler.q_grid = q_new
-    start_time = time.time()
     # ex_corr.compute_eta_total()
     stop_time = time.time()
     print(f"... took {stop_time-start_time: .2f} seconds")
