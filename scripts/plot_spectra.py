@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from argparse import ArgumentParser
-from src import ph, io_handler
+from spades import ph, io_handler
 
 # Load the data from the file
 
