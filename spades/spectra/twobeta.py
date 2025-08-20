@@ -9,8 +9,8 @@ from scipy import integrate, interpolate
 from tqdm import tqdm
 from spades import ph
 import numpy as np
-from numba import njit
-from spades.math_stuff import kn, ln, neutrino_integrand_closure_standard_00, neutrino_integrand_closure_standard_02, neutrino_integrand_closure_angular_00
+from spades.spectra.closure_helpers import neutrino_integrand_closure_standard_00, neutrino_integrand_closure_standard_02, neutrino_integrand_closure_angular_00, neutrino_integrand_closure_angular_02
+from spades.spectra.taylor_helpers import integral_order
 
 
 @lru_cache(maxsize=None)
@@ -208,11 +208,120 @@ class TwoBetaSpectrumBase(BetaSpectrumBase):
         pass
 
 
-def func1(a: int, *args, **kwargs):
-    c = args[0] + 2
-    d = kwargs["d"]
-    b = a+1
-    return b
+class TaylorSpectrumBase(TwoBetaSpectrumBase):
+    def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, taylor_order: ph.TaylorOrders, **kwargs) -> None:
+        super().__init__(total_ke, ei_ef, fermi_functions, **kwargs)
+        self.taylor_order = taylor_order
+        self.constant_in_front = 1.0
+
+    @abstractmethod
+    def compute_spectrum(self, sp_type: ph.SpectrumTypes):
+        pass
+
+    @abstractmethod
+    def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        pass
+
+    def integrate_spectrum(self):
+        self.spectrum_integrals = {}
+        for key in self.spectrum_values:
+            interp_func = interpolate.CubicSpline(
+                self.energy_points, self.spectrum_values[key]
+            )
+
+            result = integrate.qmc_quad(
+                interp_func,
+                self.energy_points[0],
+                self.energy_points[-1]
+            )
+            if isinstance(result, tuple):
+                self.spectrum_integrals[key] = result[0]
+            else:
+                raise ValueError("Spectrum integration did not succeed")
+
+            self.spectrum_values[key] = self.spectrum_values[key]/result[0]
+            if key in self.spectrum_2D_values:
+                self.spectrum_2D_values[key] = self.spectrum_2D_values[key]/result[0]
+
+    def compute_psf(self):
+        for key in self.spectrum_values:
+            psf_mev = self.spectrum_integrals[key] * self.constant_in_front
+            psf_years = psf_mev/(ph.hbar*np.log(2.))/(ph.year**(-1))
+            self.psfs[key] = psf_years
+
+
+def spectrum_integrant_taylor_2nubb(e2, e1, total_ke: float, sp_type: ph.SpectrumTypes, transition_type: ph.TransitionTypes, order: ph.TaylorOrders, full_func: Callable, emin: float):
+    if sp_type == ph.SpectrumTypes.SINGLESPECTRUM:
+        return standard_electron_integrant_2nubb(e1, e2, full_func)*integral_order(e1, e2, total_ke, order, transition_type)
+    elif sp_type == ph.SpectrumTypes.SUMMEDSPECTRUM:
+        t = e1
+        v = e2
+        ee2 = t*v/total_ke
+        ee1 = t - ee2
+
+        if (ee1 < emin) or (ee2 < emin):
+            return 0.
+
+        return t/total_ke * standard_electron_integrant_2nubb(ee1, ee2, full_func) * integral_order(ee1, ee2, total_ke, order, transition_type)
+    elif sp_type == ph.SpectrumTypes.ANGULARSPECTRUM:
+        return -1.0*standard_electron_integrant_2nubb(e1, e2, full_func)*integral_order(e1, e2, total_ke, order, transition_type)
+    else:
+        raise NotImplementedError
+
+
+class TaylorSpectrum2nu(TaylorSpectrumBase):
+    def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, taylor_order: ph.TaylorOrders, eta_total: Callable | None, transition, **kwargs) -> None:
+        super().__init__(total_ke, ei_ef, fermi_functions, taylor_order, **kwargs)
+        self.transition = transition
+        if (transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS):
+            self.constant_in_front = ((ph.fermi_coupling_constant*ph.v_ud)**4) / \
+                (8.*(np.pi**7)*ph.electron_mass**2.0)
+        else:
+            self.constant_in_front = ((ph.fermi_coupling_constant*ph.v_ud)**4) / \
+                (8.*(np.pi**7)*ph.electron_mass**2.0)
+
+        if (eta_total is None):
+            self.eta_total = lambda x: 1.0
+        else:
+            self.eta_total = eta_total
+
+    def full_func(self, x, sp_type):
+        if sp_type == ph.SpectrumTypes.ANGULARSPECTRUM:
+            return self.fermi_functions.ff1_eval(x)*self.eta_total(x)
+        else:
+            return self.fermi_functions.ff0_eval(x)*self.eta_total(x)
+
+    def compute_spectrum(self, sp_type: ph.SpectrumTypes):
+        self.spectrum_values[sp_type] = np.zeros_like(self.energy_points)
+        for i_e in tqdm(range(len(self.energy_points)-1),
+                        desc="\t"*2 +
+                        f"- {ph.SPECTRUM_TYPES_NICE[sp_type]}",
+                        ncols=100):
+            e1 = self.energy_points[i_e]
+            range_list = range_e2(e1, self.total_ke, sp_type,
+                                  self.energy_points[0], 0, self.full_func, self.transition)
+            result = integrate.quad(
+                spectrum_integrant_taylor_2nubb,
+                a=range_list[0],
+                b=range_list[1],
+                args=(e1,
+                      self.total_ke,
+                      sp_type,
+                      self.transition,
+                      self.taylor_order,
+                      lambda x: self.full_func(x, sp_type),
+                      self.energy_points[0]
+                      ),
+            )
+
+            if isinstance(result, tuple):
+                self.spectrum_values[sp_type][i_e] = result[0]
+            else:
+                raise ValueError("Spectrum integration did not succeed")
+        self.spectrum_values[sp_type][-1] = 0.
+
+    def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        raise NotImplementedError()
 
 
 class ClosureSpectrumBase(TwoBetaSpectrumBase):
@@ -311,8 +420,6 @@ class ClosureSpectrum2nu(ClosureSpectrumBase):
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
         self.spectrum_values[sp_type] = np.zeros_like(self.energy_points)
-        if (sp_type == ph.SpectrumTypes.ANGULARSPECTRUM) and (self.transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS):
-            return
         for i_e in tqdm(range(len(self.energy_points)-1),
                         desc="\t"*2 +
                         f"- {ph.SPECTRUM_TYPES_NICE[sp_type]}",
@@ -388,7 +495,10 @@ class ClosureSpectrum0nu_LNE(ClosureSpectrumBase):
             self.eta_total = eta_total
 
     @lru_cache(maxsize=None)
-    def full_func(self, x, sp_type):
+    def full_func(self, x, sp_type, tr_type: ph.TransitionTypes = ph.TransitionTypes.ZEROPLUS_TO_ZEROPLUS):
+        if tr_type == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
+            raise NotImplementedError()
+
         if sp_type == ph.SpectrumTypes.ANGULARSPECTRUM:
             return self.fermi_functions.ff1_eval(x)*self.eta_total(x)
         else:

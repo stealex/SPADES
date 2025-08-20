@@ -80,6 +80,26 @@ TRANSITION_NAMES_MAP_REV = {TransitionTypes.ZEROPLUS_TO_ZEROPLUS: "0->0",
                             TransitionTypes.ZEROPLUS_TO_TWOPLUS: "0->2"}
 
 
+class TaylorOrders(IntEnum):
+    ZERO = 0
+    TWO = 2
+    TWOTWO = 22
+    FOUR = 4
+    SIX = 6
+
+
+TAYLOR_ORDER_NAMES_MAP = {"0": TaylorOrders.ZERO,
+                          "2": TaylorOrders.TWO,
+                          "22": TaylorOrders.TWOTWO,
+                          "4": TaylorOrders.FOUR,
+                          "6": TaylorOrders.SIX}
+TAYLOR_ORDER_NAMES_MAP_REV = {TaylorOrders.ZERO: "0",
+                              TaylorOrders.TWO: "2",
+                              TaylorOrders.TWOTWO: "22",
+                              TaylorOrders.FOUR: "4",
+                              TaylorOrders.SIX: "6"}
+
+
 class NeutrinoLessModes(IntEnum):
     LIGHT_NEUTRINO_EXCHANGE = 1
 

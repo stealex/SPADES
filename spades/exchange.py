@@ -45,14 +45,14 @@ def integrate_wf(f1: np.ndarray,
 
 
 class ExchangeCorrection:
-    def __init__(self, initial_handler: WaveFunctionsHandler, final_handler: WaveFunctionsHandler) -> None:
+    def __init__(self, initial_handler: WaveFunctionsHandler, final_handler: WaveFunctionsHandler, nuclear_radius: float) -> None:
         self.initial_handler = initial_handler
         self.final_handler = final_handler
+        self.nuclear_radius = nuclear_radius
 
     def compute_overlaps(self, k: int) -> tuple[np.ndarray, np.ndarray]:
         print("Computing overlaps")
         n_vals = self.initial_handler.bound_config.n_values
-        k_vals = np.array(self.final_handler.scattering_config.k_values)
         energy_vals = self.final_handler.scattering_handler.energy_grid
 
         scattering_bound = np.zeros((len(energy_vals), len(n_vals)))
@@ -87,6 +87,37 @@ class ExchangeCorrection:
             bound_bound[i_n] = gg+ff
 
         return (scattering_bound, bound_bound)
+
+    def transform_scattering_wavefunctions(self):
+        """Transformation according to AIP Conf. Proc. 3138, 020012 (2024)
+        https://doi.org/10.1063/5.0205270
+
+        """
+        print("Transforming scattering wavefunctions")
+        n_values = self.initial_handler.bound_config.n_values
+        k_values = self.initial_handler.bound_config.k_values
+
+        p_new = {}
+        q_new = {}
+        for k in [-1, 1]:
+            scattering_bound, bound_bound = self.compute_overlaps(k)
+            p_new[k] = np.zeros_like(
+                self.final_handler.scattering_handler.p_grid[k])
+            q_new[k] = np.zeros_like(
+                self.final_handler.scattering_handler.q_grid[k])
+            for i_e in range(len(self.final_handler.scattering_handler.energy_grid)):
+                p_new[k][i_e] = self.final_handler.scattering_handler.p_grid[k][i_e]
+                q_new[k][i_e] = self.final_handler.scattering_handler.q_grid[k][i_e]
+                for i_n in range(len(n_values)):
+                    n = n_values[i_n]
+                    if not (k in k_values[n]):
+                        continue
+
+                    p_new[k][i_e] = p_new[k][i_e] - scattering_bound[i_e][i_n]/bound_bound[i_n] * \
+                        self.initial_handler.bound_handler.p_grid[n][k]
+                    q_new[k][i_e] = q_new[k][i_e] - scattering_bound[i_e][i_n]/bound_bound[i_n] * \
+                        self.initial_handler.bound_handler.q_grid[n][k]
+        return p_new, q_new
 
     def compute_t(self):
         print("computing T_ns")

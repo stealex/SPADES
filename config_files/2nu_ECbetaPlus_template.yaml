@@ -11,7 +11,7 @@ task: {PARENT}_2nu_ECbetaPlus # name of the task. For printing purposes only
 #   "LNE": light neutrino exchange
 process: 
   name: 2nu_ECbetaPlus
-  transition: 0->0
+  transition: {TRANSITION}
   
 # Specification of the initial atom.  
 initial_atom:
@@ -23,7 +23,7 @@ initial_atom:
 # NB: length units given in CLI are used. 
 bound_states:
   max_r: 100
-  n_radial_points: 1000
+  n_radial_points: 10000
   n_values: auto # can be auto, int, (nmin, nmax), [n1,n2,n3...]
   k_values: auto # can be auto, int, (kmin, kmax), {n1:[k1,k2,...]...}
 
@@ -31,7 +31,7 @@ bound_states:
 # NB: length units given in CLI are used
 scattering_states:
   max_r: 100
-  n_radial_points: 1000
+  n_radial_points: 10000
   n_ke_points: 100 # number of energy points for which scattering wave functions are computed
   k_values: [-1, 1] # can be auto, int, (kmin, kmax), [k1, k2, ...]
 
@@ -77,7 +77,7 @@ spectra_computation:
 # Valid entries:
 #   exchange: The exchange correction a la Nitescu et al is applied
 #   radiative: The radiative correction is applied
-  corrections: [] # can be a list of any of: Exchange
+  corrections: [Radiative] # can be a list of any of: Exchange
   fermi_function_types: [Numeric] # Can be a list of any of : Numeric, PointLike, ChargedSphere
 # total_ke: Total kinetic energy of the emitted leptons
 # Valid options: 
@@ -95,10 +95,6 @@ spectra_computation:
 output:
   location: {DEST}
   what:
-    - bound wavefunctions
-    - scattering wavefunctions
-    - spectra
     - psfs
-    - binding energies
   file_prefix: {PARENT}_2nu_ECbetaPlus
   

@@ -18,14 +18,14 @@ from scipy import integrate
 from spades import fermi_functions, ph
 from spades.fermi_functions import FermiFunctions
 from spades.wavefunctions import BoundHandler
-from spades.math_stuff import kn, ln, neutrino_integrand_closure_standard_00, neutrino_integrand_closure_standard_02
+from spades.spectra.closure_helpers import neutrino_integrand_closure_standard_00, neutrino_integrand_closure_standard_02
 
 
 def neutrino_integrand_closure(enu_1, e_positron, e_electron, enu_2, enei, transition: ph.TransitionTypes):
     if transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
         return neutrino_integrand_closure_standard_02(enu_1, e_positron, e_electron, enu_2, enei)
     else:
-        return neutrino_integrand_closure_standard_00(enu_2, e_positron, e_electron, enu_2, enei)
+        return neutrino_integrand_closure_standard_00(enu_1, e_positron, e_electron, enu_2, enei)
 
 
 class ECBetaSpectrumBase(BetaSpectrumBase):
@@ -195,8 +195,9 @@ class ClosureSpectrum2nu(ClosureSpectrum):
                     func=lambda x: neutrino_integrand_closure(
                         x,
                         ep+ph.electron_mass,
-                        -(ph.electron_mass-eb),
-                        self.total_ke-ep-x-eb, self.enei,
+                        eb,
+                        self.total_ke-ep-x-eb,
+                        self.enei,
                         self.transition_type),
                     a=0.,
                     b=self.total_ke - eb - ep

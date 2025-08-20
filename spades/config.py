@@ -166,6 +166,8 @@ class RunConfig:
             self._raw_config["spectra_computation"]["total_ke"] = total_ke
 
             print(f"Q-value = {total_ke}")
+            if (total_ke < 0.):
+                raise ValueError("Q-value is negative")
         else:
             raise TypeError("Cannot interpret total_ke")
 
