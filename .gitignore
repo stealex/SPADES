@@ -19,3 +19,12 @@ spectra.json
 .gitignore
 output
 ANDT_*
+Qval_Study
+76Ge_2nu_2betaMinus_closure
+124Xe
+124Xe_closure
+124Xe_taylor
+130Te_2nu_2betaMinus_closure
+AME2020_ENSDF2025
+data_server
+*.pdf

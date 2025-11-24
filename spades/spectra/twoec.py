@@ -73,11 +73,9 @@ class TwoECSpectrumClosure(TwoECSpectrum):
         self.transition_type = transition_type
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes = ph.SpectrumTypes.SINGLESPECTRUM):
-        print(f"total_ke = {self.total_ke}")
         for n1 in self.bound_handler.p_grid:
             prob1 = self.bound_handler.probability_in_sphere(
                 self.nuclear_radius, n1, -1)
-            print(prob1)
             for n2 in self.bound_handler.p_grid:
                 if n2 < n1:
                     continue

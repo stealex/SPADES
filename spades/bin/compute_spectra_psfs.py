@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-from multiprocessing import Value, process
-from typing import Callable, Type, final
-from matplotlib import pyplot as plt
 from scipy import interpolate
 import yaml
 from argparse import ArgumentParser
@@ -117,7 +114,7 @@ def find_wave_functions(input_config: RunConfig, initial_atom: AtomicSystem, fin
         wf_handler_init.find_all_wavefunctions()
 
     wf_handler_final = None
-    if (input_config.scattering_config != None) and (final_atom != None):
+    if (input_config.scattering_config != None) and (final_atom != None) and (input_config.process.type != ph.ProcessTypes.TWONEUTRINO_TWOEC):
         wf_handler_final = WaveFunctionsHandler(
             final_atom, input_config.bound_config, input_config.scattering_config
         )
@@ -206,7 +203,7 @@ def compute_two_ec_psfs(input_config: RunConfig, wf_handler_init: WaveFunctionsH
     pass
 
 
-def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.FermiFunctions, eta_total: Callable | None,
+def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.FermiFunctions | None, eta_total: Callable | None,
                     final_atom: AtomicSystem, wf_handler_init: WaveFunctionsHandler | None, e1_grid_2D: np.ndarray | None = None, e2_grid_2D: np.ndarray | None = None) -> dict[str, SpectrumBase] | SpectrumBase:
     # prepare for all options
     atilde = 1.12*(final_atom.mass_number**0.5)
@@ -236,6 +233,10 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
         if (input_config.spectra_config.method["name"] == "Closure"):
             print("EN-EI=", enei, " atilde=", atilde, " totalKE=", input_config.spectra_config.total_ke,
                   " R=", input_config.spectra_config.nuclear_radius)
+            if fermi_functions is None:
+                print("Cannot use ff none")
+                exit(1)
+
             return spades.spectra.twobeta.ClosureSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
                                                              ei_ef=input_config.spectra_config.ei_ef,
                                                              enei=enei,
@@ -251,6 +252,10 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
         elif (input_config.spectra_config.method["name"] == "Taylor"):
             print("Computing with Taylor")
             spectra = {}
+            if fermi_functions is None:
+                print("Cannot use ff none")
+                exit(1)
+
             for ord in orders:
                 spectra[ord] = spades.spectra.twobeta.TaylorSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
                                                                         ei_ef=input_config.spectra_config.ei_ef,
@@ -271,6 +276,10 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
     elif (input_config.process.type in [ph.ProcessTypes.NEUTRINOLESS_TWOBMINUS, ph.ProcessTypes.NEUTRINOLESS_TWOBPLUS]):
         if (input_config.spectra_config.method["name"] == "Closure"):
             if (input_config.process.mechanism == ph.NeutrinoLessModes.LIGHT_NEUTRINO_EXCHANGE):
+                if fermi_functions is None:
+                    print("Cannot use ff none")
+                    exit(1)
+
                 return spades.spectra.twobeta.ClosureSpectrum0nu_LNE(total_ke=input_config.spectra_config.total_ke,
                                                                      ei_ef=input_config.spectra_config.ei_ef,
                                                                      nuclear_radius=input_config.spectra_config.nuclear_radius,
@@ -292,6 +301,10 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
         if input_config.spectra_config.method["name"] == "Closure":
             print(enei, atilde, input_config.spectra_config.total_ke,
                   input_config.spectra_config.nuclear_radius)
+            if fermi_functions is None:
+                print("Cannot use ff none")
+                exit(1)
+
             return spades.spectra.ecbeta.ClosureSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
                                                             ei_ef=input_config.spectra_config.ei_ef,
                                                             fermi_functions=fermi_functions,
@@ -313,6 +326,10 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
         if input_config.spectra_config.method["name"] == "Closure":
             print(enei, atilde, input_config.spectra_config.total_ke,
                   input_config.spectra_config.nuclear_radius)
+            if fermi_functions is None:
+                print("Cannot use ff none")
+                exit(1)
+
             return spades.spectra.ecbeta.ClosureSpectrum0nu_LNE(total_ke=input_config.spectra_config.total_ke,
                                                                 ei_ef=input_config.spectra_config.ei_ef,
                                                                 fermi_functions=fermi_functions,
@@ -329,7 +346,7 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
         if input_config.spectra_config.method["name"] == "Closure":
             print(enei, atilde, input_config.spectra_config.total_ke,
                   input_config.spectra_config.nuclear_radius)
-
+            print("Creating 2EC spectrum Closure")
             return spades.spectra.twoec.TwoECSpectrumClosure(total_ke=input_config.spectra_config.total_ke,
                                                              ei_ef=input_config.spectra_config.ei_ef,
                                                              bound_handler=wf_handler_init.bound_handler,
@@ -363,11 +380,13 @@ def compute_spectra_and_psfs(input_config: RunConfig,
                              e2_grid_2D: np.ndarray | None = None):
     spectra = {}
     for ff_type in input_config.spectra_config.fermi_function_types:
-        fermi_functions = create_fermi_functions(ff_type,
-                                                 input_config,
-                                                 wf_handler_final,
-                                                 final_atom,
-                                                 energy_grid_1D)
+        fermi_functions = None
+        if input_config.process.type != ph.ProcessTypes.TWONEUTRINO_TWOEC:
+            fermi_functions = create_fermi_functions(ff_type,
+                                                     input_config,
+                                                     wf_handler_final,
+                                                     final_atom,
+                                                     energy_grid_1D)
 
         spectrum = create_spectrum(input_config,
                                    fermi_functions,
@@ -409,12 +428,16 @@ def build_corrections(input_config: RunConfig, wf_handler_init: WaveFunctionsHan
     eta_total = None
     e_values = None
     if (ph.CorrectionTypes.EXCHANGE_CORRECTION in input_config.spectra_config.corrections) and (wf_handler_init != None) and (wf_handler_final != None):
-        exchange_correction = build_exchange_correction(
-            wf_handler_init, wf_handler_final, input_config.spectra_config.nuclear_radius
-        )
+        # exchange_correction = build_exchange_correction(
+        #     wf_handler_init, wf_handler_final, input_config.spectra_config.nuclear_radius
+        # )
         # e_values = ph.electron_mass + \
         #     wf_handler_final.scattering_handler.energy_grid
         # eta_total = 1.+exchange_correction.eta_total
+
+        build_exchange_correction(
+            wf_handler_init, wf_handler_final, input_config.spectra_config.nuclear_radius
+        )
         # print(eta_total)
 
     if (ph.CorrectionTypes.RADIATIVE_CORRECTION in input_config.spectra_config.corrections) and (wf_handler_final != None) and (wf_handler_final.scattering_handler != None):
