@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""CLI workflow to compute SPADES spectra and phase-space factors."""
 
 from typing import Callable
 from scipy import interpolate
@@ -23,6 +24,13 @@ logger = logging.getLogger(__name__)
 
 
 def parse_input():
+    """Parse CLI arguments and build resolved runtime objects.
+
+    Returns
+    -------
+    tuple[RunConfig, AtomicSystem, AtomicSystem]
+        Resolved run configuration, initial atom, and final atom.
+    """
     print("Parsing input arguments")
     parser = ArgumentParser(
         description="Compute spectra and PSFs for 2nubb decay")
@@ -82,6 +90,18 @@ def parse_input():
 
 
 def create_atoms(input_config: RunConfig):
+    """Build initial/final atomic systems according to selected process channel.
+
+    Parameters
+    ----------
+    input_config:
+        Resolved run configuration with process selection.
+
+    Returns
+    -------
+    tuple[AtomicSystem, AtomicSystem]
+        Initial and final atomic systems used throughout the workflow.
+    """
     initial_atom = AtomicSystem(**input_config.initial_atom_dict)
     initial_atom.print()
 
@@ -108,6 +128,22 @@ def create_atoms(input_config: RunConfig):
 
 
 def find_wave_functions(input_config: RunConfig, initial_atom: AtomicSystem, final_atom: AtomicSystem):
+    """Compute bound/scattering wavefunctions for initial and final atoms.
+
+    Parameters
+    ----------
+    input_config:
+        Run configuration including bound/scattering settings.
+    initial_atom:
+        Initial atomic system.
+    final_atom:
+        Final atomic system.
+
+    Returns
+    -------
+    tuple[WaveFunctionsHandler | None, WaveFunctionsHandler | None]
+        Handlers for initial and final systems, depending on enabled tasks.
+    """
     wf_handler_init = None
     if input_config.bound_config != None:
         wf_handler_init = WaveFunctionsHandler(
@@ -125,6 +161,22 @@ def find_wave_functions(input_config: RunConfig, initial_atom: AtomicSystem, fin
 
 
 def build_exchange_correction(wf_handler_init: WaveFunctionsHandler, wf_handler_final: WaveFunctionsHandler, nuclear_radius: float):
+    """Apply exchange-driven orthogonalization to final-state scattering functions.
+
+    Parameters
+    ----------
+    wf_handler_init:
+        Initial-state handler with bound orbitals.
+    wf_handler_final:
+        Final-state handler with scattering states.
+    nuclear_radius:
+        Nuclear radius in fm.
+
+    Returns
+    -------
+    exchange.ExchangeCorrection
+        Exchange correction object used to transform scattering wavefunctions.
+    """
     print(f"Computing exchange correction")
     ex_corr = exchange.ExchangeCorrection(wf_handler_init,
                                           wf_handler_final,
@@ -140,6 +192,18 @@ def build_exchange_correction(wf_handler_init: WaveFunctionsHandler, wf_handler_
 
 
 def build_energy_grids(input_config: RunConfig):
+    """Construct 1D and optional transformed 2D energy grids.
+
+    Parameters
+    ----------
+    input_config:
+        Run configuration containing grid controls.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray | None, np.ndarray | None]
+        1D kinetic-energy grid and optional 2D ``e1/e2`` meshgrids.
+    """
     # always build 1D grid, we need it for integration
     if (input_config.spectra_config.energy_grid_type == "lin"):
         energy_grid_1D = np.linspace(input_config.spectra_config.min_ke,
@@ -177,6 +241,26 @@ def build_energy_grids(input_config: RunConfig):
 
 def create_fermi_functions(ff_type: int, input_config: RunConfig, wf_handler_final: WaveFunctionsHandler | None, final_atom: AtomicSystem | None,
                            energy_grid_1D: np.ndarray | None):
+    """Instantiate a concrete Fermi-function backend from configuration.
+
+    Parameters
+    ----------
+    ff_type:
+        Fermi-function backend selector from :class:`spades.ph.FermiFunctionTypes`.
+    input_config:
+        Run configuration.
+    wf_handler_final:
+        Final-state wavefunction handler, required for numeric Fermi functions.
+    final_atom:
+        Final atom, required for analytical Fermi-function models.
+    energy_grid_1D:
+        Kinetic-energy grid used by spline-based point-like functions.
+
+    Returns
+    -------
+    fermi_functions.FermiFunctions
+        Concrete Fermi-function backend instance.
+    """
     if ff_type == ph.FermiFunctionTypes.NUMERIC_FERMIFUNCTIONS:
         if wf_handler_final == None:
             raise ValueError(
@@ -201,11 +285,34 @@ def create_fermi_functions(ff_type: int, input_config: RunConfig, wf_handler_fin
 
 
 def compute_two_ec_psfs(input_config: RunConfig, wf_handler_init: WaveFunctionsHandler):
+    """Placeholder for double-electron-capture PSF pipeline."""
     pass
 
 
 def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.FermiFunctions | None, eta_total: Callable | None,
                     final_atom: AtomicSystem, wf_handler_init: WaveFunctionsHandler | None, e1_grid_2D: np.ndarray | None = None, e2_grid_2D: np.ndarray | None = None) -> dict[str, SpectrumBase] | SpectrumBase:
+    """Create configured spectrum object(s) for the selected decay channel.
+
+    Parameters
+    ----------
+    input_config:
+        Run configuration with process/method selections.
+    fermi_functions:
+        Selected Fermi-function backend, when required by process type.
+    eta_total:
+        Optional combined correction function.
+    final_atom:
+        Final atomic system.
+    wf_handler_init:
+        Initial-state wavefunction handler, required for capture channels.
+    e1_grid_2D, e2_grid_2D:
+        Optional 2D grids for computing differential 2D spectra.
+
+    Returns
+    -------
+    SpectrumBase | dict
+        One spectrum object or a dictionary of order-resolved spectrum objects.
+    """
     # prepare for all options
     atilde = 1.12*(final_atom.mass_number**0.5)
     if ("enei" in input_config.spectra_config.method):
@@ -379,6 +486,28 @@ def compute_spectra_and_psfs(input_config: RunConfig,
                              energy_grid_1D: np.ndarray,
                              e1_grid_2D: np.ndarray | None = None,
                              e2_grid_2D: np.ndarray | None = None):
+    """Compute requested spectra and PSFs for all selected Fermi-function backends.
+
+    Parameters
+    ----------
+    input_config:
+        Resolved run configuration.
+    wf_handler_init, wf_handler_final:
+        Wavefunction handlers for initial/final systems.
+    eta_total:
+        Optional combined correction factor callable.
+    final_atom:
+        Final atomic system.
+    energy_grid_1D:
+        Kinetic-energy grid for 1D spectra/Fermi functions.
+    e1_grid_2D, e2_grid_2D:
+        Optional 2D grids for differential spectra.
+
+    Returns
+    -------
+    dict
+        Mapping from Fermi-function labels to spectrum object(s) with computed PSFs.
+    """
     spectra = {}
     for ff_type in input_config.spectra_config.fermi_function_types:
         fermi_functions = None
@@ -426,6 +555,20 @@ def compute_spectra_and_psfs(input_config: RunConfig,
 
 
 def build_corrections(input_config: RunConfig, wf_handler_init: WaveFunctionsHandler | None, wf_handler_final: WaveFunctionsHandler | None):
+    """Build combined correction function applied to spectra kernels.
+
+    Parameters
+    ----------
+    input_config:
+        Run configuration with enabled corrections.
+    wf_handler_init, wf_handler_final:
+        Wavefunction handlers used by exchange/radiative corrections.
+
+    Returns
+    -------
+    Callable | None
+        Interpolated correction function ``eta_total(ke)`` or ``None`` if disabled.
+    """
     eta_total = None
     e_values = None
     if (ph.CorrectionTypes.EXCHANGE_CORRECTION in input_config.spectra_config.corrections) and (wf_handler_init != None) and (wf_handler_final != None):
@@ -462,6 +605,7 @@ def build_corrections(input_config: RunConfig, wf_handler_init: WaveFunctionsHan
 
 
 def main(argv=None):
+    """Run end-to-end CLI workflow: parse input, compute spectra/PSFs, write outputs."""
     input_config, initial_atom, final_atom = parse_input()
 
     wf_handler_init, wf_handler_final = find_wave_functions(

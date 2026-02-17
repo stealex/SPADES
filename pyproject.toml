@@ -21,6 +21,9 @@ authors = [
     { name = "Your Name", email = "your.email@example.com" }
 ]
 
+[project.optional-dependencies]
+docs = ["sphinx>=7.0"]
+
 [project.urls]
 "Homepage" = "https://github.com/yourusername/spades"
 "Documentation" = "https://yourdocs.example.com"

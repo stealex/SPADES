@@ -1,3 +1,5 @@
+"""Taylor-method analytic neutrino integrals for spectra and PSFs."""
+
 from numba import njit
 from spades import ph
 
@@ -6,21 +8,25 @@ from spades import ph
 
 @njit
 def small_a(e1: float, e2: float, total_ke: float):
+    """Return ``a = Q - e1 - e2`` notation used in the Taylor expansion."""
     return total_ke - e1 - e2
 
 
 @njit
 def small_b(e1: float, e2: float):
+    """Return ``b = e1 - e2`` notation used in the Taylor expansion."""
     return e1 - e2
 
 
 @njit
 def integral_order_0_00(e1: float, e2: float, total_ke: float):
+    """Analytic order-0 integral for ``0+ -> 0+`` transitions."""
     return 1./30. * small_a(e1, e2, total_ke)**5.0
 
 
 @njit
 def integral_order_2_00(e1: float, e2: float, total_ke: float):
+    """Analytic order-2 integral for ``0+ -> 0+`` transitions."""
     a = small_a(e1, e2, total_ke)
     b = small_b(e1, e2)
     return 1./(1680.*ph.electron_mass**2.0) *\
@@ -29,6 +35,7 @@ def integral_order_2_00(e1: float, e2: float, total_ke: float):
 
 @njit
 def integral_order_22_00(e1: float, e2: float, total_ke: float):
+    """Analytic order-22 integral for ``0+ -> 0+`` transitions."""
     a = small_a(e1, e2, total_ke)
     b = small_b(e1, e2)
     return 1./(161280.*ph.electron_mass**4.0) *\
@@ -37,6 +44,7 @@ def integral_order_22_00(e1: float, e2: float, total_ke: float):
 
 @njit
 def integral_order_4_00(e1: float, e2: float, total_ke: float):
+    """Analytic order-4 integral for ``0+ -> 0+`` transitions."""
     a = small_a(e1, e2, total_ke)
     b = small_b(e1, e2)
     return 1./(80640.*ph.electron_mass**4) *\
@@ -45,6 +53,7 @@ def integral_order_4_00(e1: float, e2: float, total_ke: float):
 
 @njit
 def integral_order_22_02(e1: float, e2: float, total_ke: float):
+    """Analytic order-22 integral for ``0+ -> 2+`` transitions."""
     a = small_a(e1, e2, total_ke)
     b = small_b(e1, e2)
     return (a**7) * (b**2)/(3360.*(ph.electron_mass**4.0))
@@ -52,6 +61,7 @@ def integral_order_22_02(e1: float, e2: float, total_ke: float):
 
 @njit
 def integral_order_6_02(e1: float, e2: float, total_ke: float):
+    """Analytic order-6 integral for ``0+ -> 2+`` transitions."""
     a = small_a(e1, e2, total_ke)
     b = small_b(e1, e2)
     return (a**7) * (b**2)/(40320.*(ph.electron_mass**6.0)) * (a**2.0+3*b**2.0)
@@ -59,6 +69,7 @@ def integral_order_6_02(e1: float, e2: float, total_ke: float):
 
 @njit
 def integral_order(e1: float, e2: float, total_ke: float, order: ph.TaylorOrders, transition_type: ph.TransitionTypes):
+    """Dispatch to the proper analytic Taylor integral by order and transition."""
     if transition_type == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
         if order == ph.TaylorOrders.TWOTWO:
             return integral_order_22_02(e1, e2, total_ke)

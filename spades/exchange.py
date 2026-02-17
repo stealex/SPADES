@@ -1,3 +1,5 @@
+"""Exchange-correction utilities built from bound/scattering wavefunction overlaps."""
+
 from .wavefunctions import WaveFunctionsHandler
 import numpy as np
 from scipy.interpolate import Akima1DInterpolator, CubicSpline
@@ -11,6 +13,7 @@ def integrate_wf(f1: np.ndarray,
                  f2: np.ndarray,
                  r1: np.ndarray,
                  r2: np.ndarray):
+    """Integrate product of two radial wavefunction components on a common grid."""
     # test with only interpolation
     # scattering_func = Akima1DInterpolator(r1, f1)
     # bound_func = Akima1DInterpolator(r2, f2)
@@ -45,12 +48,16 @@ def integrate_wf(f1: np.ndarray,
 
 
 class ExchangeCorrection:
+    """Compute exchange-correction factors for beta-decay observables."""
+
     def __init__(self, initial_handler: WaveFunctionsHandler, final_handler: WaveFunctionsHandler, nuclear_radius: float) -> None:
+        """Store initial/final wavefunction handlers and nuclear-size scale."""
         self.initial_handler = initial_handler
         self.final_handler = final_handler
         self.nuclear_radius = nuclear_radius
 
     def compute_overlaps(self, k: int) -> tuple[np.ndarray, np.ndarray]:
+        """Compute scattering-bound and bound-bound overlaps for one ``kappa``."""
         print("Computing overlaps")
         n_vals = self.initial_handler.bound_config.n_values
         energy_vals = self.final_handler.scattering_handler.energy_grid
@@ -120,6 +127,7 @@ class ExchangeCorrection:
         return p_new, q_new
 
     def compute_t(self):
+        """Compute shell-dependent exchange amplitudes ``t_n``."""
         print("computing T_ns")
         n_values = self.initial_handler.bound_config.n_values
         k_values = self.initial_handler.bound_config.k_values
@@ -158,6 +166,7 @@ class ExchangeCorrection:
         return self.t
 
     def compute_eta(self):
+        """Compute partial exchange corrections for ``s`` and ``p`` channels."""
         print("Computing partial eta")
         try:
             tn = self.t
@@ -197,6 +206,7 @@ class ExchangeCorrection:
         return self.eta
 
     def compute_eta_total(self):
+        """Compute total exchange correction and interpolation function."""
         print("Computing eta total")
         try:
             eta = self.eta

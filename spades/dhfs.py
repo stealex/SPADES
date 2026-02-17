@@ -1,3 +1,5 @@
+"""Atomic configuration models and DHFS wrapper orchestration."""
+
 import re
 import periodictable
 import os
@@ -9,7 +11,10 @@ from . import ph
 
 
 class AtomicSystem:
+    """Atomic nucleus plus electron-shell configuration used by DHFS and RADIAL."""
+
     def __init__(self, name="", atomic_number=-1, mass_number=-1, electron_config="auto", weight=-1.) -> None:
+        """Create an atomic system from isotope name or explicit ``(Z, A)``."""
         if (name != ""):
             self.name_nice = name
             matches = re.match(r'(\d+)([A-Za-z]+)', self.name_nice)
@@ -59,6 +64,7 @@ class AtomicSystem:
         self.occ_values = self.electron_config[:, 3].astype(float)
 
     def print(self):
+        """Print a readable summary of the DHFS electron configuration."""
         text = f"""DHFS configuration:
 Z: {self.Z:d}
 name: {self.name:s}
@@ -70,11 +76,13 @@ configuration:[n,l,2j,occupation]
         print(text)
 
     def net_charge(self):
+        """Return net ionic charge ``Z - N_e``."""
         n_electrons = self.occ_values.sum()
         return self.Z - n_electrons
 
 
 def create_ion(atom: AtomicSystem, z_nuc) -> AtomicSystem:
+    """Clone an atomic system and update its nuclear charge to ``z_nuc``."""
     ion = deepcopy(atom)
     ion.Z = z_nuc
     ion.name = f"{int(ion.mass_number):d}{periodictable.elements[ion.Z].symbol:s}"
@@ -82,36 +90,7 @@ def create_ion(atom: AtomicSystem, z_nuc) -> AtomicSystem:
 
 
 class DHFSHandler:
-    """
-    Class for handling DHFS calculations and results for a specific system.
-    Example usage:
-        from utils import dhfs_handler
-
-        handler = dhfs_handler(config, label)
-        handler.run_dhfs(100, radius_unit='bohr')
-        handler.rertrieve_results()
-
-    Attributes
-    ----------
-    label : str
-        label for bookkeeping and printing
-    dhfs_config: dhfs_configuration
-        electron configuration and nuclear charge. See documentation of class dhfs_configuration
-    atomic_weight: float
-        mass number in g/mol
-    rad_grid: np.ndarray
-        radial grid where wavefunction are computed
-    p_grid: np.ndarray
-        values of the P component of the wavefunctions. Dimensions = (nb shells, nb radial points)
-    q_grid: np.ndarray
-        values of the Q component of the wavefunctions. Dimensions = (nb shells, nb radial points)
-    rv_nuc: np.ndarray
-        values of the r times electrostatic potential of the nucleus. Dimensions = len(rad_grid)
-    rv_el: np.ndarray
-        values of the r times electronic potential. Dimensions = len(rad_grid)
-    rv_ex: np.ndarray
-        values of the r times exchange potential. Dimensions = len(rad_grid)
-    """
+    """Orchestrate DHFS runs and expose wavefunctions, potentials, and shell energies."""
 
     def __init__(self, config: AtomicSystem, label: str, atomic_weight: float = -1.0) -> None:
         """Handler class for DHFS.f usage.
@@ -136,6 +115,7 @@ class DHFSHandler:
             self.atomic_weight = periodictable.elements[self.config.Z].mass
 
     def print(self):
+        """Print handler metadata and underlying atomic configuration."""
         print(f"DHFS handler for {self.label}")
         print(f"Atomic weight = {self.atomic_weight:f}")
         self.config.print()
@@ -163,20 +143,7 @@ class DHFSHandler:
         dhfs_wrapper.call_dhfs_main(1.5)
 
     def retrieve_dhfs_results(self):
-        """
-    Retrieves results from the DHFS (Dirac-Hartree-Fock-Slater) calculations.
-
-    Calls the DHFS wrapper to obtain wavefunction components (r, p, q) and potential components (vn, vel, vex).
-
-    The wavefunction components are computed based on the electron configuration and grid points specified 
-    in dhfs_config and n_grid_points respectively.
-
-    The radial grid 'r' is stored in self.rad_grid, wavefunction components 'p' and 'q' are stored in
-    self.p_grid and self.q_grid respectively.
-
-    The potential components 'vn', 'vel', and 'vex' are obtained and stored in self.rv_nuc, self.rv_el, 
-    and self.rv_ex respectively.
-    """
+        """Retrieve DHFS wavefunctions, potentials, and binding energies."""
         (r, p, q) = dhfs_wrapper.call_get_wavefunctions(
             len(self.config.electron_config), self.n_grid_points)
         self.rad_grid = r*ph.bohr_radius/ph.fm

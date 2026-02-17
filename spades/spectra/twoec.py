@@ -1,3 +1,5 @@
+"""Spectra/PSF building blocks for double-electron-capture channels."""
+
 from abc import abstractmethod
 import numpy as np
 from scipy import integrate
@@ -11,6 +13,20 @@ from numba import njit
 
 
 def neutrino_integrand_closure(enu_1, e_electron_1, e_electron_2, enu_2, enei, transition: ph.TransitionTypes):
+    """Dispatch the closure neutrino kernel for 2EC by transition type.
+
+    Parameters
+    ----------
+    enu_1, e_electron_1, e_electron_2, enu_2, enei:
+        Energy terms entering the neutrino kernel.
+    transition:
+        Nuclear transition selector.
+
+    Returns
+    -------
+    float
+        Kernel value for the requested transition.
+    """
     if transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
         return neutrino_integrand_closure_standard_02(enu_1, e_electron_1, e_electron_2, enu_2, enei)
     else:
@@ -18,7 +34,22 @@ def neutrino_integrand_closure(enu_1, e_electron_1, e_electron_2, enu_2, enei, t
 
 
 class TwoECSpectrum(SpectrumBase):
+    """Base class for shell-resolved 2EC spectrum-integral models."""
+
     def __init__(self, total_ke: float, ei_ef: float, bound_handler: BoundHandler, nuclear_radius: float) -> None:
+        """Allocate shell-pair containers for 2EC integrals and PSFs.
+
+        Parameters
+        ----------
+        total_ke:
+            Total kinetic energy available in the process.
+        ei_ef:
+            Nuclear-level energy difference.
+        bound_handler:
+            Bound-state wavefunction handler used for capture probabilities.
+        nuclear_radius:
+            Nuclear radius in fm.
+        """
         super().__init__(total_ke, ei_ef)
         self.bound_handler = bound_handler
         self.nuclear_radius = nuclear_radius
@@ -44,12 +75,15 @@ class TwoECSpectrum(SpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: int):
+        """Compute shell-pair spectrum integrals for 2EC."""
         pass
 
     def integrate_spectrum(self):
+        """Not used for 2EC classes because shell integrals are computed directly."""
         raise NotImplementedError()
 
     def compute_psf(self):
+        """Convert shell-pair integrals into shell-pair PSFs."""
         for n1 in self.spectrum_integrals:
             self.psfs[n1] = {-1: {}}
             for n2 in self.spectrum_integrals[n1][-1]:
@@ -60,11 +94,15 @@ class TwoECSpectrum(SpectrumBase):
                 self.psfs[n1][-1][n2] = {-1: psf_years}
 
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        """2D spectra are not implemented for 2EC classes."""
         raise NotImplementedError()
 
 
 class TwoECSpectrumClosure(TwoECSpectrum):
+    """Closure-approximation implementation for 2nu double electron capture."""
+
     def __init__(self, total_ke: float, ei_ef: float, bound_handler: BoundHandler, nuclear_radius: float, enei: float, transition_type: ph.TransitionTypes) -> None:
+        """Initialize closure constants and transition for 2EC."""
         super().__init__(total_ke, ei_ef, bound_handler, nuclear_radius)
         self.enei = enei
         self.atilde = self.enei+0.5*(self.total_ke-2*ph.electron_mass)
@@ -73,6 +111,13 @@ class TwoECSpectrumClosure(TwoECSpectrum):
         self.transition_type = transition_type
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes = ph.SpectrumTypes.SINGLESPECTRUM):
+        """Compute shell-pair spectrum integrals by neutrino-energy integration.
+
+        Parameters
+        ----------
+        sp_type:
+            Kept for interface compatibility.
+        """
         for n1 in self.bound_handler.p_grid:
             prob1 = self.bound_handler.probability_in_sphere(
                 self.nuclear_radius, n1, -1)
@@ -109,7 +154,10 @@ class TwoECSpectrumClosure(TwoECSpectrum):
 
 
 class TwoECSpectrumTaylor(TwoECSpectrum):
+    """Taylor-expansion implementation for double-electron-capture integrals."""
+
     def __init__(self, total_ke: float, ei_ef: float, bound_handler: BoundHandler, nuclear_radius: float, order: ph.TaylorOrders, transition_type: ph.TransitionTypes) -> None:
+        """Initialize Taylor order and transition for 2EC integrals."""
         super().__init__(total_ke, ei_ef, bound_handler, nuclear_radius)
         self.order = order
         self.transition_type = transition_type
@@ -118,6 +166,13 @@ class TwoECSpectrumTaylor(TwoECSpectrum):
             (2.*(np.pi**3.0)) * (ph.electron_mass**4.0)
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes = ph.SpectrumTypes.SINGLESPECTRUM):
+        """Compute shell-pair integrals from analytic Taylor kernels.
+
+        Parameters
+        ----------
+        sp_type:
+            Kept for interface compatibility.
+        """
         for n1 in self.bound_handler.p_grid:
             prob1 = self.bound_handler.probability_in_sphere(
                 self.nuclear_radius, n1, -1)

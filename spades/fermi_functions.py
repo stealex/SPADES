@@ -1,4 +1,9 @@
-from hepunits import rad
+"""Fermi-function backends for Coulomb and finite-size corrections."""
+
+try:
+    from hepunits import rad
+except ModuleNotFoundError:
+    rad = 1.0
 import numpy as np
 from numba import njit
 from . import ph
@@ -13,32 +18,43 @@ from mpmath import mp, hyp1f1, mpc
 
 
 class FermiFunctions(ABC):
+    """Abstract interface for evaluating Fermi-function components."""
+
     def __init__(self) -> None:
+        """Initialize abstract Fermi-function backend."""
         pass
 
     @abstractmethod
     def ff0_eval(self, ke: float) -> float:
+        """Evaluate ``FF0`` at kinetic energy ``ke``."""
         pass
 
     @abstractmethod
     def ff1_eval(self, ke: float) -> float:
+        """Evaluate ``FF1`` at kinetic energy ``ke``."""
         pass
 
     @abstractmethod
     def ff_ecbeta_eval(self, ke: float):
+        """Evaluate EC-beta specific Fermi factor at kinetic energy ``ke``."""
         pass
 
     @abstractmethod
     def g_eval(self, ke, kappa) -> float:
+        """Evaluate complex/real ``g_kappa`` radial amplitude at kinetic energy ``ke``."""
         pass
 
     @abstractmethod
     def f_eval(self, ke, kappa) -> float:
+        """Evaluate complex/real ``f_kappa`` radial amplitude at kinetic energy ``ke``."""
         pass
 
 
 class PointLike(FermiFunctions):
+    """Point-charge analytical Fermi-function model."""
+
     def __init__(self, z: int, r: float, e_grid: np.ndarray | None = None) -> None:
+        """Initialize point-like model and optional spline tabulation."""
         self.z = z
         self.r = r
 
@@ -60,6 +76,20 @@ class PointLike(FermiFunctions):
                 )
 
     def g_eval(self, ke, kappa):
+        """Evaluate point-like ``g_kappa`` radial amplitude.
+
+        Parameters
+        ----------
+        ke:
+            Kinetic energy.
+        kappa:
+            Relativistic angular quantum number.
+
+        Returns
+        -------
+        float
+            ``g_kappa`` amplitude.
+        """
         r = self.r
         gamma = np.sqrt(1.0-(ph.fine_structure*self.z)**2.0)
         p = np.sqrt(ke*(ke+2.*ph.electron_mass))
@@ -80,6 +110,20 @@ class PointLike(FermiFunctions):
         return result
 
     def f_eval(self, ke, kappa):
+        """Evaluate point-like ``f_kappa`` radial amplitude.
+
+        Parameters
+        ----------
+        ke:
+            Kinetic energy.
+        kappa:
+            Relativistic angular quantum number.
+
+        Returns
+        -------
+        float
+            ``f_kappa`` amplitude.
+        """
         r = self.r
         gamma = np.sqrt(1.0-(ph.fine_structure*self.z)**2.0)
         p = np.sqrt(ke*(ke+2.*ph.electron_mass))
@@ -101,30 +145,45 @@ class PointLike(FermiFunctions):
 
     @lru_cache(maxsize=None)
     def ff0_eval(self, ke: float):
+        """Return ``FF0(ke)`` from ``kappa=-1`` and ``kappa=+1`` amplitudes."""
         gm1 = self.g_eval(ke, -1)
         fp1 = self.f_eval(ke, 1)
         return np.abs(gm1*gm1) + np.abs(fp1*fp1)
 
     @lru_cache(maxsize=None)
     def ff1_eval(self, ke: float):
+        """Return ``FF1(ke)`` from ``kappa=-1`` and ``kappa=+1`` amplitudes."""
         gm1 = self.g_eval(ke, -1)
         fp1 = self.f_eval(ke, 1)
         return 2.0*np.real(gm1*np.conj(fp1))
 
     @lru_cache(maxsize=None)
     def ff_ecbeta_eval(self, ke: float) -> float:
+        """Return EC-beta factor derived from point-like amplitudes."""
         gm1 = self.g_eval(ke, -1)
         fp1 = self.f_eval(ke, 1)
         return gm1**2.0 + fp1**2.0
 
 
 class ChargedSphere(FermiFunctions):
+    """Approximate Fermi functions for a uniformly charged nuclear sphere."""
+
     def __init__(self, z: int, r: float) -> None:
+        """Initialize charged-sphere model parameters.
+
+        Parameters
+        ----------
+        z:
+            Nuclear charge.
+        r:
+            Nuclear radius in fm.
+        """
         self.z = z
         self.r = r
 
     @lru_cache(maxsize=None)
     def ff0_eval(self, ke):
+        """Evaluate charged-sphere ``FF0`` at kinetic energy ``ke``."""
         gamma = np.sqrt(1.0-(ph.fine_structure*self.z)**2.0)
         p = np.sqrt(ke*(ke+2*ph.electron_mass))
         eta = ph.fine_structure*self.z*(ke+ph.electron_mass)/p
@@ -143,6 +202,7 @@ class ChargedSphere(FermiFunctions):
 
     @lru_cache(maxsize=None)
     def ff1_eval(self, ke):
+        """Evaluate charged-sphere ``FF1`` approximation at kinetic energy ``ke``."""
         ff0 = self.ff0_eval(ke)
         # fact1 = np.sqrt((ke+2.0*ph.electron_mass)/(2.0*(ke+ph.electron_mass)))
         # gm1 = np.sqrt(ff0)*fact1
@@ -154,17 +214,23 @@ class ChargedSphere(FermiFunctions):
         return momentum/e_total * ff0
 
     def ff_ecbeta_eval(self, ke: float) -> float:
+        """EC-beta factor is not implemented for this approximation."""
         raise NotImplementedError()
 
     def f_eval(self, ke, kappa):
+        """Direct ``f_kappa`` amplitude is not implemented for this approximation."""
         raise NotImplementedError()
 
     def g_eval(self, ke, kappa):
+        """Direct ``g_kappa`` amplitude is not implemented for this approximation."""
         raise NotImplementedError()
 
 
 class Numeric(FermiFunctions):
+    """Fermi functions built from numerically computed scattering wavefunctions."""
+
     def __init__(self, scattering_handler: ScatteringHandler, radius: float, density_function: Callable | None = None) -> None:
+        """Interpolate ``f``/``g`` amplitudes from scattering solutions at the nuclear scale."""
         self.scattering_handler = scattering_handler
         self.f = {}
         self.g = {}
@@ -230,23 +296,29 @@ class Numeric(FermiFunctions):
 
     @lru_cache(maxsize=None)
     def ff0_eval(self, energy):
+        """Evaluate interpolated numeric ``FF0`` at energy ``energy``."""
         return self.ff0(energy)
 
     @lru_cache(maxsize=None)
     def ff1_eval(self, energy):
+        """Evaluate interpolated numeric ``FF1`` at energy ``energy``."""
         return self.ff1(energy)
 
     @lru_cache(maxsize=None)
     def ff_ecbeta_eval(self, ke: float):
+        """Evaluate interpolated numeric EC-beta factor."""
         return self.ff_ecbeta(ke)
 
     def g_eval(self, ke, kappa):
+        """Evaluate interpolated numeric ``g_kappa``."""
         return self.g_func[kappa](ke)
 
     def f_eval(self, ke, kappa):
+        """Evaluate interpolated numeric ``f_kappa``."""
         return self.f_func[kappa](ke)
 
     def build_fermi_functions(self):
+        """Assemble ``FF0`` and ``FF1`` splines from the ``kappa=±1`` components."""
         self.gm1 = self.g[-1]
         self.fp1 = self.f[1]
         # self.gm2 = self.g[-2]

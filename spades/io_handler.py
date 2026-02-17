@@ -1,3 +1,5 @@
+"""Serialization helpers for wavefunctions, spectra, PSFs, and Fermi functions."""
+
 import enum
 import struct
 import token
@@ -6,6 +8,23 @@ from . import ph
 
 
 def write_scattring_wf(file_name, kappa: list[int], ke_grid: np.ndarray, inner_grid: dict, coulomb_grid: dict, r_values: np.ndarray, p: dict, q: dict):
+    """Write scattering wavefunctions to a compact binary format.
+
+    Parameters
+    ----------
+    file_name:
+        Output binary file path.
+    kappa:
+        List of relativistic angular quantum numbers.
+    ke_grid:
+        Kinetic-energy grid.
+    inner_grid, coulomb_grid:
+        Dictionaries of inner and Coulomb phase shifts keyed by ``kappa``.
+    r_values:
+        Radial grid values.
+    p, q:
+        Dictionaries containing large/small wavefunction components by ``kappa`` and energy index.
+    """
     with open(file_name, 'wb') as f:
         f.write(struct.pack('<i', len(kappa)))
         f.write(struct.pack('<i', len(ke_grid)))
@@ -27,6 +46,18 @@ def write_scattring_wf(file_name, kappa: list[int], ke_grid: np.ndarray, inner_g
 
 
 def read_scattering_wf(file_name):
+    """Read scattering wavefunctions from the binary format written by `write_scattring_wf`.
+
+    Parameters
+    ----------
+    file_name:
+        Input binary file path.
+
+    Returns
+    -------
+    tuple
+        ``(k_values, e_values, r_values, inner_phase_values, coulomb_values, p_values, q_values)``.
+    """
     with open(file_name, 'rb') as f:
         nk = struct.unpack('<i', f.read(4))[0]
         ne = struct.unpack('<i', f.read(4))[0]
@@ -70,6 +101,19 @@ def read_scattering_wf(file_name):
 
 
 def write_bound_wf(file_name, r_grid: np.ndarray, be_values: dict, p_values: dict, q_values: dict):
+    """Write bound-state radial functions and binding energies to binary.
+
+    Parameters
+    ----------
+    file_name:
+        Output binary file path.
+    r_grid:
+        Radial grid.
+    be_values:
+        Nested dictionary of binding energies by principal quantum number and ``kappa``.
+    p_values, q_values:
+        Nested dictionaries of large/small components sampled on ``r_grid``.
+    """
     nr = len(r_grid)
     n_shells = 0
     for n in be_values:
@@ -94,6 +138,18 @@ def write_bound_wf(file_name, r_grid: np.ndarray, be_values: dict, p_values: dic
 
 
 def read_bound_wf(file_name):
+    """Read bound-state binary data written by :func:`write_bound_wf`.
+
+    Parameters
+    ----------
+    file_name:
+        Input binary file path.
+
+    Returns
+    -------
+    tuple
+        ``(r_grid, be_values, p_values, q_values)``.
+    """
     with open(file_name, 'rb') as f:
         n_shells, nr = struct.unpack('<ii', f.read(8))
         be_values = {}
@@ -146,6 +202,23 @@ header_spectra = '''# Spectra and PSF values computed with project_name version
 
 
 def write_spectra(file_name, parent_nucleus: str, process: str, e_grid: np.ndarray, spectra: dict, psfs: dict | None = None):
+    """Write 1D spectra and optional PSFs in a human-readable text format.
+
+    Parameters
+    ----------
+    file_name:
+        Output text file path.
+    parent_nucleus:
+        Parent nucleus label.
+    process:
+        Process identifier string.
+    e_grid:
+        1D kinetic-energy grid.
+    spectra:
+        Nested spectra dictionary keyed by Fermi-function and spectrum names.
+    psfs:
+        Optional nested PSF dictionary.
+    """
     n_fermi_functions = len(spectra)
     with open(file_name, "w") as f:
         f.write(header_spectra.format(parent_nucleus=parent_nucleus,
@@ -210,6 +283,18 @@ def write_spectra(file_name, parent_nucleus: str, process: str, e_grid: np.ndarr
 
 
 def load_data(filename):
+    """Load spectra/PSF text files written by :func:`write_spectra`.
+
+    Parameters
+    ----------
+    filename:
+        Input text file path.
+
+    Returns
+    -------
+    dict
+        Parsed metadata, energy grid, spectra, and optional PSFs.
+    """
     with open(filename, 'r') as f:
         lines = f.readlines()
 
@@ -297,6 +382,23 @@ header_spectra_2D = '''# PSFs and 2D (e_1, e_2) spectra computed with project_na
 
 
 def write_2d_spectra(file_name, parent_nucleus: str, process: str, e1_grid: np.ndarray, e2_grid: np.ndarray, emin: float, spectra: dict, psfs: dict):
+    """Write 2D spectra and PSFs on transformed ``(e1, e2)`` grids.
+
+    Parameters
+    ----------
+    file_name:
+        Output text file path.
+    parent_nucleus:
+        Parent nucleus label.
+    process:
+        Process identifier string.
+    e1_grid, e2_grid:
+        2D meshgrids used for spectra sampling.
+    emin:
+        Lower kinetic-energy threshold used by the transformation.
+    spectra, psfs:
+        Nested dictionaries with spectra arrays and PSF values.
+    """
     with open(file_name, "w") as f:
         f.write(header_spectra_2D.format(
             parent_nucleus=parent_nucleus,
@@ -363,6 +465,18 @@ def write_2d_spectra(file_name, parent_nucleus: str, process: str, e1_grid: np.n
 
 
 def load_2d_spectra(filename):
+    """Load 2D spectra files written by :func:`write_2d_spectra`.
+
+    Parameters
+    ----------
+    filename:
+        Input text file path.
+
+    Returns
+    -------
+    dict
+        Parsed metadata, 2D grids, spectra arrays, and PSFs.
+    """
     lines = []
     with open(filename, 'r') as f:
         lines = f.readlines()
@@ -450,6 +564,21 @@ header_fermi_functions = '''# Fermi functions computed with project_name version
 
 
 def write_fermi_functions(file_name, parent_nucleus: str, process: str, e_grid: np.ndarray, ff0: dict, ff1: dict | None = None):
+    """Write Fermi-function tables versus kinetic energy.
+
+    Parameters
+    ----------
+    file_name:
+        Output text file path.
+    parent_nucleus:
+        Parent nucleus label.
+    process:
+        Process identifier string.
+    e_grid:
+        1D kinetic-energy grid.
+    ff0, ff1:
+        Fermi-function values keyed by backend type.
+    """
     n_fermi_functions = len(ff0)
 
     with open(file_name, "w") as f:
@@ -482,6 +611,18 @@ def write_fermi_functions(file_name, parent_nucleus: str, process: str, e_grid: 
 
 
 def load_fermi_functions(filename):
+    """Load Fermi-function tables written by :func:`write_fermi_functions`.
+
+    Parameters
+    ----------
+    filename:
+        Input text file path.
+
+    Returns
+    -------
+    dict
+        Parsed energy grid and FF datasets.
+    """
     with open(filename, 'r') as f:
         lines = f.readlines()
 

@@ -1,3 +1,5 @@
+"""Abstract interfaces for spectra and phase-space-factor computations."""
+
 from abc import ABC, abstractmethod
 from typing import Callable
 import numpy as np
@@ -8,16 +10,14 @@ from spades.fermi_functions import FermiFunctions
 
 
 class SpectrumBase(ABC):
-    """
-    Abstract base class for spectra.
-    """
+    """Base interface shared by all spectra implementations."""
 
     def __init__(self, total_ke: float, ei_ef: float) -> None:
-        """_summary_
+        """Initialize common energy scales and output containers.
 
         Args:
-            total_ke (float): total kinetic energy available in the process.
-            ei_ef (float): energy difference between initial and final NUCLEAR levels.
+            total_ke (float): Total kinetic energy available in the process.
+            ei_ef (float): Energy difference between initial and final nuclear levels.
         """
         super().__init__()
         self.total_ke = total_ke
@@ -32,62 +32,63 @@ class SpectrumBase(ABC):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
-        """Abstract method for computation of spectra
+        """Compute a 1D spectrum for the requested spectrum type.
 
         Args:
-            sp_type (SpectrumTypes): type of spectrum 
+            sp_type (SpectrumTypes): Spectrum type selector.
         """
         pass
 
     @abstractmethod
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
-        """Abstract method for computation of 2D spectra
+        """Compute a 2D spectrum for the requested spectrum type.
 
         Args:
-            sp_type (int): type of spectrum (e.g. ph.SINGLESPECTRUM, ph.SUMSPECTRUM, ph.ANGULARSPECTRUM)
+            sp_type (ph.SpectrumTypes): Spectrum type selector.
         """
         pass
 
     @abstractmethod
     def compute_psf(self):
-        """Abstract method for the computation of PSF from spectrum integrals
-        """
+        """Compute phase-space factors from integrated spectra."""
         pass
 
     @abstractmethod
     def integrate_spectrum(self):
-        """Abstract method that integrates spectra
-        """
+        """Integrate previously computed spectrum values."""
         pass
 
 
 class BetaSpectrumBase(SpectrumBase):
-    """
-    Abstract class for spectra involving emission.
-    """
+    """Base class for channels with outgoing beta particles."""
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions) -> None:
-        """
+        """Initialize beta-spectrum settings.
+
         Args:
-            total_ke (float): total kinetic energy available in the process
-            ei_ef (float): energy difference between initial and final NUCLEAR levels
-            fermi_functions(FermiFunctions): Fermi functions to be used in the computation
+            total_ke (float): Total kinetic energy available in the process.
+            ei_ef (float): Energy difference between initial and final nuclear levels.
+            fermi_functions(FermiFunctions): Fermi-function backend for Coulomb effects.
         """
         super().__init__(total_ke, ei_ef)
         self.fermi_functions = fermi_functions
 
     @abstractmethod
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
+        """Compute a 1D beta spectrum for ``sp_type``."""
         pass
 
     @abstractmethod
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        """Compute a 2D beta spectrum for ``sp_type``."""
         pass
 
     @abstractmethod
     def compute_psf(self):
+        """Compute PSFs from integrated spectra."""
         pass
 
     @abstractmethod
     def integrate_spectrum(self):
+        """Integrate and normalize previously computed spectra."""
         pass

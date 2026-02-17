@@ -1,3 +1,5 @@
+"""Spectra and PSFs for electron-capture plus beta-plus channels."""
+
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -22,6 +24,20 @@ from spades.spectra.closure_helpers import neutrino_integrand_closure_standard_0
 
 
 def neutrino_integrand_closure(enu_1, e_positron, e_electron, enu_2, enei, transition: ph.TransitionTypes):
+    """Dispatch closure neutrino kernel according to transition type.
+
+    Parameters
+    ----------
+    enu_1, e_positron, e_electron, enu_2, enei:
+        Energies entering the closure neutrino kernel.
+    transition:
+        Nuclear transition type.
+
+    Returns
+    -------
+    float
+        Kernel value for the chosen transition.
+    """
     if transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
         return neutrino_integrand_closure_standard_02(enu_1, e_positron, e_electron, enu_2, enei)
     else:
@@ -33,14 +49,22 @@ class ECBetaSpectrumBase(BetaSpectrumBase):
     """
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, **kwargs) -> None:
-        """Creates also the energy grids (different for each shell).
+        """Initialize shell-wise energy grids for EC beta-plus spectra.
 
-        Args:
-            total_ke (float): total kinetic energy available in the process
-            ei_ef (float): energy difference between initial and final NUCLEAR levels
-            fermi_functions(FermiFunctions): Fermi functions to be used in the computation
-            bound_handler (BoundHandler): Handler containing bound wavefunctions
-            nuclear_radius (float): radius of nucleus (fm).
+        Parameters
+        ----------
+        total_ke:
+            Total available kinetic energy.
+        ei_ef:
+            Nuclear-level energy difference ``E_i - E_f``.
+        fermi_functions:
+            Fermi-function backend.
+        bound_handler:
+            Bound-state wavefunction handler used for capture probabilities.
+        nuclear_radius:
+            Nuclear radius in fm.
+        **kwargs:
+            Optional grid settings: ``energy_grid_type``, ``min_ke``, ``n_ke_points``.
         """
         super().__init__(total_ke, ei_ef, fermi_functions)
         self.bound_handler = bound_handler
@@ -82,17 +106,21 @@ class ECBetaSpectrumBase(BetaSpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: ph.SpectrumTypes = ph.SpectrumTypes.SINGLESPECTRUM):
+        """Compute EC beta-plus spectrum values."""
         pass
 
     @abstractmethod
     def integrate_spectrum(self):
+        """Integrate and normalize EC beta-plus spectra."""
         pass
 
     @abstractmethod
     def compute_psf(self):
+        """Compute EC beta-plus PSFs from integrals."""
         pass
 
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        """2D EC beta-plus spectra are not implemented."""
         raise NotImplementedError()
 
 
@@ -101,14 +129,22 @@ class ClosureSpectrum(ECBetaSpectrumBase):
     """
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, enei: float, **kwargs) -> None:
-        """
-        Args:
-            total_ke (float): total kinetic energy available in the process
-            ei_ef (float): energy difference between initial and final NUCLEAR levels
-            fermi_functions(FermiFunctions): Fermi functions to be used in the computation
-            bound_handler (BoundHandler): Handler containing bound wavefunctions
-            nuclear_radius (float): radius of nucleus (fm).
-            enei (float): <E_N> - E_I
+        """Initialize closure-approximation EC beta-plus model.
+
+        Parameters
+        ----------
+        total_ke, ei_ef:
+            Process energy scales.
+        fermi_functions:
+            Fermi-function backend.
+        bound_handler:
+            Bound-state handler for capture shells.
+        nuclear_radius:
+            Nuclear radius in fm.
+        enei:
+            Closure parameter ``<E_N> - E_I``.
+        **kwargs:
+            Forwarded grid settings.
         """
         super().__init__(total_ke, ei_ef, fermi_functions,
                          bound_handler, nuclear_radius, **kwargs)
@@ -118,11 +154,11 @@ class ClosureSpectrum(ECBetaSpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: int):
+        """Compute closure EC beta-plus spectrum values."""
         pass
 
     def integrate_spectrum(self):
-        """Integrates each positron spectrum resulting from a given (n,k) capture.
-        """
+        """Integrate and normalize each shell-resolved positron spectrum."""
         for n in self.spectrum_values:
             self.spectrum_integrals[n] = {}
             for k in self.spectrum_values[n]:
@@ -147,8 +183,7 @@ class ClosureSpectrum(ECBetaSpectrumBase):
                 self.spectrum_values[n][k] = self.spectrum_values[n][k]/result[0]
 
     def compute_psf(self):
-        """Computes the PSF for each (n,k) capture from integrals
-        """
+        """Compute one PSF per capture shell from integrated spectra."""
         for n in self.spectrum_integrals:
             self.psfs[n] = {}
             for k in self.spectrum_integrals[n]:
@@ -163,6 +198,7 @@ class ClosureSpectrum2nu(ClosureSpectrum):
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, enei: float,
                  transition_type: ph.TransitionTypes, **kwargs) -> None:
+        """Initialize closure 2nu EC beta-plus model with transition-dependent prefactor."""
         super().__init__(total_ke, ei_ef, fermi_functions,
                          bound_handler, nuclear_radius, enei, **kwargs)
         self.constant_in_front = 2*(self.atilde**2.0)*((ph.fermi_coupling_constant*ph.v_ud)**4) /\
@@ -170,13 +206,13 @@ class ClosureSpectrum2nu(ClosureSpectrum):
         self.transition_type = transition_type
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes = ph.SpectrumTypes.SINGLESPECTRUM):
-        """For each (n,k) shell it computes the positron spectrum by integrating on the neutrino energy.
+        """Compute shell-resolved 2nu EC beta-plus positron spectra.
 
-        Args:
-            sp_type (ph.SpectrumTypes, optional): not used. Defaults to ph.SpectrumTypes.SINGLESPECTRUM.
-
-        Raises:
-            ValueError: _description_
+        Parameters
+        ----------
+        sp_type:
+            Kept for interface compatibility. The implementation computes
+            the physical single-spectrum channel.
         """
         # we have one spectrum for each shell
         for i_n in tqdm(range(len(self.bound_handler.config.n_values)),
@@ -223,13 +259,21 @@ class ECBetaSpectrumBase0nu(BetaSpectrumBase):
     """
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, **kwargs) -> None:
-        """
-        Args:
-            total_ke (float): total kinetic energy available in the process
-            ei_ef (float): energy difference between initial and final NUCLEAR levels
-            fermi_functions(FermiFunctions): Fermi functions to be used in the computation
-            bound_handler (BoundHandler): Handler containing bound wavefunctions
-            nuclear_radius (float): radius of nucleus (fm).
+        """Initialize shell-wise storage for 0nu EC beta-plus integrals."""
+        """Initialize shell containers for 0nu EC beta-plus calculations.
+
+        Parameters
+        ----------
+        total_ke, ei_ef:
+            Process energy scales.
+        fermi_functions:
+            Fermi-function backend.
+        bound_handler:
+            Bound-state wavefunction handler.
+        nuclear_radius:
+            Nuclear radius in fm.
+        **kwargs:
+            Reserved for API compatibility.
         """
         super().__init__(total_ke, ei_ef, fermi_functions)
         self.bound_handler = bound_handler
@@ -247,16 +291,20 @@ class ECBetaSpectrumBase0nu(BetaSpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: ph.SpectrumTypes = ph.SpectrumTypes.SINGLESPECTRUM):
+        """Compute 0nu EC beta-plus shell integrals."""
         pass
 
     def integrate_spectrum(self):
+        """0nu EC beta-plus classes store direct shell integrals and do not integrate spectra."""
         raise NotImplementedError()
 
     @abstractmethod
     def compute_psf(self):
+        """Compute 0nu EC beta-plus PSFs."""
         pass
 
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        """2D EC beta-plus spectra are not implemented."""
         raise NotImplementedError()
 
 
@@ -265,14 +313,22 @@ class ClosureSpectrum0nu(ECBetaSpectrumBase0nu):
     """
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, enei: float, **kwargs) -> None:
-        """
-        Args:
-            total_ke (float): total kinetic energy available in the process
-            ei_ef (float): energy difference between initial and final NUCLEAR levels
-            fermi_functions(FermiFunctions): Fermi functions to be used in the computation
-            bound_handler (BoundHandler): Handler containing bound wavefunctions
-            nuclear_radius (float): radius of nucleus (fm).
-            enei (float): <E_N> - E_I
+        """Initialize 0nu closure EC beta-plus model.
+
+        Parameters
+        ----------
+        total_ke, ei_ef:
+            Process energy scales.
+        fermi_functions:
+            Fermi-function backend.
+        bound_handler:
+            Bound-state handler.
+        nuclear_radius:
+            Nuclear radius in fm.
+        enei:
+            Closure parameter ``<E_N> - E_I``.
+        **kwargs:
+            Reserved for future options.
         """
         super().__init__(total_ke, ei_ef, fermi_functions,
                          bound_handler, nuclear_radius, **kwargs)
@@ -282,11 +338,11 @@ class ClosureSpectrum0nu(ECBetaSpectrumBase0nu):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: int):
+        """Compute closure 0nu EC beta-plus spectrum values."""
         pass
 
     def compute_psf(self):
-        """Computes the PSF for each (n,k) capture from integrals
-        """
+        """Compute one PSF per shell from pre-computed 0nu integrals."""
         for n in self.spectrum_integrals:
             self.psfs[n] = {}
             for k in self.spectrum_integrals[n]:
@@ -300,6 +356,7 @@ class ClosureSpectrum0nu_LNE(ClosureSpectrum0nu):
     """
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, enei: float, **kwargs) -> None:
+        """Initialize light-neutrino-exchange prefactor for 0nu EC beta-plus."""
         super().__init__(total_ke, ei_ef, fermi_functions,
                          bound_handler, nuclear_radius, enei, **kwargs)
         self.constant_in_front = ((ph.fermi_coupling_constant*ph.v_ud)**4) / \
@@ -307,10 +364,12 @@ class ClosureSpectrum0nu_LNE(ClosureSpectrum0nu):
             (ph.electron_mass**5.0)*(ph.hc**2.0)
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes = ph.SpectrumTypes.SINGLESPECTRUM):
-        """For each (n,k) shell it computes the spectrum integral 
+        """Compute 0nu shell integrals for light-neutrino exchange.
 
-        Args:
-            sp_type (ph.SpectrumTypes, optional): not used. Defaults to ph.SpectrumTypes.SINGLESPECTRUM.
+        Parameters
+        ----------
+        sp_type:
+            Kept for interface compatibility. The implementation uses shell-integrated values.
         """
         for i_n in tqdm(range(len(self.bound_handler.config.n_values)),
                         desc="\t"*2 +

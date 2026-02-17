@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>spades.config &#8212; SPADES 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=4f649999" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=cb25574f" />
+    <script src="../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for spades.config</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Configuration models and resolution helpers for SPADES runs.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+
+<span class="kn">from</span> <span class="nn">spades</span> <span class="kn">import</span> <span class="n">ph</span>
+<span class="kn">from</span> <span class="nn">spades.dhfs</span> <span class="kn">import</span> <span class="n">AtomicSystem</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="DoubleBetaProcess">
+<a class="viewcode-back" href="../../api/core.html#spades.config.DoubleBetaProcess">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">DoubleBetaProcess</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Physics process selection for a computation.&quot;&quot;&quot;</span>
+
+    <span class="nb">type</span><span class="p">:</span> <span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span>
+    <span class="n">transition</span><span class="p">:</span> <span class="n">ph</span><span class="o">.</span><span class="n">TransitionTypes</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">TransitionTypes</span><span class="o">.</span><span class="n">ZEROPLUS_TO_ZEROPLUS</span>
+    <span class="n">mechanism</span><span class="p">:</span> <span class="n">ph</span><span class="o">.</span><span class="n">NeutrinoLessModes</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">NeutrinoLessModes</span><span class="o">.</span><span class="n">LIGHT_NEUTRINO_EXCHANGE</span></div>
+
+
+
+<div class="viewcode-block" id="BoundConfig">
+<a class="viewcode-back" href="../../api/core.html#spades.config.BoundConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">BoundConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for bound-state Dirac wavefunctions.&quot;&quot;&quot;</span>
+
+    <span class="n">max_r</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">n_radial_points</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">n_values</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="n">k_values</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span></div>
+
+
+
+<div class="viewcode-block" id="ScatteringConfig">
+<a class="viewcode-back" href="../../api/core.html#spades.config.ScatteringConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">ScatteringConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for scattering-state Dirac wavefunctions.&quot;&quot;&quot;</span>
+
+    <span class="n">max_r</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">n_radial_points</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">min_ke</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">max_ke</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">n_ke_points</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">k_values</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="SpectraConfig">
+<a class="viewcode-back" href="../../api/core.html#spades.config.SpectraConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">SpectraConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration used to compute spectra and phase-space factors.&quot;&quot;&quot;</span>
+
+    <span class="n">method</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="n">wave_function_evaluation</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">nuclear_radius</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">types</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span><span class="p">]</span>
+    <span class="n">fermi_function_types</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ph</span><span class="o">.</span><span class="n">FermiFunctionTypes</span><span class="p">]</span>
+    <span class="n">energy_grid_type</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">n_ke_points</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">min_ke</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">total_ke</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">ei_ef</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.</span>
+    <span class="n">corrections</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ph</span><span class="o">.</span><span class="n">CorrectionTypes</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+
+    <span class="n">compute_2d</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">n_points_log_2d</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">n_points_lin_2d</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">e_max_log_2d</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.</span></div>
+
+
+
+<div class="viewcode-block" id="OutputConfig">
+<a class="viewcode-back" href="../../api/core.html#spades.config.OutputConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">OutputConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Output selection and destination configuration.&quot;&quot;&quot;</span>
+
+    <span class="n">location</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">what</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">file_prefix</span><span class="p">:</span> <span class="nb">str</span>
+
+<div class="viewcode-block" id="OutputConfig.solve_output_config">
+<a class="viewcode-back" href="../../api/core.html#spades.config.OutputConfig.solve_output_config">[docs]</a>
+    <span class="k">def</span> <span class="nf">solve_output_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert textual output requests into boolean switches.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bound_wavefunctions</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scattering_wavefunctions</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spectra</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">psfs</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">binding_energies</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">what</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">elem</span> <span class="o">==</span> <span class="s2">&quot;bound wavefunctions&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bound_wavefunctions</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">elem</span> <span class="o">==</span> <span class="s2">&quot;scattering wavefunctions&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">scattering_wavefunctions</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">elem</span> <span class="o">==</span> <span class="s2">&quot;spectra&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">spectra</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">elem</span> <span class="o">==</span> <span class="s2">&quot;psfs&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">psfs</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">elem</span> <span class="o">==</span> <span class="s2">&quot;binding energies&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">binding_energies</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown output option </span><span class="si">{</span><span class="n">elem</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="RunConfig">
+<a class="viewcode-back" href="../../api/core.html#spades.config.RunConfig">[docs]</a>
+<span class="k">class</span> <span class="nc">RunConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Runtime configuration wrapper with unit conversion and option resolution.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse raw configuration and initialize process-level options.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span> <span class="o">=</span> <span class="n">config</span>  <span class="c1"># store for later use</span>
+        <span class="c1"># change input values to fm and MeV</span>
+        <span class="n">to_fm</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">user_distance_unit</span><span class="o">/</span><span class="n">ph</span><span class="o">.</span><span class="n">fm</span>
+        <span class="n">to_MeV</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">user_energy_unit</span><span class="o">/</span><span class="n">ph</span><span class="o">.</span><span class="n">MeV</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;bound_states&quot;</span><span class="p">][</span><span class="s2">&quot;max_r&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;bound_states&quot;</span><span class="p">][</span><span class="s2">&quot;max_r&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">to_fm</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;scattering_states&quot;</span><span class="p">][</span><span class="s2">&quot;max_r&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;scattering_states&quot;</span><span class="p">][</span><span class="s2">&quot;max_r&quot;</span><span class="p">]</span><span class="o">*</span><span class="n">to_fm</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;min_ke&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;min_ke&quot;</span><span class="p">]</span><span class="o">*</span><span class="n">to_MeV</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;e_max_log_2d&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;e_max_log_2d&quot;</span><span class="p">]</span><span class="o">*</span><span class="n">to_MeV</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_name</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;task&quot;</span><span class="p">]</span>
+
+        <span class="n">proc_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">proc_dict</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">PROCESS_NAMES_MAP</span><span class="p">[</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;process&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s2">&quot;transition&quot;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;process&quot;</span><span class="p">]):</span>
+            <span class="n">proc_dict</span><span class="p">[</span><span class="s2">&quot;transition&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">TRANSITION_NAMES_MAP</span><span class="p">[</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;process&quot;</span><span class="p">][</span><span class="s2">&quot;transition&quot;</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s2">&quot;mechanism&quot;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;process&quot;</span><span class="p">]):</span>
+            <span class="n">proc_dict</span><span class="p">[</span><span class="s2">&quot;mechanism&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">NEUTRINOLESS_MECHANISMS_MAP</span><span class="p">[</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;process&quot;</span><span class="p">][</span><span class="s2">&quot;mechanism&quot;</span><span class="p">]]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">process</span> <span class="o">=</span> <span class="n">DoubleBetaProcess</span><span class="p">(</span><span class="o">**</span><span class="n">proc_dict</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_atom_dict</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;initial_atom&quot;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="RunConfig.resolve_nuclear_radius">
+<a class="viewcode-back" href="../../api/core.html#spades.config.RunConfig.resolve_nuclear_radius">[docs]</a>
+    <span class="k">def</span> <span class="nf">resolve_nuclear_radius</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_atom</span><span class="p">:</span> <span class="n">AtomicSystem</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve nuclear radius from explicit input or the default ``1.2 A^(1/3)`` model.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        initial_atom:</span>
+<span class="sd">            Initial atomic system used to extract mass number ``A`` for the automatic model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;nuclear_radius&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;auto&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;nuclear_radius&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.2</span> <span class="o">*</span> \
+                <span class="p">(</span><span class="n">initial_atom</span><span class="o">.</span><span class="n">mass_number</span><span class="o">**</span><span class="p">(</span><span class="mf">1.</span><span class="o">/</span><span class="mf">3.</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;nuclear_radius&quot;</span><span class="p">],</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;nuclear_radius&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Negative nuclear radius not supported&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Cannot interpret nuclear_radius option&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RunConfig.resolve_ei_ef">
+<a class="viewcode-back" href="../../api/core.html#spades.config.RunConfig.resolve_ei_ef">[docs]</a>
+    <span class="k">def</span> <span class="nf">resolve_ei_ef</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_atom</span><span class="p">:</span> <span class="n">AtomicSystem</span><span class="p">,</span> <span class="n">final_atom</span><span class="p">:</span> <span class="n">AtomicSystem</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve available kinetic energy and nuclear level spacing for the selected process.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        initial_atom:</span>
+<span class="sd">            Initial atomic system.</span>
+<span class="sd">        final_atom:</span>
+<span class="sd">            Final atomic system (reserved for future use in this routine).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">to_MeV</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">user_energy_unit</span><span class="o">/</span><span class="n">ph</span><span class="o">.</span><span class="n">MeV</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;total_ke&quot;</span><span class="p">])</span> <span class="ow">is</span> <span class="nb">float</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Received float total_ke. All good, continue.&quot;</span><span class="p">)</span>
+            <span class="n">total_ke</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;total_ke&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">to_MeV</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;total_ke&quot;</span><span class="p">])</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;total_ke&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;auto&quot;</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Cannot interpret total_ke. Valid options: float or &#39;auto&#39; &quot;</span><span class="p">)</span>
+            <span class="c1"># now we know ei_ef is &quot;auto&quot;. Read files</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;total_ke is &#39;auto&#39;. Will read from file&quot;</span><span class="p">)</span>
+            <span class="n">delta_m_map</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">read_mass_difference</span><span class="p">(</span><span class="n">ph</span><span class="o">.</span><span class="n">delta_m_files</span><span class="p">)</span>
+            <span class="n">delta_m_tmp</span> <span class="o">=</span> <span class="n">delta_m_map</span><span class="p">[</span><span class="n">initial_atom</span><span class="o">.</span><span class="n">name_nice</span><span class="p">][</span><span class="s2">&quot;delta_M&quot;</span><span class="p">]</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found delta_M = </span><span class="si">{</span><span class="n">delta_m_tmp</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_TWOBMINUS</span><span class="p">,</span> <span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">NEUTRINOLESS_TWOBMINUS</span><span class="p">]):</span>
+                <span class="n">total_ke</span> <span class="o">=</span> <span class="n">delta_m_tmp</span>
+            <span class="k">elif</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_TWOBPLUS</span><span class="p">,</span> <span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">NEUTRINOLESS_TWOBPLUS</span><span class="p">]):</span>
+                <span class="n">total_ke</span> <span class="o">=</span> <span class="n">delta_m_tmp</span><span class="o">-</span><span class="mf">4.0</span><span class="o">*</span><span class="n">ph</span><span class="o">.</span><span class="n">electron_mass</span>
+            <span class="k">elif</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_TWOEC</span><span class="p">]):</span>
+                <span class="n">total_ke</span> <span class="o">=</span> <span class="n">delta_m_tmp</span>
+            <span class="k">elif</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_BPLUSEC</span><span class="p">,</span> <span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">NEUTRINOLESS_BPLUSEC</span><span class="p">]):</span>
+                <span class="n">total_ke</span> <span class="o">=</span> <span class="n">delta_m_tmp</span><span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">ph</span><span class="o">.</span><span class="n">electron_mass</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">transition</span> <span class="o">==</span> <span class="n">ph</span><span class="o">.</span><span class="n">TransitionTypes</span><span class="o">.</span><span class="n">ZEROPLUS_TO_ZEROPLUS</span><span class="p">):</span>
+                <span class="n">total_ke</span> <span class="o">=</span> <span class="n">total_ke</span>
+            <span class="k">elif</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">transition</span> <span class="o">==</span> <span class="n">ph</span><span class="o">.</span><span class="n">TransitionTypes</span><span class="o">.</span><span class="n">ZEROPLUS_TO_ZEROTWOPLUS</span><span class="p">):</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">delta_m_map</span><span class="p">[</span><span class="n">initial_atom</span><span class="o">.</span><span class="n">name_nice</span><span class="p">][</span><span class="s2">&quot;E02&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;Unknown excitation energy of the 0_2^+ state&quot;</span><span class="p">)</span>
+                <span class="n">total_ke</span> <span class="o">=</span> <span class="n">total_ke</span> <span class="o">-</span> \
+                    <span class="n">delta_m_map</span><span class="p">[</span><span class="n">initial_atom</span><span class="o">.</span><span class="n">name_nice</span><span class="p">][</span><span class="s2">&quot;E02&quot;</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">transition</span> <span class="o">==</span> <span class="n">ph</span><span class="o">.</span><span class="n">TransitionTypes</span><span class="o">.</span><span class="n">ZEROPLUS_TO_TWOPLUS</span><span class="p">):</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">delta_m_map</span><span class="p">[</span><span class="n">initial_atom</span><span class="o">.</span><span class="n">name_nice</span><span class="p">][</span><span class="s2">&quot;E2&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;Unknown excitation energy of the 2_1^+ state&quot;</span><span class="p">)</span>
+                <span class="n">total_ke</span> <span class="o">=</span> <span class="n">total_ke</span> <span class="o">-</span> <span class="n">delta_m_map</span><span class="p">[</span><span class="n">initial_atom</span><span class="o">.</span><span class="n">name_nice</span><span class="p">][</span><span class="s2">&quot;E2&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;total_ke&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">total_ke</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Q-value = </span><span class="si">{</span><span class="n">total_ke</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">total_ke</span> <span class="o">&lt;</span> <span class="mf">0.</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Q-value is negative&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Cannot interpret total_ke&quot;</span><span class="p">)</span>
+
+        <span class="c1"># now compute energy difference between nuclear states</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_TWOBMINUS</span><span class="p">,</span> <span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">NEUTRINOLESS_TWOBMINUS</span><span class="p">,</span>
+                                  <span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_TWOBPLUS</span><span class="p">,</span> <span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">NEUTRINOLESS_TWOBPLUS</span><span class="p">]):</span>
+            <span class="n">ei_ef</span> <span class="o">=</span> <span class="n">total_ke</span><span class="o">+</span><span class="mf">2.0</span><span class="o">*</span><span class="n">ph</span><span class="o">.</span><span class="n">electron_mass</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_TWOEC</span><span class="p">]):</span>
+            <span class="n">ei_ef</span> <span class="o">=</span> <span class="n">total_ke</span><span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">ph</span><span class="o">.</span><span class="n">electron_mass</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_BPLUSEC</span><span class="p">,</span> <span class="n">ph</span><span class="o">.</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">NEUTRINOLESS_BPLUSEC</span><span class="p">]):</span>
+            <span class="n">ei_ef</span> <span class="o">=</span> <span class="n">total_ke</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Logic error, cannot determine ei_ef&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;ei_ef&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ei_ef</span></div>
+
+
+<div class="viewcode-block" id="RunConfig.resolve_bound_config">
+<a class="viewcode-back" href="../../api/core.html#spades.config.RunConfig.resolve_bound_config">[docs]</a>
+    <span class="k">def</span> <span class="nf">resolve_bound_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_atom</span><span class="p">:</span> <span class="n">AtomicSystem</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Populate missing bound-state quantum numbers from the atomic configuration.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        initial_atom:</span>
+<span class="sd">            Atomic system providing shell quantum numbers for automatic configuration.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="s2">&quot;bound_states&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;bound_states&quot;</span><span class="p">][</span><span class="s2">&quot;n_values&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;auto&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;bound_states&quot;</span><span class="p">][</span><span class="s2">&quot;n_values&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+                <span class="nb">set</span><span class="p">(</span><span class="n">initial_atom</span><span class="o">.</span><span class="n">n_values</span><span class="o">.</span><span class="n">tolist</span><span class="p">()))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;bound_states&quot;</span><span class="p">][</span><span class="s2">&quot;k_values&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;auto&quot;</span><span class="p">:</span>
+            <span class="n">k_values</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">i_s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">initial_atom</span><span class="o">.</span><span class="n">electron_config</span><span class="p">)):</span>
+                <span class="n">n</span> <span class="o">=</span> <span class="n">initial_atom</span><span class="o">.</span><span class="n">n_values</span><span class="p">[</span><span class="n">i_s</span><span class="p">]</span>
+                <span class="n">l</span> <span class="o">=</span> <span class="n">initial_atom</span><span class="o">.</span><span class="n">l_values</span><span class="p">[</span><span class="n">i_s</span><span class="p">]</span>
+                <span class="n">j</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">initial_atom</span><span class="o">.</span><span class="n">jj_values</span><span class="p">[</span><span class="n">i_s</span><span class="p">]</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">l</span><span class="o">-</span><span class="n">j</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">j</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">initial_atom</span><span class="o">.</span><span class="n">n_values</span><span class="p">[</span><span class="n">i_s</span><span class="p">]</span> <span class="ow">in</span> <span class="n">k_values</span><span class="p">):</span>
+                    <span class="n">k_values</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">k_values</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;bound_states&quot;</span><span class="p">][</span><span class="s2">&quot;k_values&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">k_values</span></div>
+
+
+<div class="viewcode-block" id="RunConfig.create_spectra_config">
+<a class="viewcode-back" href="../../api/core.html#spades.config.RunConfig.create_spectra_config">[docs]</a>
+    <span class="k">def</span> <span class="nf">create_spectra_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build :class:`SpectraConfig` and map string options to typed enums.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;fermi_function_types&quot;</span><span class="p">])):</span>
+            <span class="n">ft</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;fermi_function_types&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;fermi_function_types&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">FERMIFUNCTIONS_MAP</span><span class="p">[</span><span class="n">ft</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;types&quot;</span><span class="p">])):</span>
+            <span class="n">st</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;types&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;types&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">SPECTRUM_TYPES</span><span class="p">[</span><span class="n">st</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;corrections&quot;</span><span class="p">])):</span>
+            <span class="n">corr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;corrections&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">][</span><span class="s2">&quot;corrections&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">CORRECTIONS</span><span class="p">[</span><span class="n">corr</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spectra_config</span> <span class="o">=</span> <span class="n">SpectraConfig</span><span class="p">(</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;spectra_computation&quot;</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="RunConfig.create_bound_config">
+<a class="viewcode-back" href="../../api/core.html#spades.config.RunConfig.create_bound_config">[docs]</a>
+    <span class="k">def</span> <span class="nf">create_bound_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build :class:`BoundConfig` when bound-state settings are provided.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s2">&quot;bound_states&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bound_config</span> <span class="o">=</span> <span class="n">BoundConfig</span><span class="p">(</span>
+                <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;bound_states&quot;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bound_config</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="RunConfig.create_scattering_config">
+<a class="viewcode-back" href="../../api/core.html#spades.config.RunConfig.create_scattering_config">[docs]</a>
+    <span class="k">def</span> <span class="nf">create_scattering_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build :class:`ScatteringConfig` with kinetic-energy bounds from spectra settings.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s2">&quot;scattering_states&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">scattering_config</span> <span class="o">=</span> <span class="n">ScatteringConfig</span><span class="p">(</span>
+                <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;scattering_states&quot;</span><span class="p">],</span>
+                <span class="n">min_ke</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">spectra_config</span><span class="o">.</span><span class="n">min_ke</span><span class="p">,</span>
+                <span class="n">max_ke</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">spectra_config</span><span class="o">.</span><span class="n">total_ke</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">scattering_config</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="RunConfig.create_output_config">
+<a class="viewcode-back" href="../../api/core.html#spades.config.RunConfig.create_output_config">[docs]</a>
+    <span class="k">def</span> <span class="nf">create_output_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build and finalize output options if an ``output`` block exists.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s2">&quot;output&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_config</span> <span class="o">=</span> <span class="n">OutputConfig</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_config</span><span class="p">[</span><span class="s2">&quot;output&quot;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_config</span><span class="o">.</span><span class="n">solve_output_config</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_config</span> <span class="o">=</span> <span class="kc">None</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">SPADES</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/index.html">API Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2026, SPADES contributors.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.2.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

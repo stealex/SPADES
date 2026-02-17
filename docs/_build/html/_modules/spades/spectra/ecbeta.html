@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>spades.spectra.ecbeta &#8212; SPADES 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=4f649999" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=cb25574f" />
+    <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for spades.spectra.ecbeta</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Spectra and PSFs for electron-capture plus beta-plus channels.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">interpolate</span>
+<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">CubicSpline</span>
+<span class="kn">from</span> <span class="nn">spades.spectra.base</span> <span class="kn">import</span> <span class="n">BetaSpectrumBase</span>
+<span class="kn">from</span> <span class="nn">spades.fermi_functions</span> <span class="kn">import</span> <span class="n">FermiFunctions</span>
+<span class="kn">from</span> <span class="nn">spades.wavefunctions</span> <span class="kn">import</span> <span class="n">BoundHandler</span>
+<span class="kn">from</span> <span class="nn">spades</span> <span class="kn">import</span> <span class="n">ph</span>
+
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">lru_cache</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">ndarray</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">integrate</span>
+<span class="kn">from</span> <span class="nn">spades</span> <span class="kn">import</span> <span class="n">fermi_functions</span><span class="p">,</span> <span class="n">ph</span>
+<span class="kn">from</span> <span class="nn">spades.fermi_functions</span> <span class="kn">import</span> <span class="n">FermiFunctions</span>
+<span class="kn">from</span> <span class="nn">spades.wavefunctions</span> <span class="kn">import</span> <span class="n">BoundHandler</span>
+<span class="kn">from</span> <span class="nn">spades.spectra.closure_helpers</span> <span class="kn">import</span> <span class="n">neutrino_integrand_closure_standard_00</span><span class="p">,</span> <span class="n">neutrino_integrand_closure_standard_02</span>
+
+
+<div class="viewcode-block" id="neutrino_integrand_closure">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.neutrino_integrand_closure">[docs]</a>
+<span class="k">def</span> <span class="nf">neutrino_integrand_closure</span><span class="p">(</span><span class="n">enu_1</span><span class="p">,</span> <span class="n">e_positron</span><span class="p">,</span> <span class="n">e_electron</span><span class="p">,</span> <span class="n">enu_2</span><span class="p">,</span> <span class="n">enei</span><span class="p">,</span> <span class="n">transition</span><span class="p">:</span> <span class="n">ph</span><span class="o">.</span><span class="n">TransitionTypes</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Dispatch closure neutrino kernel according to transition type.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    enu_1, e_positron, e_electron, enu_2, enei:</span>
+<span class="sd">        Energies entering the closure neutrino kernel.</span>
+<span class="sd">    transition:</span>
+<span class="sd">        Nuclear transition type.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Kernel value for the chosen transition.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">transition</span> <span class="o">==</span> <span class="n">ph</span><span class="o">.</span><span class="n">TransitionTypes</span><span class="o">.</span><span class="n">ZEROPLUS_TO_TWOPLUS</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">neutrino_integrand_closure_standard_02</span><span class="p">(</span><span class="n">enu_1</span><span class="p">,</span> <span class="n">e_positron</span><span class="p">,</span> <span class="n">e_electron</span><span class="p">,</span> <span class="n">enu_2</span><span class="p">,</span> <span class="n">enei</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">neutrino_integrand_closure_standard_00</span><span class="p">(</span><span class="n">enu_1</span><span class="p">,</span> <span class="n">e_positron</span><span class="p">,</span> <span class="n">e_electron</span><span class="p">,</span> <span class="n">enu_2</span><span class="p">,</span> <span class="n">enei</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ECBetaSpectrumBase">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ECBetaSpectrumBase">[docs]</a>
+<span class="k">class</span> <span class="nc">ECBetaSpectrumBase</span><span class="p">(</span><span class="n">BetaSpectrumBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for the computation of 2nu EC betaPlus spectra.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">total_ke</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">ei_ef</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">fermi_functions</span><span class="p">:</span> <span class="n">FermiFunctions</span><span class="p">,</span> <span class="n">bound_handler</span><span class="p">:</span> <span class="n">BoundHandler</span><span class="p">,</span> <span class="n">nuclear_radius</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize shell-wise energy grids for EC beta-plus spectra.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        total_ke:</span>
+<span class="sd">            Total available kinetic energy.</span>
+<span class="sd">        ei_ef:</span>
+<span class="sd">            Nuclear-level energy difference ``E_i - E_f``.</span>
+<span class="sd">        fermi_functions:</span>
+<span class="sd">            Fermi-function backend.</span>
+<span class="sd">        bound_handler:</span>
+<span class="sd">            Bound-state wavefunction handler used for capture probabilities.</span>
+<span class="sd">        nuclear_radius:</span>
+<span class="sd">            Nuclear radius in fm.</span>
+<span class="sd">        **kwargs:</span>
+<span class="sd">            Optional grid settings: ``energy_grid_type``, ``min_ke``, ``n_ke_points``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">total_ke</span><span class="p">,</span> <span class="n">ei_ef</span><span class="p">,</span> <span class="n">fermi_functions</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span> <span class="o">=</span> <span class="n">bound_handler</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g_func</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f_func</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nuclear_radius</span> <span class="o">=</span> <span class="n">nuclear_radius</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">energy_grid_type</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;energy_grid_type&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_ke</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;min_ke&quot;</span><span class="p">,</span> <span class="mf">1E-4</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_ke_points</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;n_ke_points&quot;</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">energy_points</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">p_grid</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_values</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">energy_points</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">p_grid</span><span class="p">[</span><span class="n">n</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="c1"># build energy points</span>
+                <span class="n">eb</span> <span class="o">=</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">be</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">])</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">energy_grid_type</span> <span class="o">==</span> <span class="s2">&quot;lin&quot;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">energy_points</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">min_ke</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">total_ke</span><span class="o">+</span><span class="n">eb</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">min_ke</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">n_ke_points</span>
+                    <span class="p">)</span>
+                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">energy_grid_type</span> <span class="o">==</span> <span class="s2">&quot;log&quot;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">energy_points</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logspace</span><span class="p">(</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_ke</span><span class="p">),</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">total_ke</span><span class="o">+</span><span class="n">eb</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">min_ke</span><span class="p">),</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">n_ke_points</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Energy grid type </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">energy_grid_type</span><span class="si">}</span><span class="s2"> not implemented&quot;</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_values</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">energy_points</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">])</span>
+
+<div class="viewcode-block" id="ECBetaSpectrumBase.compute_spectrum">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ECBetaSpectrumBase.compute_spectrum">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">compute_spectrum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">:</span> <span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SINGLESPECTRUM</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute EC beta-plus spectrum values.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="ECBetaSpectrumBase.integrate_spectrum">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ECBetaSpectrumBase.integrate_spectrum">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">integrate_spectrum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Integrate and normalize EC beta-plus spectra.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="ECBetaSpectrumBase.compute_psf">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ECBetaSpectrumBase.compute_psf">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">compute_psf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute EC beta-plus PSFs from integrals.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="ECBetaSpectrumBase.compute_2D_spectrum">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ECBetaSpectrumBase.compute_2D_spectrum">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute_2D_spectrum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">:</span> <span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;2D EC beta-plus spectra are not implemented.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ClosureSpectrum">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ClosureSpectrum">[docs]</a>
+<span class="k">class</span> <span class="nc">ClosureSpectrum</span><span class="p">(</span><span class="n">ECBetaSpectrumBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base Closure spectrum for 2nu ec betaPlus spectra.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">total_ke</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">ei_ef</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">fermi_functions</span><span class="p">:</span> <span class="n">FermiFunctions</span><span class="p">,</span> <span class="n">bound_handler</span><span class="p">:</span> <span class="n">BoundHandler</span><span class="p">,</span> <span class="n">nuclear_radius</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">enei</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize closure-approximation EC beta-plus model.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        total_ke, ei_ef:</span>
+<span class="sd">            Process energy scales.</span>
+<span class="sd">        fermi_functions:</span>
+<span class="sd">            Fermi-function backend.</span>
+<span class="sd">        bound_handler:</span>
+<span class="sd">            Bound-state handler for capture shells.</span>
+<span class="sd">        nuclear_radius:</span>
+<span class="sd">            Nuclear radius in fm.</span>
+<span class="sd">        enei:</span>
+<span class="sd">            Closure parameter ``&lt;E_N&gt; - E_I``.</span>
+<span class="sd">        **kwargs:</span>
+<span class="sd">            Forwarded grid settings.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">total_ke</span><span class="p">,</span> <span class="n">ei_ef</span><span class="p">,</span> <span class="n">fermi_functions</span><span class="p">,</span>
+                         <span class="n">bound_handler</span><span class="p">,</span> <span class="n">nuclear_radius</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">enei</span> <span class="o">=</span> <span class="n">enei</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atilde</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">enei</span> <span class="o">+</span> <span class="mf">0.5</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">ei_ef</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">constant_in_front</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+<div class="viewcode-block" id="ClosureSpectrum.compute_spectrum">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ClosureSpectrum.compute_spectrum">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">compute_spectrum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute closure EC beta-plus spectrum values.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="ClosureSpectrum.integrate_spectrum">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ClosureSpectrum.integrate_spectrum">[docs]</a>
+    <span class="k">def</span> <span class="nf">integrate_spectrum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Integrate and normalize each shell-resolved positron spectrum.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_values</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_integrals</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_values</span><span class="p">[</span><span class="n">n</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Doing for </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">interp_func</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">CubicSpline</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">energy_points</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_values</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span>
+                <span class="p">)</span>
+
+                <span class="n">result</span> <span class="o">=</span> <span class="n">integrate</span><span class="o">.</span><span class="n">quad</span><span class="p">(</span>
+                    <span class="n">interp_func</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">energy_points</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">energy_points</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_integrals</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Spectrum integration did not succeed&quot;</span><span class="p">)</span>
+
+                <span class="c1"># normalize the resulting spectrum</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_values</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_values</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">/</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="ClosureSpectrum.compute_psf">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ClosureSpectrum.compute_psf">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute_psf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute one PSF per capture shell from integrated spectra.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_integrals</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">psfs</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_integrals</span><span class="p">[</span><span class="n">n</span><span class="p">]:</span>
+                <span class="n">psf_mev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_integrals</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">constant_in_front</span>
+                <span class="n">psf_years</span> <span class="o">=</span> <span class="n">psf_mev</span><span class="o">/</span><span class="p">(</span><span class="n">ph</span><span class="o">.</span><span class="n">hbar</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.</span><span class="p">))</span><span class="o">/</span><span class="p">(</span><span class="n">ph</span><span class="o">.</span><span class="n">year</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">psfs</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">psf_years</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ClosureSpectrum2nu">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ClosureSpectrum2nu">[docs]</a>
+<span class="k">class</span> <span class="nc">ClosureSpectrum2nu</span><span class="p">(</span><span class="n">ClosureSpectrum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Concrete class for the computation of closure spectrum in 2nu EC betaPlus decay.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">total_ke</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">ei_ef</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">fermi_functions</span><span class="p">:</span> <span class="n">FermiFunctions</span><span class="p">,</span> <span class="n">bound_handler</span><span class="p">:</span> <span class="n">BoundHandler</span><span class="p">,</span> <span class="n">nuclear_radius</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">enei</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">transition_type</span><span class="p">:</span> <span class="n">ph</span><span class="o">.</span><span class="n">TransitionTypes</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize closure 2nu EC beta-plus model with transition-dependent prefactor.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">total_ke</span><span class="p">,</span> <span class="n">ei_ef</span><span class="p">,</span> <span class="n">fermi_functions</span><span class="p">,</span>
+                         <span class="n">bound_handler</span><span class="p">,</span> <span class="n">nuclear_radius</span><span class="p">,</span> <span class="n">enei</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">constant_in_front</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atilde</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)</span><span class="o">*</span><span class="p">((</span><span class="n">ph</span><span class="o">.</span><span class="n">fermi_coupling_constant</span><span class="o">*</span><span class="n">ph</span><span class="o">.</span><span class="n">v_ud</span><span class="p">)</span><span class="o">**</span><span class="mi">4</span><span class="p">)</span> <span class="o">/</span>\
+            <span class="p">(</span><span class="mf">48.</span><span class="o">*</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">**</span><span class="mf">5.0</span><span class="p">))</span> <span class="o">*</span> <span class="n">ph</span><span class="o">.</span><span class="n">electron_mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transition_type</span> <span class="o">=</span> <span class="n">transition_type</span>
+
+<div class="viewcode-block" id="ClosureSpectrum2nu.compute_spectrum">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ClosureSpectrum2nu.compute_spectrum">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute_spectrum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">:</span> <span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SINGLESPECTRUM</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute shell-resolved 2nu EC beta-plus positron spectra.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sp_type:</span>
+<span class="sd">            Kept for interface compatibility. The implementation computes</span>
+<span class="sd">            the physical single-spectrum channel.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># we have one spectrum for each shell</span>
+        <span class="k">for</span> <span class="n">i_n</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">n_values</span><span class="p">)),</span>
+                        <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">*</span><span class="mi">2</span> <span class="o">+</span>
+                        <span class="sa">f</span><span class="s2">&quot;- </span><span class="si">{</span><span class="n">ph</span><span class="o">.</span><span class="n">SPECTRUM_TYPES_NICE</span><span class="p">[</span><span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SINGLESPECTRUM</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="n">ncols</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">n_values</span><span class="p">[</span><span class="n">i_n</span><span class="p">]</span>
+            <span class="n">spectrum_current</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">energy_points</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">eb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">be</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">prob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">probability_in_sphere</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">nuclear_radius</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">i_e</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">energy_points</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+                <span class="n">ep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">energy_points</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">i_e</span><span class="p">]</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">integrate</span><span class="o">.</span><span class="n">quad</span><span class="p">(</span>
+                    <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">neutrino_integrand_closure</span><span class="p">(</span>
+                        <span class="n">x</span><span class="p">,</span>
+                        <span class="n">ep</span><span class="o">+</span><span class="n">ph</span><span class="o">.</span><span class="n">electron_mass</span><span class="p">,</span>
+                        <span class="n">eb</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">total_ke</span><span class="o">-</span><span class="n">ep</span><span class="o">-</span><span class="n">x</span><span class="o">-</span><span class="n">eb</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">enei</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">transition_type</span><span class="p">),</span>
+                    <span class="n">a</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span>
+                    <span class="n">b</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">total_ke</span> <span class="o">-</span> <span class="n">eb</span> <span class="o">-</span> <span class="n">ep</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                    <span class="n">spectrum_current</span><span class="p">[</span><span class="n">i_e</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Spectrum integration did not succeed&quot;</span><span class="p">)</span>
+
+                <span class="n">ff_ec_beta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fermi_functions</span><span class="o">.</span><span class="n">ff_ecbeta_eval</span><span class="p">(</span><span class="n">ep</span><span class="p">)</span>
+                <span class="n">spectrum_current</span><span class="p">[</span><span class="n">i_e</span><span class="p">]</span> <span class="o">=</span> <span class="n">spectrum_current</span><span class="p">[</span><span class="n">i_e</span><span class="p">]</span> <span class="o">*</span>\
+                    <span class="n">ff_ec_beta</span><span class="o">*</span><span class="n">prob</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">ep</span><span class="o">*</span><span class="p">(</span><span class="n">ep</span><span class="o">+</span><span class="mf">2.0</span><span class="o">*</span><span class="n">ph</span><span class="o">.</span><span class="n">electron_mass</span><span class="p">))</span> <span class="o">*</span>\
+                    <span class="p">(</span><span class="n">ep</span><span class="o">+</span><span class="n">ph</span><span class="o">.</span><span class="n">electron_mass</span><span class="p">)</span>
+
+            <span class="n">spectrum_current</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_values</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">spectrum_current</span></div>
+</div>
+
+        <span class="c1"># print(f&quot;spectrum_valeus = {self.spectrum_values}&quot;)</span>
+
+
+<div class="viewcode-block" id="ECBetaSpectrumBase0nu">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ECBetaSpectrumBase0nu">[docs]</a>
+<span class="k">class</span> <span class="nc">ECBetaSpectrumBase0nu</span><span class="p">(</span><span class="n">BetaSpectrumBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for the computation of 2nu EC betaPlus spectra.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">total_ke</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">ei_ef</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">fermi_functions</span><span class="p">:</span> <span class="n">FermiFunctions</span><span class="p">,</span> <span class="n">bound_handler</span><span class="p">:</span> <span class="n">BoundHandler</span><span class="p">,</span> <span class="n">nuclear_radius</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize shell-wise storage for 0nu EC beta-plus integrals.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize shell containers for 0nu EC beta-plus calculations.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        total_ke, ei_ef:</span>
+<span class="sd">            Process energy scales.</span>
+<span class="sd">        fermi_functions:</span>
+<span class="sd">            Fermi-function backend.</span>
+<span class="sd">        bound_handler:</span>
+<span class="sd">            Bound-state wavefunction handler.</span>
+<span class="sd">        nuclear_radius:</span>
+<span class="sd">            Nuclear radius in fm.</span>
+<span class="sd">        **kwargs:</span>
+<span class="sd">            Reserved for API compatibility.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">total_ke</span><span class="p">,</span> <span class="n">ei_ef</span><span class="p">,</span> <span class="n">fermi_functions</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span> <span class="o">=</span> <span class="n">bound_handler</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g_func</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f_func</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nuclear_radius</span> <span class="o">=</span> <span class="n">nuclear_radius</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">p_grid</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_integrals</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">p_grid</span><span class="p">[</span><span class="n">n</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_integrals</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.</span>
+
+<div class="viewcode-block" id="ECBetaSpectrumBase0nu.compute_spectrum">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ECBetaSpectrumBase0nu.compute_spectrum">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">compute_spectrum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">:</span> <span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SINGLESPECTRUM</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute 0nu EC beta-plus shell integrals.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="ECBetaSpectrumBase0nu.integrate_spectrum">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ECBetaSpectrumBase0nu.integrate_spectrum">[docs]</a>
+    <span class="k">def</span> <span class="nf">integrate_spectrum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;0nu EC beta-plus classes store direct shell integrals and do not integrate spectra.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="ECBetaSpectrumBase0nu.compute_psf">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ECBetaSpectrumBase0nu.compute_psf">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">compute_psf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute 0nu EC beta-plus PSFs.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="ECBetaSpectrumBase0nu.compute_2D_spectrum">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ECBetaSpectrumBase0nu.compute_2D_spectrum">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute_2D_spectrum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">:</span> <span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;2D EC beta-plus spectra are not implemented.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ClosureSpectrum0nu">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ClosureSpectrum0nu">[docs]</a>
+<span class="k">class</span> <span class="nc">ClosureSpectrum0nu</span><span class="p">(</span><span class="n">ECBetaSpectrumBase0nu</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base Closure spectrum for 0nu ec betaPlus spectra.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">total_ke</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">ei_ef</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">fermi_functions</span><span class="p">:</span> <span class="n">FermiFunctions</span><span class="p">,</span> <span class="n">bound_handler</span><span class="p">:</span> <span class="n">BoundHandler</span><span class="p">,</span> <span class="n">nuclear_radius</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">enei</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize 0nu closure EC beta-plus model.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        total_ke, ei_ef:</span>
+<span class="sd">            Process energy scales.</span>
+<span class="sd">        fermi_functions:</span>
+<span class="sd">            Fermi-function backend.</span>
+<span class="sd">        bound_handler:</span>
+<span class="sd">            Bound-state handler.</span>
+<span class="sd">        nuclear_radius:</span>
+<span class="sd">            Nuclear radius in fm.</span>
+<span class="sd">        enei:</span>
+<span class="sd">            Closure parameter ``&lt;E_N&gt; - E_I``.</span>
+<span class="sd">        **kwargs:</span>
+<span class="sd">            Reserved for future options.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">total_ke</span><span class="p">,</span> <span class="n">ei_ef</span><span class="p">,</span> <span class="n">fermi_functions</span><span class="p">,</span>
+                         <span class="n">bound_handler</span><span class="p">,</span> <span class="n">nuclear_radius</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">enei</span> <span class="o">=</span> <span class="n">enei</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atilde</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">enei</span> <span class="o">+</span> <span class="mf">0.5</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">ei_ef</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">constant_in_front</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+<div class="viewcode-block" id="ClosureSpectrum0nu.compute_spectrum">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ClosureSpectrum0nu.compute_spectrum">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">compute_spectrum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute closure 0nu EC beta-plus spectrum values.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="ClosureSpectrum0nu.compute_psf">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ClosureSpectrum0nu.compute_psf">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute_psf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute one PSF per shell from pre-computed 0nu integrals.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_integrals</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">psfs</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_integrals</span><span class="p">[</span><span class="n">n</span><span class="p">]:</span>
+                <span class="n">psf_mev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_integrals</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">constant_in_front</span>
+                <span class="n">psf_years</span> <span class="o">=</span> <span class="n">psf_mev</span><span class="o">/</span><span class="p">(</span><span class="n">ph</span><span class="o">.</span><span class="n">hbar</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.</span><span class="p">))</span><span class="o">/</span><span class="p">(</span><span class="n">ph</span><span class="o">.</span><span class="n">year</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">psfs</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">psf_years</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ClosureSpectrum0nu_LNE">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ClosureSpectrum0nu_LNE">[docs]</a>
+<span class="k">class</span> <span class="nc">ClosureSpectrum0nu_LNE</span><span class="p">(</span><span class="n">ClosureSpectrum0nu</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Concrete class for the computation of closure spectrum in 2nu EC betaPlus decay.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">total_ke</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">ei_ef</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">fermi_functions</span><span class="p">:</span> <span class="n">FermiFunctions</span><span class="p">,</span> <span class="n">bound_handler</span><span class="p">:</span> <span class="n">BoundHandler</span><span class="p">,</span> <span class="n">nuclear_radius</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">enei</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize light-neutrino-exchange prefactor for 0nu EC beta-plus.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">total_ke</span><span class="p">,</span> <span class="n">ei_ef</span><span class="p">,</span> <span class="n">fermi_functions</span><span class="p">,</span>
+                         <span class="n">bound_handler</span><span class="p">,</span> <span class="n">nuclear_radius</span><span class="p">,</span> <span class="n">enei</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">constant_in_front</span> <span class="o">=</span> <span class="p">((</span><span class="n">ph</span><span class="o">.</span><span class="n">fermi_coupling_constant</span><span class="o">*</span><span class="n">ph</span><span class="o">.</span><span class="n">v_ud</span><span class="p">)</span><span class="o">**</span><span class="mi">4</span><span class="p">)</span> <span class="o">/</span> \
+            <span class="p">(</span><span class="mi">8</span><span class="o">*</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">**</span><span class="mi">3</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">nuclear_radius</span><span class="o">**</span><span class="mf">2.0</span><span class="p">))</span> <span class="o">*</span> \
+            <span class="p">(</span><span class="n">ph</span><span class="o">.</span><span class="n">electron_mass</span><span class="o">**</span><span class="mf">5.0</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">ph</span><span class="o">.</span><span class="n">hc</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ClosureSpectrum0nu_LNE.compute_spectrum">
+<a class="viewcode-back" href="../../../api/spectra.html#spades.spectra.ecbeta.ClosureSpectrum0nu_LNE.compute_spectrum">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute_spectrum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">:</span> <span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span> <span class="o">=</span> <span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SINGLESPECTRUM</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute 0nu shell integrals for light-neutrino exchange.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sp_type:</span>
+<span class="sd">            Kept for interface compatibility. The implementation uses shell-integrated values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">i_n</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">n_values</span><span class="p">)),</span>
+                        <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">*</span><span class="mi">2</span> <span class="o">+</span>
+                        <span class="sa">f</span><span class="s2">&quot;- </span><span class="si">{</span><span class="n">ph</span><span class="o">.</span><span class="n">SPECTRUM_TYPES_NICE</span><span class="p">[</span><span class="n">ph</span><span class="o">.</span><span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SINGLESPECTRUM</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="n">ncols</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">n_values</span><span class="p">[</span><span class="n">i_n</span><span class="p">]</span>
+            <span class="n">eb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">be</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">ep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_ke</span><span class="o">+</span><span class="n">eb</span>
+            <span class="n">pp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">ep</span><span class="o">*</span><span class="p">(</span><span class="n">ep</span><span class="o">+</span><span class="mf">2.0</span><span class="o">*</span><span class="n">ph</span><span class="o">.</span><span class="n">electron_mass</span><span class="p">))</span>
+            <span class="n">ff_ec_beta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fermi_functions</span><span class="o">.</span><span class="n">ff_ecbeta_eval</span><span class="p">(</span><span class="n">ep</span><span class="p">)</span>
+            <span class="n">prob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">probability_in_sphere</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">nuclear_radius</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_integrals</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">ff_ec_beta</span><span class="o">*</span><span class="n">prob</span><span class="o">*</span><span class="n">pp</span><span class="o">*</span><span class="n">ep</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">SPADES</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">API Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2026, SPADES contributors.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.2.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,3 +1,5 @@
+"""ctypes bindings to Fortran RADIAL routines used by SPADES."""
+
 import numpy as np
 from ctypes import cdll, POINTER, c_double, c_int
 import os
@@ -9,6 +11,13 @@ class RADIALError(Exception):
 
 
 def load_radial_library():
+    """Load the shared Fortran library and configure basic ctypes signatures.
+
+    Returns
+    -------
+    ctypes.CDLL
+        Loaded ``libdhfs.so`` handle.
+    """
     _dir_name = os.path.dirname(__file__)
     radial_lib = cdll.LoadLibrary(
         os.path.join(_dir_name, "../build/libdhfs.so"))
@@ -227,6 +236,18 @@ radial_lib.getpq_.restype = None
 
 
 def call_getpq(n: int):
+    """Retrieve last computed radial wavefunction components from RADIAL.
+
+    Parameters
+    ----------
+    n:
+        Number of radial points to retrieve.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        ``(p, q)`` arrays on the active RADIAL grid.
+    """
     p = np.zeros(n)
     q = np.zeros(n)
 
@@ -252,6 +273,20 @@ radial_lib.slag6_.restype = None
 
 
 def call_slag6(y: np.ndarray, n: int):
+    """Integrate array ``y`` with RADIAL's SLAG6 helper.
+
+    Parameters
+    ----------
+    y:
+        Input values on the active radial grid.
+    n:
+        Number of points to integrate.
+
+    Returns
+    -------
+    np.ndarray
+        Integrated array returned by SLAG6.
+    """
     integral = np.zeros_like(y)
 
     radial_lib.slag6_(c_double(1.0),
@@ -267,6 +302,13 @@ radial_lib.getilast_.restype = None
 
 
 def call_getilast():
+    """Return RADIAL internal index ``ILAST`` from the latest solve.
+
+    Returns
+    -------
+    int
+        Current ``ILAST`` value.
+    """
     i_last = c_int(0)
     radial_lib.getilast_(i_last)
     return i_last.value
@@ -278,6 +320,13 @@ radial_lib.delinf_.restype = None
 
 
 def call_delinf():
+    """Return asymptotic phase ``delta_infinity`` computed by RADIAL.
+
+    Returns
+    -------
+    float
+        Asymptotic phase-shift value.
+    """
     del_inf = c_double(0.0)
     radial_lib.delinf_(del_inf)
     return del_inf.value

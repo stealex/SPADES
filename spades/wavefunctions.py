@@ -1,5 +1,10 @@
+"""Bound and scattering electron wavefunction solvers."""
+
 import re
-from hepunits import rad
+try:
+    from hepunits import rad
+except ModuleNotFoundError:
+    rad = 1.0
 import numpy as np
 
 from spades.config import BoundConfig, ScatteringConfig
@@ -65,7 +70,10 @@ logger = logging.getLogger(__name__)
 
 
 class BoundHandler:
+    """Compute bound-state Dirac wavefunctions for a fixed central potential."""
+
     def __init__(self, z_nuc: int, n_e: int, bound_states_configuration: BoundConfig) -> None:
+        """Build radial grid and initialize RADIAL for bound-state solutions."""
         self.config = bound_states_configuration
         self.z_nuc = z_nuc
         self.n_e = n_e
@@ -81,10 +89,20 @@ class BoundHandler:
         radial_wrapper.call_setrgrid(r)
 
     def set_potential(self, r_grid: np.ndarray, rv_grid: np.ndarray):
+        """Load ``r*V(r)`` potential into the RADIAL backend.
+
+        Parameters
+        ----------
+        r_grid:
+            Radial grid in fm.
+        rv_grid:
+            ``r * V(r)`` values in MeV*fm.
+        """
         radial_wrapper.call_vint(
             r_grid*ph.fm/ph.bohr_radius, rv_grid*ph.MeV*ph.fm/(ph.hartree_energy*ph.bohr_radius))
 
     def find_bound_states(self, binding_energies=None):
+        """Solve requested bound shells and build interpolation splines."""
         self.p_grid = {}
         self.q_grid = {}
         self.p_func = {}
@@ -136,6 +154,22 @@ class BoundHandler:
                 )
 
     def probability_in_sphere(self, radius: float, n: int, kappa: int):
+        """Evaluate shell probability density at radius ``radius``.
+
+        Parameters
+        ----------
+        radius:
+            Radius in fm where the density is evaluated.
+        n:
+            Principal quantum number.
+        kappa:
+            Relativistic angular quantum number.
+
+        Returns
+        -------
+        float
+            Probability-density-like factor used by capture-channel spectra.
+        """
         constant_term = 1.0/(4.0*np.pi*(ph.electron_mass**3.0)) *\
             (ph.hc**3.0)
         function_term = (self.p_func[n][kappa](radius)**2.0 +
@@ -180,7 +214,10 @@ class BoundHandler:
 
 
 class ScatteringHandler:
+    """Compute continuum Dirac wavefunctions and phase shifts."""
+
     def __init__(self, z_nuc: int, n_e: int, scattering_states_configuration: ScatteringConfig) -> None:
+        """Build radial and kinetic-energy grids for scattering states."""
         self.config = scattering_states_configuration
 
         logger.debug(
@@ -202,12 +239,22 @@ class ScatteringHandler:
                                        self.config.n_ke_points)
 
     def set_potential(self, r_grid: np.ndarray, rv_grid: np.ndarray):
+        """Load potential and extract asymptotic charge for Coulomb phase shifts.
+
+        Parameters
+        ----------
+        r_grid:
+            Radial grid in fm.
+        rv_grid:
+            ``r * V(r)`` values in MeV*fm.
+        """
         to_atomic = ph.MeV*ph.fm/(ph.hartree_energy*ph.bohr_radius)
         self.z_inf = rv_grid[-1]*to_atomic
         radial_wrapper.call_vint(
             r_grid*ph.fm/ph.bohr_radius, rv_grid*to_atomic)
 
     def compute_scattering_states(self):
+        """Solve the continuum equation for all configured ``kappa`` and energies."""
         self.phase_grid = {}
         self.coul_phase_grid = {}
         self.p_grid = {}
@@ -263,7 +310,10 @@ class ScatteringHandler:
 
 
 class WaveFunctionsHandler:
+    """High-level orchestrator for DHFS, bound, and scattering wavefunctions."""
+
     def __init__(self, atom: dhfs.AtomicSystem, bound_conf: BoundConfig | None = None, scattering_conf: ScatteringConfig | None = None, rad_grid: np.ndarray | None = None, rv_grid: np.ndarray | None = None) -> None:
+        """Create a wavefunction workflow for one atomic system."""
         self.atomic_system = atom
         if (bound_conf is None) and (scattering_conf is None):
             raise ValueError(
@@ -280,6 +330,7 @@ class WaveFunctionsHandler:
             self.rv_grid = rv_grid
 
     def run_dhfs_neutral_or_positive_ion(self):
+        """Run DHFS workflow for neutral or positively charged ions."""
         self.dhfs_handler = DHFSHandler(
             self.atomic_system, self.atomic_system.name)
         self.dhfs_handler.run_dhfs(self.bound_config.max_r,
@@ -292,6 +343,7 @@ class WaveFunctionsHandler:
         self.rv_grid = self.dhfs_handler.rv_modified
 
     def run_dhfs_negative_ion(self):
+        """Construct a modified potential for negative ions from reference systems."""
         z_ref = self.atomic_system.Z
 
         # create the neutral version of this atom
@@ -325,12 +377,14 @@ class WaveFunctionsHandler:
         self.rv_grid = -rv
 
     def run_dhfs(self) -> None:
+        """Dispatch DHFS handling based on net ionic charge."""
         if (self.atomic_system.net_charge() >= 0):
             self.run_dhfs_neutral_or_positive_ion()
         else:
             self.run_dhfs_negative_ion()
 
     def find_bound_states(self):
+        """Solve bound states if the process requires them."""
         if (self.atomic_system.net_charge() < 0):
             # we're dealing with a betaPlus mode.
             # no need to run bound states for it
@@ -346,6 +400,13 @@ class WaveFunctionsHandler:
         self.bound_handler.find_bound_states()
 
     def find_scattering_states(self, r_grid_scattering: np.ndarray | None = None, rv_scattering: np.ndarray | None = None):
+        """Solve scattering states on the current potential.
+
+        Parameters
+        ----------
+        r_grid_scattering, rv_scattering:
+            Reserved optional arguments for alternative scattering potentials.
+        """
         # solve scattering states in final atom
         self.scattering_handler = ScatteringHandler(self.atomic_system.Z,
                                                     int(self.atomic_system.occ_values.sum(
@@ -358,6 +419,7 @@ class WaveFunctionsHandler:
         self.scattering_handler.compute_scattering_states()
 
     def find_all_wavefunctions(self):
+        """Run the complete bound/scattering workflow with DHFS fallback."""
         if self.rv_grid is None:
             # we did not receive a custom potential. Will use dhfs to compute it
 

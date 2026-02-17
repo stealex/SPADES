@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>spades.ph &#8212; SPADES 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=4f649999" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=cb25574f" />
+    <script src="../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for spades.ph</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Physical constants, units, enums, and name maps used across SPADES.&quot;&quot;&quot;</span>
+
+<span class="c1"># values taken from https://pdg.lbl.gov/2019/reviews/rpp2018-rev-phys-constants.pdf</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">hepunits.units</span> <span class="kn">import</span> <span class="o">*</span>
+    <span class="kn">from</span> <span class="nn">hepunits.constants</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="k">except</span> <span class="ne">ModuleNotFoundError</span><span class="p">:</span>
+    <span class="c1"># Fallback units for documentation/static workflows where hepunits is absent.</span>
+    <span class="n">eV</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">keV</span> <span class="o">=</span> <span class="mf">1.0e3</span> <span class="o">*</span> <span class="n">eV</span>
+    <span class="n">MeV</span> <span class="o">=</span> <span class="mf">1.0e6</span> <span class="o">*</span> <span class="n">eV</span>
+    <span class="n">GeV</span> <span class="o">=</span> <span class="mf">1.0e9</span> <span class="o">*</span> <span class="n">eV</span>
+    <span class="n">second</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">year</span> <span class="o">=</span> <span class="mf">365.25</span> <span class="o">*</span> <span class="mf">24.0</span> <span class="o">*</span> <span class="mf">3600.0</span> <span class="o">*</span> <span class="n">second</span>
+    <span class="n">meter</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">angstrom</span> <span class="o">=</span> <span class="mf">1.0e-10</span> <span class="o">*</span> <span class="n">meter</span>
+    <span class="n">fermi</span> <span class="o">=</span> <span class="mf">1.0e-15</span> <span class="o">*</span> <span class="n">meter</span>
+    <span class="n">fm</span> <span class="o">=</span> <span class="n">fermi</span>
+    <span class="n">hbarc</span> <span class="o">=</span> <span class="mf">197.3269804</span> <span class="o">*</span> <span class="n">MeV</span> <span class="o">*</span> <span class="n">fm</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">yaml</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">IntEnum</span>
+<span class="n">electron_mass</span> <span class="o">=</span> <span class="mf">0.51099895000</span><span class="o">*</span><span class="n">MeV</span>
+<span class="n">proton_mass</span> <span class="o">=</span> <span class="mf">938.27208943</span><span class="o">*</span><span class="n">MeV</span>
+<span class="n">hartree_energy</span> <span class="o">=</span> <span class="mf">2.0</span><span class="o">*</span><span class="mf">13.605693122994</span><span class="o">*</span><span class="n">eV</span>
+<span class="n">bohr_radius</span> <span class="o">=</span> <span class="mf">0.529177210903</span><span class="o">*</span><span class="n">angstrom</span>
+<span class="n">fine_structure</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="mf">137.035999084</span>
+<span class="n">hc</span> <span class="o">=</span> <span class="n">hbarc</span><span class="o">/</span><span class="p">(</span><span class="n">MeV</span><span class="o">*</span><span class="n">fermi</span><span class="p">)</span>
+
+
+<span class="n">user_distance_unit</span> <span class="o">=</span> <span class="n">fm</span>
+<span class="n">user_energy_unit</span> <span class="o">=</span> <span class="n">MeV</span>
+<span class="n">user_psf_unit</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="n">year</span>
+<span class="n">user_distance_unit_name</span> <span class="o">=</span> <span class="s2">&quot;fm&quot;</span>
+<span class="n">user_energy_unit_name</span> <span class="o">=</span> <span class="s2">&quot;MeV&quot;</span>
+<span class="n">user_psf_unit_name</span> <span class="o">=</span> <span class="s2">&quot;1/year&quot;</span>
+
+<span class="n">delta_m_files</span> <span class="o">=</span> <span class="s2">&quot;deltaM_KI_2012_2013.yaml&quot;</span>
+
+
+<div class="viewcode-block" id="read_mass_difference">
+<a class="viewcode-back" href="../../api/core.html#spades.config.read_mass_difference">[docs]</a>
+<span class="k">def</span> <span class="nf">read_mass_difference</span><span class="p">(</span><span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load tabulated mass differences from YAML.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file_name:</span>
+<span class="sd">        Relative file name inside ``data/mass_difference`` or an absolute path.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Reading </span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">file_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">((</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">))):</span>
+        <span class="c1"># we were given an absolute path</span>
+        <span class="n">file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># we were given a file name, check in the repo</span>
+        <span class="n">_dir_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span>
+        <span class="n">file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="n">_dir_name</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;../data/mass_difference/</span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span>
+    <span class="n">qvalues</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">qvalues</span></div>
+
+
+
+<div class="viewcode-block" id="to_distance_units">
+<a class="viewcode-back" href="../../api/core.html#spades.config.to_distance_units">[docs]</a>
+<span class="k">def</span> <span class="nf">to_distance_units</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return conversion factor from internal ``fm`` to ``user_distance_unit``.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">fm</span><span class="o">/</span><span class="n">user_distance_unit</span></div>
+
+
+
+<span class="n">fermi_coupling_constant</span> <span class="o">=</span> <span class="mf">1.1663787E-5</span><span class="o">/</span><span class="p">(</span><span class="n">GeV</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">v_ud</span> <span class="o">=</span> <span class="mf">0.97373</span>
+
+<span class="n">verbose</span> <span class="o">=</span> <span class="mi">0</span>
+
+
+<div class="viewcode-block" id="ProcessTypes">
+<a class="viewcode-back" href="../../api/core.html#spades.config.ProcessTypes">[docs]</a>
+<span class="k">class</span> <span class="nc">ProcessTypes</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Supported double-beta decay channels.&quot;&quot;&quot;</span>
+
+    <span class="n">TWONEUTRINO_TWOBMINUS</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">NEUTRINOLESS_TWOBMINUS</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">TWONEUTRINO_TWOBPLUS</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">NEUTRINOLESS_TWOBPLUS</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">TWONEUTRINO_BPLUSEC</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">NEUTRINOLESS_BPLUSEC</span> <span class="o">=</span> <span class="mi">6</span>
+    <span class="n">TWONEUTRINO_TWOEC</span> <span class="o">=</span> <span class="mi">7</span></div>
+
+
+
+<span class="n">PROCESS_NAMES_MAP</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;2nu_2betaMinus&quot;</span><span class="p">:</span> <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_TWOBMINUS</span><span class="p">,</span>
+                     <span class="s2">&quot;0nu_2betaMinus&quot;</span><span class="p">:</span> <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">NEUTRINOLESS_TWOBMINUS</span><span class="p">,</span>
+                     <span class="s2">&quot;2nu_2betaPlus&quot;</span><span class="p">:</span> <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_TWOBPLUS</span><span class="p">,</span>
+                     <span class="s2">&quot;0nu_2betaPlus&quot;</span><span class="p">:</span> <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">NEUTRINOLESS_TWOBPLUS</span><span class="p">,</span>
+                     <span class="s2">&quot;2nu_ECbetaPlus&quot;</span><span class="p">:</span> <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_BPLUSEC</span><span class="p">,</span>
+                     <span class="s2">&quot;0nu_ECbetaPlus&quot;</span><span class="p">:</span> <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">NEUTRINOLESS_BPLUSEC</span><span class="p">,</span>
+                     <span class="s2">&quot;2nu_2EC&quot;</span><span class="p">:</span> <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_TWOEC</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="TransitionTypes">
+<a class="viewcode-back" href="../../api/core.html#spades.config.TransitionTypes">[docs]</a>
+<span class="k">class</span> <span class="nc">TransitionTypes</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Nuclear transition channels between initial and final states.&quot;&quot;&quot;</span>
+
+    <span class="n">ZEROPLUS_TO_ZEROPLUS</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">ZEROPLUS_TO_ZEROTWOPLUS</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">ZEROPLUS_TO_TWOPLUS</span> <span class="o">=</span> <span class="mi">3</span></div>
+
+
+
+<span class="n">TRANSITION_NAMES_MAP</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;0-&gt;0&quot;</span><span class="p">:</span> <span class="n">TransitionTypes</span><span class="o">.</span><span class="n">ZEROPLUS_TO_ZEROPLUS</span><span class="p">,</span>
+                        <span class="s2">&quot;0-&gt;02&quot;</span><span class="p">:</span> <span class="n">TransitionTypes</span><span class="o">.</span><span class="n">ZEROPLUS_TO_ZEROTWOPLUS</span><span class="p">,</span>
+                        <span class="s2">&quot;0-&gt;2&quot;</span><span class="p">:</span> <span class="n">TransitionTypes</span><span class="o">.</span><span class="n">ZEROPLUS_TO_TWOPLUS</span><span class="p">}</span>
+<span class="n">TRANSITION_NAMES_MAP_REV</span> <span class="o">=</span> <span class="p">{</span><span class="n">TransitionTypes</span><span class="o">.</span><span class="n">ZEROPLUS_TO_ZEROPLUS</span><span class="p">:</span> <span class="s2">&quot;0-&gt;0&quot;</span><span class="p">,</span>
+                            <span class="n">TransitionTypes</span><span class="o">.</span><span class="n">ZEROPLUS_TO_ZEROTWOPLUS</span><span class="p">:</span> <span class="s2">&quot;0-&gt;02&quot;</span><span class="p">,</span>
+                            <span class="n">TransitionTypes</span><span class="o">.</span><span class="n">ZEROPLUS_TO_TWOPLUS</span><span class="p">:</span> <span class="s2">&quot;0-&gt;2&quot;</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="TaylorOrders">
+<a class="viewcode-back" href="../../api/core.html#spades.config.TaylorOrders">[docs]</a>
+<span class="k">class</span> <span class="nc">TaylorOrders</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Orders used in the Taylor-expansion spectra method.&quot;&quot;&quot;</span>
+
+    <span class="n">ZERO</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">TWO</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">TWOTWO</span> <span class="o">=</span> <span class="mi">22</span>
+    <span class="n">FOUR</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">SIX</span> <span class="o">=</span> <span class="mi">6</span></div>
+
+
+
+<span class="n">TAYLOR_ORDER_NAMES_MAP</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;0&quot;</span><span class="p">:</span> <span class="n">TaylorOrders</span><span class="o">.</span><span class="n">ZERO</span><span class="p">,</span>
+                          <span class="s2">&quot;2&quot;</span><span class="p">:</span> <span class="n">TaylorOrders</span><span class="o">.</span><span class="n">TWO</span><span class="p">,</span>
+                          <span class="s2">&quot;22&quot;</span><span class="p">:</span> <span class="n">TaylorOrders</span><span class="o">.</span><span class="n">TWOTWO</span><span class="p">,</span>
+                          <span class="s2">&quot;4&quot;</span><span class="p">:</span> <span class="n">TaylorOrders</span><span class="o">.</span><span class="n">FOUR</span><span class="p">,</span>
+                          <span class="s2">&quot;6&quot;</span><span class="p">:</span> <span class="n">TaylorOrders</span><span class="o">.</span><span class="n">SIX</span><span class="p">}</span>
+<span class="n">TAYLOR_ORDER_NAMES_MAP_REV</span> <span class="o">=</span> <span class="p">{</span><span class="n">TaylorOrders</span><span class="o">.</span><span class="n">ZERO</span><span class="p">:</span> <span class="s2">&quot;0&quot;</span><span class="p">,</span>
+                              <span class="n">TaylorOrders</span><span class="o">.</span><span class="n">TWO</span><span class="p">:</span> <span class="s2">&quot;2&quot;</span><span class="p">,</span>
+                              <span class="n">TaylorOrders</span><span class="o">.</span><span class="n">TWOTWO</span><span class="p">:</span> <span class="s2">&quot;22&quot;</span><span class="p">,</span>
+                              <span class="n">TaylorOrders</span><span class="o">.</span><span class="n">FOUR</span><span class="p">:</span> <span class="s2">&quot;4&quot;</span><span class="p">,</span>
+                              <span class="n">TaylorOrders</span><span class="o">.</span><span class="n">SIX</span><span class="p">:</span> <span class="s2">&quot;6&quot;</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="NeutrinoLessModes">
+<a class="viewcode-back" href="../../api/core.html#spades.config.NeutrinoLessModes">[docs]</a>
+<span class="k">class</span> <span class="nc">NeutrinoLessModes</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Neutrinoless mechanisms supported by SPADES.&quot;&quot;&quot;</span>
+
+    <span class="n">LIGHT_NEUTRINO_EXCHANGE</span> <span class="o">=</span> <span class="mi">1</span></div>
+
+
+
+<span class="n">NEUTRINOLESS_MECHANISMS_MAP</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;LNE&quot;</span><span class="p">:</span> <span class="n">NeutrinoLessModes</span><span class="o">.</span><span class="n">LIGHT_NEUTRINO_EXCHANGE</span><span class="p">}</span>
+<span class="n">NEUTRINOLESS_MECHANISMS_MAP_REV</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">NeutrinoLessModes</span><span class="o">.</span><span class="n">LIGHT_NEUTRINO_EXCHANGE</span><span class="p">:</span> <span class="s2">&quot;LNE&quot;</span><span class="p">}</span>
+
+
+<span class="n">PROCESS_IONISATION</span> <span class="o">=</span> <span class="p">{</span><span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_TWOBMINUS</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                      <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">NEUTRINOLESS_TWOBMINUS</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                      <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_BPLUSEC</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                      <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">NEUTRINOLESS_BPLUSEC</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                      <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_TWOBPLUS</span><span class="p">:</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span>
+                      <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">NEUTRINOLESS_TWOBPLUS</span><span class="p">:</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span>
+                      <span class="n">ProcessTypes</span><span class="o">.</span><span class="n">TWONEUTRINO_TWOEC</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="FermiFunctionTypes">
+<a class="viewcode-back" href="../../api/core.html#spades.config.FermiFunctionTypes">[docs]</a>
+<span class="k">class</span> <span class="nc">FermiFunctionTypes</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fermi-function evaluation backends.&quot;&quot;&quot;</span>
+
+    <span class="n">POINTLIKE_FERMIFUNCTIONS</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">CHARGEDSPHERE_FERMIFUNCTIONS</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">NUMERIC_FERMIFUNCTIONS</span> <span class="o">=</span> <span class="mi">3</span></div>
+
+
+
+<span class="n">FERMIFUNCTIONS_MAP</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;PointLike&quot;</span><span class="p">:</span> <span class="n">FermiFunctionTypes</span><span class="o">.</span><span class="n">POINTLIKE_FERMIFUNCTIONS</span><span class="p">,</span>
+                      <span class="s2">&quot;ChargedSphere&quot;</span><span class="p">:</span> <span class="n">FermiFunctionTypes</span><span class="o">.</span><span class="n">CHARGEDSPHERE_FERMIFUNCTIONS</span><span class="p">,</span>
+                      <span class="s2">&quot;Numeric&quot;</span><span class="p">:</span> <span class="n">FermiFunctionTypes</span><span class="o">.</span><span class="n">NUMERIC_FERMIFUNCTIONS</span><span class="p">}</span>
+<span class="n">FERMIFUNCTIONS_MAP_REV</span> <span class="o">=</span> <span class="p">{</span><span class="n">FermiFunctionTypes</span><span class="o">.</span><span class="n">POINTLIKE_FERMIFUNCTIONS</span><span class="p">:</span> <span class="s2">&quot;PointLike&quot;</span><span class="p">,</span>
+                          <span class="n">FermiFunctionTypes</span><span class="o">.</span><span class="n">CHARGEDSPHERE_FERMIFUNCTIONS</span><span class="p">:</span> <span class="s2">&quot;ChargedSphere&quot;</span><span class="p">,</span>
+                          <span class="n">FermiFunctionTypes</span><span class="o">.</span><span class="n">NUMERIC_FERMIFUNCTIONS</span><span class="p">:</span> <span class="s2">&quot;Numeric&quot;</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="SpectrumMethod">
+<a class="viewcode-back" href="../../api/core.html#spades.config.SpectrumMethod">[docs]</a>
+<span class="k">class</span> <span class="nc">SpectrumMethod</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Spectrum-computation methods.&quot;&quot;&quot;</span>
+
+    <span class="n">CLOSUREMETHOD</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">TAYLORMETHOD</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+
+
+<span class="n">SPECTRUM_METHODS</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Closure&quot;</span><span class="p">:</span> <span class="n">SpectrumMethod</span><span class="o">.</span><span class="n">CLOSUREMETHOD</span><span class="p">,</span>
+                    <span class="s2">&quot;Taylor&quot;</span><span class="p">:</span> <span class="n">SpectrumMethod</span><span class="o">.</span><span class="n">TAYLORMETHOD</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="SpectrumTypes">
+<a class="viewcode-back" href="../../api/core.html#spades.config.SpectrumTypes">[docs]</a>
+<span class="k">class</span> <span class="nc">SpectrumTypes</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Output spectra families.&quot;&quot;&quot;</span>
+
+    <span class="n">SINGLESPECTRUM</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">SUMMEDSPECTRUM</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">ANGULARSPECTRUM</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">ALPHASPECTRUM</span> <span class="o">=</span> <span class="mi">4</span></div>
+
+
+
+<span class="n">SPECTRUM_TYPES</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Single&quot;</span><span class="p">:</span> <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SINGLESPECTRUM</span><span class="p">,</span>
+                  <span class="s2">&quot;Sum&quot;</span><span class="p">:</span> <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SUMMEDSPECTRUM</span><span class="p">,</span>
+                  <span class="s2">&quot;Angular&quot;</span><span class="p">:</span> <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">ANGULARSPECTRUM</span><span class="p">,</span>
+                  <span class="s2">&quot;Alpha&quot;</span><span class="p">:</span> <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">ALPHASPECTRUM</span><span class="p">}</span>
+<span class="n">SPECTRUM_TYPES_REV</span> <span class="o">=</span> <span class="p">{</span><span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SINGLESPECTRUM</span><span class="p">:</span> <span class="s2">&quot;Single&quot;</span><span class="p">,</span>
+                      <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SUMMEDSPECTRUM</span><span class="p">:</span> <span class="s2">&quot;Sum&quot;</span><span class="p">,</span>
+                      <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">ANGULARSPECTRUM</span><span class="p">:</span> <span class="s2">&quot;Angular&quot;</span><span class="p">,</span>
+                      <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">ALPHASPECTRUM</span><span class="p">:</span> <span class="s2">&quot;Alpha&quot;</span><span class="p">}</span>
+
+<span class="n">SPECTRUM_TYPES_NICE</span> <span class="o">=</span> <span class="p">{</span><span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SINGLESPECTRUM</span><span class="p">:</span> <span class="s2">&quot;dG/de&quot;</span><span class="p">,</span>
+                       <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SUMMEDSPECTRUM</span><span class="p">:</span> <span class="s2">&quot;dG/dT&quot;</span><span class="p">,</span>
+                       <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">ANGULARSPECTRUM</span><span class="p">:</span> <span class="s2">&quot;dH/de&quot;</span><span class="p">,</span>
+                       <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">ALPHASPECTRUM</span><span class="p">:</span> <span class="s2">&quot;alpha&quot;</span><span class="p">}</span>
+<span class="n">SPECTRUM_TYPES_LATEX</span> <span class="o">=</span> <span class="p">{</span><span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SINGLESPECTRUM</span><span class="p">:</span> <span class="sa">r</span><span class="s2">&quot;$\frac</span><span class="si">{1}{G}</span><span class="s2">\frac</span><span class="si">{dG}</span><span class="s2">{d\epsilon_1}$&quot;</span><span class="p">,</span>
+                        <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SUMMEDSPECTRUM</span><span class="p">:</span> <span class="sa">r</span><span class="s2">&quot;$\frac</span><span class="si">{1}{G}</span><span class="s2">\frac</span><span class="si">{dG}{dT}</span><span class="s2">$&quot;</span><span class="p">,</span>
+                        <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">ANGULARSPECTRUM</span><span class="p">:</span> <span class="sa">r</span><span class="s2">&quot;$\frac</span><span class="si">{1}{H}</span><span class="s2">\frac</span><span class="si">{dH}</span><span class="s2">{d\epsilon_1}$&quot;</span><span class="p">,</span>
+                        <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">ALPHASPECTRUM</span><span class="p">:</span> <span class="sa">r</span><span class="s2">&quot;$\alpha(\epsilon_1)$&quot;</span><span class="p">}</span>
+
+<span class="n">PSF_TYPES_NICE</span> <span class="o">=</span> <span class="p">{</span><span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SINGLESPECTRUM</span><span class="p">:</span> <span class="s2">&quot;G_single&quot;</span><span class="p">,</span>
+                  <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">SUMMEDSPECTRUM</span><span class="p">:</span> <span class="s2">&quot;G_sum&quot;</span><span class="p">,</span>
+                  <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">ANGULARSPECTRUM</span><span class="p">:</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span>
+                  <span class="n">SpectrumTypes</span><span class="o">.</span><span class="n">ALPHASPECTRUM</span><span class="p">:</span> <span class="s2">&quot;K&quot;</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="CorrectionTypes">
+<a class="viewcode-back" href="../../api/core.html#spades.config.CorrectionTypes">[docs]</a>
+<span class="k">class</span> <span class="nc">CorrectionTypes</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Corrections that can be applied to spectra/PSFs.&quot;&quot;&quot;</span>
+
+    <span class="n">EXCHANGE_CORRECTION</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">RADIATIVE_CORRECTION</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+
+
+<span class="n">CORRECTIONS</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Exchange&quot;</span><span class="p">:</span> <span class="n">CorrectionTypes</span><span class="o">.</span><span class="n">EXCHANGE_CORRECTION</span><span class="p">,</span>
+               <span class="s2">&quot;Radiative&quot;</span><span class="p">:</span> <span class="n">CorrectionTypes</span><span class="o">.</span><span class="n">RADIATIVE_CORRECTION</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="WFEvaluationTypes">
+<a class="viewcode-back" href="../../api/core.html#spades.config.WFEvaluationTypes">[docs]</a>
+<span class="k">class</span> <span class="nc">WFEvaluationTypes</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wavefunction evaluation strategies at the nuclear scale.&quot;&quot;&quot;</span>
+
+    <span class="n">ONSURFACE</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">WEIGHTED</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+
+
+<span class="n">WAVEFUNCTIONEVALUATION</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;OnSurface&quot;</span><span class="p">:</span> <span class="n">WFEvaluationTypes</span><span class="o">.</span><span class="n">ONSURFACE</span><span class="p">,</span>
+                          <span class="s2">&quot;Weighted&quot;</span><span class="p">:</span> <span class="n">WFEvaluationTypes</span><span class="o">.</span><span class="n">WEIGHTED</span><span class="p">}</span>
+
+<span class="c1"># PATHS</span>
+<span class="n">gs_configurations_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span>
+    <span class="vm">__file__</span><span class="p">),</span> <span class="s2">&quot;../data/atomic_gs_configurations&quot;</span><span class="p">)</span>
+<span class="n">q_values_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span>
+    <span class="vm">__file__</span><span class="p">),</span> <span class="s2">&quot;../data/mass_difference/deltaM_KY13.yaml&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="OutputFormatTypes">
+<a class="viewcode-back" href="../../api/core.html#spades.config.OutputFormatTypes">[docs]</a>
+<span class="k">class</span> <span class="nc">OutputFormatTypes</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Supported output serialization formats.&quot;&quot;&quot;</span>
+
+    <span class="n">JSONFORMAT</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">HDF5FORMAT</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+
+
+<span class="n">OUTPUTFILEFORMAT</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;json&quot;</span><span class="p">:</span> <span class="n">OutputFormatTypes</span><span class="o">.</span><span class="n">JSONFORMAT</span><span class="p">,</span>
+                    <span class="s2">&quot;hdf5&quot;</span><span class="p">:</span> <span class="n">OutputFormatTypes</span><span class="o">.</span><span class="n">HDF5FORMAT</span><span class="p">}</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">SPADES</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/index.html">API Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2026, SPADES contributors.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.2.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

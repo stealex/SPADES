@@ -1,3 +1,5 @@
+"""Helpers for serializing computed spectra and PSFs."""
+
 from spades.spectra.base import SpectrumBase
 from spades import ph
 import json
@@ -9,6 +11,7 @@ class NumpyArrayEncoder(json.JSONEncoder):
     """
 
     def default(self, obj):
+        """Convert NumPy arrays to JSON-serializable lists."""
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return super().default(obj)

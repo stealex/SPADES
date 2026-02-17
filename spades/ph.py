@@ -1,6 +1,22 @@
+"""Physical constants, units, enums, and name maps used across SPADES."""
+
 # values taken from https://pdg.lbl.gov/2019/reviews/rpp2018-rev-phys-constants.pdf
-from hepunits.units import *
-from hepunits.constants import *
+try:
+    from hepunits.units import *
+    from hepunits.constants import *
+except ModuleNotFoundError:
+    # Fallback units for documentation/static workflows where hepunits is absent.
+    eV = 1.0
+    keV = 1.0e3 * eV
+    MeV = 1.0e6 * eV
+    GeV = 1.0e9 * eV
+    second = 1.0
+    year = 365.25 * 24.0 * 3600.0 * second
+    meter = 1.0
+    angstrom = 1.0e-10 * meter
+    fermi = 1.0e-15 * meter
+    fm = fermi
+    hbarc = 197.3269804 * MeV * fm
 import os
 import yaml
 import logging
@@ -24,6 +40,13 @@ delta_m_files = "deltaM_KI_2012_2013.yaml"
 
 
 def read_mass_difference(file_name: str):
+    """Load tabulated mass differences from YAML.
+
+    Parameters
+    ----------
+    file_name:
+        Relative file name inside ``data/mass_difference`` or an absolute path.
+    """
     print(f"Reading {file_name}")
     if (file_name.startswith((".", "/"))):
         # we were given an absolute path
@@ -38,6 +61,7 @@ def read_mass_difference(file_name: str):
 
 
 def to_distance_units():
+    """Return conversion factor from internal ``fm`` to ``user_distance_unit``."""
     return fm/user_distance_unit
 
 
@@ -48,6 +72,8 @@ verbose = 0
 
 
 class ProcessTypes(IntEnum):
+    """Supported double-beta decay channels."""
+
     TWONEUTRINO_TWOBMINUS = 1
     NEUTRINOLESS_TWOBMINUS = 2
     TWONEUTRINO_TWOBPLUS = 3
@@ -67,6 +93,8 @@ PROCESS_NAMES_MAP = {"2nu_2betaMinus": ProcessTypes.TWONEUTRINO_TWOBMINUS,
 
 
 class TransitionTypes(IntEnum):
+    """Nuclear transition channels between initial and final states."""
+
     ZEROPLUS_TO_ZEROPLUS = 1
     ZEROPLUS_TO_ZEROTWOPLUS = 2
     ZEROPLUS_TO_TWOPLUS = 3
@@ -81,6 +109,8 @@ TRANSITION_NAMES_MAP_REV = {TransitionTypes.ZEROPLUS_TO_ZEROPLUS: "0->0",
 
 
 class TaylorOrders(IntEnum):
+    """Orders used in the Taylor-expansion spectra method."""
+
     ZERO = 0
     TWO = 2
     TWOTWO = 22
@@ -101,6 +131,8 @@ TAYLOR_ORDER_NAMES_MAP_REV = {TaylorOrders.ZERO: "0",
 
 
 class NeutrinoLessModes(IntEnum):
+    """Neutrinoless mechanisms supported by SPADES."""
+
     LIGHT_NEUTRINO_EXCHANGE = 1
 
 
@@ -120,6 +152,8 @@ PROCESS_IONISATION = {ProcessTypes.TWONEUTRINO_TWOBMINUS: 2,
 
 
 class FermiFunctionTypes(IntEnum):
+    """Fermi-function evaluation backends."""
+
     POINTLIKE_FERMIFUNCTIONS = 1
     CHARGEDSPHERE_FERMIFUNCTIONS = 2
     NUMERIC_FERMIFUNCTIONS = 3
@@ -134,6 +168,8 @@ FERMIFUNCTIONS_MAP_REV = {FermiFunctionTypes.POINTLIKE_FERMIFUNCTIONS: "PointLik
 
 
 class SpectrumMethod(IntEnum):
+    """Spectrum-computation methods."""
+
     CLOSUREMETHOD = 1
     TAYLORMETHOD = 2
 
@@ -143,6 +179,8 @@ SPECTRUM_METHODS = {"Closure": SpectrumMethod.CLOSUREMETHOD,
 
 
 class SpectrumTypes(IntEnum):
+    """Output spectra families."""
+
     SINGLESPECTRUM = 1
     SUMMEDSPECTRUM = 2
     ANGULARSPECTRUM = 3
@@ -174,6 +212,8 @@ PSF_TYPES_NICE = {SpectrumTypes.SINGLESPECTRUM: "G_single",
 
 
 class CorrectionTypes(IntEnum):
+    """Corrections that can be applied to spectra/PSFs."""
+
     EXCHANGE_CORRECTION = 1
     RADIATIVE_CORRECTION = 2
 
@@ -183,6 +223,8 @@ CORRECTIONS = {"Exchange": CorrectionTypes.EXCHANGE_CORRECTION,
 
 
 class WFEvaluationTypes(IntEnum):
+    """Wavefunction evaluation strategies at the nuclear scale."""
+
     ONSURFACE = 1
     WEIGHTED = 2
 
@@ -198,6 +240,8 @@ q_values_path = os.path.join(os.path.dirname(
 
 
 class OutputFormatTypes(IntEnum):
+    """Supported output serialization formats."""
+
     JSONFORMAT = 1
     HDF5FORMAT = 2
 

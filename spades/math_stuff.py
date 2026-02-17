@@ -1,3 +1,5 @@
+"""Mathematical helpers for relativistic wavefunctions and radiative terms."""
+
 from math import atan
 from . import ph
 import numpy as np
@@ -6,16 +8,19 @@ from numba import njit
 
 
 def hydrogenic_binding_energy(z: int, n: int, k: int):
+    """Approximate Dirac hydrogenic binding energy for a ``(n, kappa)`` shell."""
     total_energy = ph.electron_mass*np.power(
         1. + (z*ph.fine_structure/(n-np.abs(k) + np.sqrt(k*k-np.power(z*ph.fine_structure, 2.))))**2.0, -1./2.)
     return (total_energy - ph.electron_mass)
 
 
 def dirac_gamma(kappa: float, z: float):
+    """Return the relativistic angular factor ``sqrt(kappa^2 - (alpha Z)^2)``."""
     return np.sqrt(np.abs(kappa)**2 - ((ph.fine_structure*z)**2.0))
 
 
 def dirac_nu(energy: float, z: float, kappa: int):
+    """Return the Dirac phase contribution used in Coulomb phase shifts."""
     x = ph.fine_structure*z*(energy+2.0*ph.electron_mass)
     y = -1.0*(kappa+dirac_gamma(kappa, z)) * \
         np.sqrt(energy*(energy+2.0*ph.electron_mass))
@@ -23,10 +28,12 @@ def dirac_nu(energy: float, z: float, kappa: int):
 
 
 def sommerfeld_param(z1, z2, energy):
+    """Return Sommerfeld parameter for two charges at electron kinetic energy ``energy``."""
     return ph.fine_structure*z1*z2*(energy+ph.electron_mass)/np.sqrt(energy*(energy+2.0*ph.electron_mass))
 
 
 def coulomb_phase_shift(energy: float, z_inf: float, kappa: int):
+    """Compute asymptotic Coulomb phase shift for relativistic partial wave ``kappa``."""
     sinf = 1 if ((z_inf < 0) and kappa < 0) else 0
     l = kappa if kappa > 0 else -kappa-1
     nu = dirac_nu(energy, z_inf, kappa)
@@ -39,6 +46,7 @@ def coulomb_phase_shift(energy: float, z_inf: float, kappa: int):
 
 
 def r_radiative(e_total, e_max):
+    """Compute Sirlin-like radiative correction factor ``R`` for beta spectra."""
     p = np.sqrt(e_total**2.0-ph.electron_mass**2.0)
     beta = p/e_total
     atanh = np.arctanh(beta)

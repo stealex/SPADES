@@ -1,8 +1,9 @@
+"""Spectra and PSF models for two-beta decay channels."""
+
 from abc import abstractmethod
 
 from spades.fermi_functions import FermiFunctions
 from spades.spectra.base import BetaSpectrumBase
-from abc import abstractmethod
 from functools import lru_cache
 from typing import Callable
 from scipy import integrate, interpolate
@@ -15,15 +16,21 @@ from spades.spectra.taylor_helpers import integral_order
 
 @lru_cache(maxsize=None)
 def standard_electron_integrant_2nubb(e1, e2, fermi_func: Callable) -> float:
-    """Computes the electron (positron) integrant for "Standard" (i.e. G) psfs/spectra
+    """Evaluate the electron/positron kinematic integrand for ``G``-type observables.
 
-    Args:
-        e1 (_type_): kinetic energy of first electron (positron)
-        e2 (_type_): kinetic energy of second electron (positron)
-        fermi_func (Callable): fermi function callable with signature f(e)
+    Parameters
+    ----------
+    e1:
+        Kinetic energy of the first lepton (MeV in internal units).
+    e2:
+        Kinetic energy of the second lepton (MeV in internal units).
+    fermi_func:
+        Callable that returns the Fermi-function factor at a given kinetic energy.
 
-    Returns:
-        float: value of integrant
+    Returns
+    -------
+    float
+        Value of the phase-space kinematic prefactor including Fermi functions.
     """
     return fermi_func(e1)*fermi_func(e2) * \
         (e1+ph.electron_mass) * (e2+ph.electron_mass) * \
@@ -34,24 +41,33 @@ def standard_electron_integrant_2nubb(e1, e2, fermi_func: Callable) -> float:
 def spectrum_integrant_closure_2nubb(enu: float, e2: float, e1: float, total_ke: float,
                                      sp_type: ph.SpectrumTypes, emin: float, enei: float, full_func: Callable,
                                      transition: ph.TransitionTypes) -> float:
-    """Full Spectrum integrant in closure approximation
+    """Closure-approximation integrand for 2nu two-beta spectra.
 
-    Args:
-        enu (float): energy of first (anti-)neutrino. 
-        e2 (float): kinetic energy of second electron (positron)
-        e1 (float): kinetic energy of first electron (positron)
-        total_ke (float): total kinetic energy available in the process
-        sp_type (SpectrumTypes): type of spectrum
-        emin (float): starting point of integration on electron (positron) energy
-        enei (float): <E_N> - E_I
-        full_func (Callable): Fermi function, possibly including corrections. Signature f(e)
-        transition (TransitionTypes): type of transition
+    Parameters
+    ----------
+    enu:
+        Energy of the first neutrino/antineutrino.
+    e2:
+        Kinetic energy of the second charged lepton.
+    e1:
+        Kinetic energy of the first charged lepton (or summed variable for ``SUMMEDSPECTRUM`` path).
+    total_ke:
+        Total kinetic energy available to leptons.
+    sp_type:
+        Target spectrum type.
+    emin:
+        Minimum charged-lepton kinetic energy used in integrations.
+    enei:
+        Closure parameter ``<E_N> - E_I``.
+    full_func:
+        Callable including Fermi and optional correction factors.
+    transition:
+        Nuclear transition type.
 
-    Raises:
-        NotImplementedError: if the (spectrum type,transition type) is unknown
-
-    Returns:
-        float: integrant value
+    Returns
+    -------
+    float
+        Value of the full differential integrand.
     """
 
     # compute total energies
@@ -107,20 +123,17 @@ def spectrum_integrant_closure_2nubb(enu: float, e2: float, e1: float, total_ke:
 
 
 def range_enu(e2: float, e1: float, total_ke: float, sp_type: ph.SpectrumTypes, emin: float, enei: float, full_func: Callable, transition: ph.TransitionTypes):
-    """Function to be used as range of integration over (anti-)neutrino energies.
+    """Return integration bounds for neutrino energy in closure integrations.
 
-    Args:
-        e2 (float): Kinetic energy of second electron (positron)
-        e1 (float): Kinetic energy of first electron (positron)
-        total_ke (float): Total kinetic energy available in the process
-        sp_type (SpectrumType): Spectrum type. 
-        emin (float): Not used. It's here for compatibility with scipy.quad
-        enei (float): Not used. It's here for compatibility with scipy.quad
-        full_func (Callable): Not used. It's here for compatibility with scipy.quad
-        transition (TransitionTypes): Not used. It's here for compatibility with scipy.quad
+    Parameters
+    ----------
+    e2, e1, total_ke, sp_type, emin, enei, full_func, transition:
+        Arguments required by :func:`scipy.integrate.nquad` range callbacks.
 
-    Returns:
-        [enu_min, enu_max]: range of integration suitable for use with scipy.quad
+    Returns
+    -------
+    list[float]
+        Two-element list ``[lower, upper]`` with neutrino-energy bounds.
     """
     if sp_type == ph.SpectrumTypes.SINGLESPECTRUM:
         return [0., total_ke-e1-e2]
@@ -133,19 +146,25 @@ def range_enu(e2: float, e1: float, total_ke: float, sp_type: ph.SpectrumTypes, 
 
 
 def range_e2(e1: float, total_ke: float, sp_type: ph.SpectrumTypes, emin: float, enei: float,  full_func: Callable, transition: ph.TransitionTypes):
-    """Function to be used as range of integration over second electron (positron) energies.
+    """Return integration bounds for the second charged lepton kinetic energy.
 
-    Args:
-        e1 (float): Kinetic energy of first electron (positron)
-        total_ke (float): Total kinetic energy available in the process
-        sp_type (SpectrumType): Spectrum type 
-        emin (float): Lowest kinetic energy used in integration over electron energies
-        enei (float): Not used. It's here for compatibility with scipy.quad
-        full_func (Callable): Not used. It's here for compatibility with scipy.quad
-        transition (TransitionTypes): Not used. It's here for compatibility with scipy.quad
+    Parameters
+    ----------
+    e1:
+        Kinetic energy of the first charged lepton.
+    total_ke:
+        Total available kinetic energy.
+    sp_type:
+        Spectrum type.
+    emin:
+        Lower kinetic-energy cutoff used by SPADES integrations.
+    enei, full_func, transition:
+        Unused placeholders required by :func:`scipy.integrate.nquad`.
 
-    Returns:
-        [emin, emax]: range of kinetic energy for second electron (positron)
+    Returns
+    -------
+    list[float]
+        Two-element list ``[lower, upper]`` for the second-energy integral.
     """
     if sp_type == ph.SpectrumTypes.SINGLESPECTRUM:
         return [emin, total_ke-e1]
@@ -160,18 +179,19 @@ class TwoBetaSpectrumBase(BetaSpectrumBase):
     """
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, **kwargs) -> None:
-        """
-        Args:
-            total_ke (float): total kinetic energy available in the rpcess
-            ei_ef (float): difference between initial and final NUCLEAR energy levels
-            fermi_functions (FermiFunctions): fermi functions to be used in the defintion of spectra
+        """Initialize common 2-beta spectrum settings and 1D kinetic-energy grid.
 
-        Keyword args:
-            energy_grid_type(str): can be lin or log. Defaults to lin
-            min_ke(float): minimum kinetic energy (MeV) for electrons (positrons). Defaults to 1E-4
-            n_ke_points(int): number of points along kinetic energy grid. Defaults to 100.
-        Raises:
-            NotImplementedError: in case of unknown energy grid type
+        Parameters
+        ----------
+        total_ke:
+            Total kinetic energy available to leptons.
+        ei_ef:
+            Nuclear-level energy difference ``E_i - E_f``.
+        fermi_functions:
+            Fermi-function backend used in spectrum kernels.
+        **kwargs:
+            Optional controls:
+            ``energy_grid_type`` (``"lin"`` or ``"log"``), ``min_ke``, ``n_ke_points``.
         """
         super().__init__(total_ke, ei_ef, fermi_functions)
         # create energy points structure
@@ -193,36 +213,46 @@ class TwoBetaSpectrumBase(BetaSpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: int):
+        """Compute one 1D spectrum for spectrum type ``sp_type``."""
         pass
 
     @abstractmethod
     def compute_2D_spectrum(self, sp_type: int):
+        """Compute one 2D spectrum for spectrum type ``sp_type``."""
         pass
 
     @abstractmethod
     def compute_psf(self):
+        """Compute PSFs from integrated spectra."""
         pass
 
     @abstractmethod
     def integrate_spectrum(self):
+        """Integrate and normalize computed spectra."""
         pass
 
 
 class TaylorSpectrumBase(TwoBetaSpectrumBase):
+    """Base implementation for Taylor-expansion 2nu spectra."""
+
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, taylor_order: ph.TaylorOrders, **kwargs) -> None:
+        """Initialize Taylor-order selection and base normalization constant."""
         super().__init__(total_ke, ei_ef, fermi_functions, **kwargs)
         self.taylor_order = taylor_order
         self.constant_in_front = 1.0
 
     @abstractmethod
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
+        """Compute one 1D Taylor spectrum for spectrum type ``sp_type``."""
         pass
 
     @abstractmethod
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        """Compute one 2D Taylor spectrum for spectrum type ``sp_type``."""
         pass
 
     def integrate_spectrum(self):
+        """Integrate and normalize each computed 1D spectrum."""
         self.spectrum_integrals = {}
         for key in self.spectrum_values:
             interp_func = interpolate.CubicSpline(
@@ -244,6 +274,7 @@ class TaylorSpectrumBase(TwoBetaSpectrumBase):
                 self.spectrum_2D_values[key] = self.spectrum_2D_values[key]/result[0]
 
     def compute_psf(self):
+        """Convert integrated spectra to PSFs in user time units."""
         for key in self.spectrum_values:
             psf_mev = self.spectrum_integrals[key] * self.constant_in_front
             psf_years = psf_mev/(ph.hbar*np.log(2.))/(ph.year**(-1))
@@ -251,6 +282,30 @@ class TaylorSpectrumBase(TwoBetaSpectrumBase):
 
 
 def spectrum_integrant_taylor_2nubb(e2, e1, total_ke: float, sp_type: ph.SpectrumTypes, transition_type: ph.TransitionTypes, order: ph.TaylorOrders, full_func: Callable, emin: float):
+    """Taylor-expansion integrand used for 2nu two-beta spectra.
+
+    Parameters
+    ----------
+    e2, e1:
+        Lepton kinetic-energy variables used by the corresponding spectrum definition.
+    total_ke:
+        Total available kinetic energy.
+    sp_type:
+        Requested spectrum type.
+    transition_type:
+        Nuclear transition type.
+    order:
+        Taylor expansion order.
+    full_func:
+        Fermi/correction factor callable.
+    emin:
+        Lower kinetic-energy cutoff.
+
+    Returns
+    -------
+    float
+        Integrand value for the requested spectrum type.
+    """
     if sp_type == ph.SpectrumTypes.SINGLESPECTRUM:
         return standard_electron_integrant_2nubb(e1, e2, full_func)*integral_order(e1, e2, total_ke, order, transition_type)
     elif sp_type == ph.SpectrumTypes.SUMMEDSPECTRUM:
@@ -270,7 +325,10 @@ def spectrum_integrant_taylor_2nubb(e2, e1, total_ke: float, sp_type: ph.Spectru
 
 
 class TaylorSpectrum2nu(TaylorSpectrumBase):
+    """Taylor-expansion implementation for 2nu two-beta spectra."""
+
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, taylor_order: ph.TaylorOrders, eta_total: Callable | None, transition, **kwargs) -> None:
+        """Build 2nu Taylor spectra object with optional exchange correction factor."""
         super().__init__(total_ke, ei_ef, fermi_functions, taylor_order, **kwargs)
         self.transition = transition
         if (transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS):
@@ -286,12 +344,14 @@ class TaylorSpectrum2nu(TaylorSpectrumBase):
             self.eta_total = eta_total
 
     def full_func(self, x, sp_type):
+        """Return energy-dependent Fermi/correction factor for a given spectrum type."""
         if sp_type == ph.SpectrumTypes.ANGULARSPECTRUM:
             return self.fermi_functions.ff1_eval(x)*self.eta_total(x)
         else:
             return self.fermi_functions.ff0_eval(x)*self.eta_total(x)
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
+        """Compute the selected 1D Taylor spectrum over the configured energy grid."""
         self.spectrum_values[sp_type] = np.zeros_like(self.energy_points)
         for i_e in tqdm(range(len(self.energy_points)-1),
                         desc="\t"*2 +
@@ -321,6 +381,7 @@ class TaylorSpectrum2nu(TaylorSpectrumBase):
         self.spectrum_values[sp_type][-1] = 0.
 
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        """2D spectra are not implemented for Taylor 2nu in this class."""
         raise NotImplementedError()
 
 
@@ -329,14 +390,20 @@ class ClosureSpectrumBase(TwoBetaSpectrumBase):
     """
 
     def __init__(self, total_ke: float, ei_ef: float, enei: float, fermi_functions: FermiFunctions, *args, **kwargs) -> None:
-        """
-        Args:
-            total_ke (float): total kinetic energy available in the rpcess
-            ei_ef (float): difference between initial and final NUCLEAR energy levels
-            enei (float): <E_N> - E_I
-            fermi_functions (FermiFunctions): fermi functions to be used in the defintion of spectra
-        Keyword args:
-            additional arguments passed to base class TwooBetaSpectrumBase
+        """Initialize closure-approximation settings.
+
+        Parameters
+        ----------
+        total_ke:
+            Total kinetic energy available to leptons.
+        ei_ef:
+            Nuclear-level energy difference ``E_i - E_f``.
+        enei:
+            Closure parameter ``<E_N> - E_I``.
+        fermi_functions:
+            Fermi-function backend.
+        *args, **kwargs:
+            Forwarded to :class:`TwoBetaSpectrumBase`.
         """
         super().__init__(total_ke, ei_ef, fermi_functions, **kwargs)
         self.enei = enei
@@ -345,13 +412,16 @@ class ClosureSpectrumBase(TwoBetaSpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: int):
+        """Compute one 1D closure spectrum for spectrum type ``sp_type``."""
         pass
 
     @abstractmethod
     def compute_2D_spectrum(self, sp_type: int):
+        """Compute one 2D closure spectrum for spectrum type ``sp_type``."""
         pass
 
     def integrate_spectrum(self):
+        """Integrate and normalize each computed closure spectrum."""
         self.spectrum_integrals = {}
         for key in self.spectrum_values:
             interp_func = interpolate.CubicSpline(
@@ -373,6 +443,7 @@ class ClosureSpectrumBase(TwoBetaSpectrumBase):
                 self.spectrum_2D_values[key] = self.spectrum_2D_values[key]/result[0]
 
     def compute_psf(self):
+        """Convert integrated closure spectra to PSFs in user time units."""
         for key in self.spectrum_values:
             psf_mev = self.spectrum_integrals[key]*self.constant_in_front
             psf_years = psf_mev/(ph.hbar*np.log(2.))/(ph.year**(-1))
@@ -385,15 +456,20 @@ class ClosureSpectrum2nu(ClosureSpectrumBase):
 
     def __init__(self, total_ke: float, ei_ef: float, enei: float, fermi_functions: FermiFunctions, eta_total: Callable | None,
                  transition: int, **kwargs) -> None:
-        """
-        Args:
-            total_ke (float): total kinetic energy available in the rpcess
-            ei_ef (float): difference between initial and final NUCLEAR energy levels
-            enei (float): <E_N> - E_I
-            eta_total (Callable | None): exchange correction function
-            transition (int): transition type
-        Keyword args:
-            additional arguments passed to ClosureSpectrumBase
+        """Construct closure 2nu two-beta spectrum model.
+
+        Parameters
+        ----------
+        total_ke, ei_ef, enei:
+            Energy scales for the process and closure approximation.
+        fermi_functions:
+            Fermi-function backend.
+        eta_total:
+            Optional exchange-correction factor callable.
+        transition:
+            Transition type from :class:`spades.ph.TransitionTypes`.
+        **kwargs:
+            Optional grid/2D settings forwarded to base classes.
         """
         super().__init__(total_ke, ei_ef, enei, fermi_functions, **kwargs)
         self.transition = transition
@@ -413,12 +489,14 @@ class ClosureSpectrum2nu(ClosureSpectrumBase):
 
     # @lru_cache(maxsize=None)
     def full_func(self, x, sp_type):
+        """Return Fermi and correction factor for one outgoing-lepton kinetic energy."""
         if sp_type == ph.SpectrumTypes.ANGULARSPECTRUM:
             return self.fermi_functions.ff1_eval(x)*self.eta_total(x)
         else:
             return self.fermi_functions.ff0_eval(x)*self.eta_total(x)
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
+        """Compute one 1D closure spectrum by nested neutrino/lepton integration."""
         self.spectrum_values[sp_type] = np.zeros_like(self.energy_points)
         for i_e in tqdm(range(len(self.energy_points)-1),
                         desc="\t"*2 +
@@ -445,6 +523,7 @@ class ClosureSpectrum2nu(ClosureSpectrumBase):
         self.spectrum_values[sp_type][-1] = 0.
 
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        """Compute one 2D closure spectrum on pre-configured ``(e1, e2)`` meshgrids."""
         self.spectrum_2D_values[sp_type] = np.zeros_like(self.e1_grid_2D)
         if (self.e1_grid_2D is None) or (self.e2_grid_2D is None):
             raise ValueError("2D energy grid not initialized properly")
@@ -476,6 +555,22 @@ class ClosureSpectrum2nu(ClosureSpectrumBase):
 
 @lru_cache(maxsize=None)
 def standard_electron_integrant_0nubb(e1, total_ke, fermi_func: Callable):
+    """Evaluate the two-lepton kinematic prefactor for 0nu modes.
+
+    Parameters
+    ----------
+    e1:
+        Kinetic energy of the first lepton.
+    total_ke:
+        Total available kinetic energy.
+    fermi_func:
+        Callable returning the Fermi/correction factor at a given energy.
+
+    Returns
+    -------
+    float
+        Integrand value after enforcing ``e2 = total_ke - e1``.
+    """
     e2 = total_ke - e1
     return fermi_func(e1)*fermi_func(e2) * \
         (e1+ph.electron_mass) * (e2+ph.electron_mass) * \
@@ -484,7 +579,10 @@ def standard_electron_integrant_0nubb(e1, total_ke, fermi_func: Callable):
 
 
 class ClosureSpectrum0nu_LNE(ClosureSpectrumBase):
+    """Closure model for neutrinoless 2-beta with light-neutrino exchange."""
+
     def __init__(self, total_ke: float, ei_ef: float, nuclear_radius: float, fermi_functions: FermiFunctions, eta_total: Callable | None, **kwargs) -> None:
+        """Initialize LNE prefactor and optional exchange correction."""
         super().__init__(total_ke, ei_ef, 0., fermi_functions, **kwargs)
         self.constant_in_front = ((ph.fermi_coupling_constant*ph.v_ud)**4) / \
             (32.*(np.pi**5)*(nuclear_radius**2.)) * \
@@ -496,6 +594,7 @@ class ClosureSpectrum0nu_LNE(ClosureSpectrumBase):
 
     @lru_cache(maxsize=None)
     def full_func(self, x, sp_type, tr_type: ph.TransitionTypes = ph.TransitionTypes.ZEROPLUS_TO_ZEROPLUS):
+        """Return Fermi and correction factor for a given kinetic energy and spectrum type."""
         if tr_type == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
             raise NotImplementedError()
 
@@ -505,6 +604,7 @@ class ClosureSpectrum0nu_LNE(ClosureSpectrumBase):
             return self.fermi_functions.ff0_eval(x)*self.eta_total(x)
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
+        """Compute 0nu closure spectrum over the configured 1D energy grid."""
         self.spectrum_values[sp_type] = np.zeros_like(self.energy_points)
         fact = 1.0
         if (sp_type == ph.SpectrumTypes.ANGULARSPECTRUM):
@@ -520,4 +620,5 @@ class ClosureSpectrum0nu_LNE(ClosureSpectrumBase):
         return self.spectrum_values
 
     def compute_2D_spectrum(self, sp_type: int, e1_grid: np.ndarray, e2_grid: np.ndarray):
+        """Not implemented for this 0nu closure class."""
         raise NotImplementedError

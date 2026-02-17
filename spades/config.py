@@ -1,18 +1,18 @@
+"""Configuration models and resolution helpers for SPADES runs."""
+
 from dataclasses import dataclass, field
-from logging import config
-from multiprocessing import Value, process
-from optparse import Option
-from tokenize import Double
-from typing import Optional, Dict, Any
 
 from spades import ph
-from spades.dhfs import AtomicSystem, create_ion
+from spades.dhfs import AtomicSystem
 import logging
-logger = logging.Logger(__name__)
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class DoubleBetaProcess:
+    """Physics process selection for a computation."""
+
     type: ph.ProcessTypes
     transition: ph.TransitionTypes = ph.TransitionTypes.ZEROPLUS_TO_ZEROPLUS
     mechanism: ph.NeutrinoLessModes = ph.NeutrinoLessModes.LIGHT_NEUTRINO_EXCHANGE
@@ -20,6 +20,8 @@ class DoubleBetaProcess:
 
 @dataclass
 class BoundConfig:
+    """Configuration for bound-state Dirac wavefunctions."""
+
     max_r: float
     n_radial_points: int
     n_values: list[int]
@@ -28,6 +30,8 @@ class BoundConfig:
 
 @dataclass
 class ScatteringConfig:
+    """Configuration for scattering-state Dirac wavefunctions."""
+
     max_r: float
     n_radial_points: int
     min_ke: float
@@ -38,6 +42,8 @@ class ScatteringConfig:
 
 @dataclass
 class SpectraConfig:
+    """Configuration used to compute spectra and phase-space factors."""
+
     method: dict
     wave_function_evaluation: int
     nuclear_radius: float
@@ -58,11 +64,14 @@ class SpectraConfig:
 
 @dataclass
 class OutputConfig:
+    """Output selection and destination configuration."""
+
     location: str
     what: list[str]
     file_prefix: str
 
     def solve_output_config(self):
+        """Convert textual output requests into boolean switches."""
         self.bound_wavefunctions = False
         self.scattering_wavefunctions = False
         self.spectra = False
@@ -84,7 +93,10 @@ class OutputConfig:
 
 
 class RunConfig:
+    """Runtime configuration wrapper with unit conversion and option resolution."""
+
     def __init__(self, config: dict) -> None:
+        """Parse raw configuration and initialize process-level options."""
         self._raw_config = config  # store for later use
         # change input values to fm and MeV
         to_fm = ph.user_distance_unit/ph.fm
@@ -117,6 +129,13 @@ class RunConfig:
         self.initial_atom_dict = config["initial_atom"]
 
     def resolve_nuclear_radius(self, initial_atom: AtomicSystem):
+        """Resolve nuclear radius from explicit input or the default ``1.2 A^(1/3)`` model.
+
+        Parameters
+        ----------
+        initial_atom:
+            Initial atomic system used to extract mass number ``A`` for the automatic model.
+        """
         if (self._raw_config["spectra_computation"]["nuclear_radius"] == "auto"):
             self._raw_config["spectra_computation"]["nuclear_radius"] = 1.2 * \
                 (initial_atom.mass_number**(1./3.))
@@ -127,6 +146,15 @@ class RunConfig:
             raise ValueError("Cannot interpret nuclear_radius option")
 
     def resolve_ei_ef(self, initial_atom: AtomicSystem, final_atom: AtomicSystem):
+        """Resolve available kinetic energy and nuclear level spacing for the selected process.
+
+        Parameters
+        ----------
+        initial_atom:
+            Initial atomic system.
+        final_atom:
+            Final atomic system (reserved for future use in this routine).
+        """
         to_MeV = ph.user_energy_unit/ph.MeV
         if (type(self._raw_config["spectra_computation"]["total_ke"]) is float):
             print("Received float total_ke. All good, continue.")
@@ -184,6 +212,13 @@ class RunConfig:
         self._raw_config["spectra_computation"]["ei_ef"] = ei_ef
 
     def resolve_bound_config(self, initial_atom: AtomicSystem):
+        """Populate missing bound-state quantum numbers from the atomic configuration.
+
+        Parameters
+        ----------
+        initial_atom:
+            Atomic system providing shell quantum numbers for automatic configuration.
+        """
         if not ("bound_states" in self._raw_config):
             return
         if self._raw_config["bound_states"]["n_values"] == "auto":
@@ -203,6 +238,7 @@ class RunConfig:
             self._raw_config["bound_states"]["k_values"] = k_values
 
     def create_spectra_config(self):
+        """Build :class:`SpectraConfig` and map string options to typed enums."""
         for i in range(len(self._raw_config["spectra_computation"]["fermi_function_types"])):
             ft = self._raw_config["spectra_computation"]["fermi_function_types"][i]
             self._raw_config["spectra_computation"]["fermi_function_types"][i] = ph.FERMIFUNCTIONS_MAP[ft]
@@ -216,6 +252,7 @@ class RunConfig:
             **self._raw_config["spectra_computation"])
 
     def create_bound_config(self):
+        """Build :class:`BoundConfig` when bound-state settings are provided."""
         if ("bound_states" in self._raw_config):
             self.bound_config = BoundConfig(
                 **self._raw_config["bound_states"])
@@ -223,6 +260,7 @@ class RunConfig:
             self.bound_config = None
 
     def create_scattering_config(self):
+        """Build :class:`ScatteringConfig` with kinetic-energy bounds from spectra settings."""
         if ("scattering_states" in self._raw_config):
             self.scattering_config = ScatteringConfig(
                 **self._raw_config["scattering_states"],
@@ -232,6 +270,7 @@ class RunConfig:
             self.scattering_config = None
 
     def create_output_config(self):
+        """Build and finalize output options if an ``output`` block exists."""
         if ("output" in self._raw_config):
             self.output_config = OutputConfig(**self._raw_config["output"])
             self.output_config.solve_output_config()
