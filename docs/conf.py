@@ -37,7 +37,6 @@ napoleon_numpy_docstring = True
 autodoc_mock_imports = [
     "spades.dhfs_wrapper",
     "spades.radial_wrapper",
-    "numpy",
     "periodictable",
     "scipy",
     "numba",

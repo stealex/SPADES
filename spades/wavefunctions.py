@@ -1,4 +1,5 @@
 """Bound and scattering electron wavefunction solvers."""
+from __future__ import annotations
 
 import numpy as np
 

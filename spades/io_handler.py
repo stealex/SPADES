@@ -1,4 +1,5 @@
 """Serialization helpers for wavefunctions, spectra, PSFs, and Fermi functions."""
+from __future__ import annotations
 
 import struct
 import numpy as np
@@ -290,10 +291,11 @@ def write_spectra(file_name, parent_nucleus: str, process: str, e_grid: np.ndarr
                 for sp_type in psfs[ff_type]:
                     if (type(psfs[ff_type][sp_type]) is dict):
                         for ord in psfs[ff_type][sp_type]:
-                            line = line +\
-                                f'{sp_type+"_"+ord+'('+ff_type+')':>25s}'
+                            label = f"{sp_type}_{ord}({ff_type})"
+                            line = line + f"{label:>25s}"
                     else:
-                        line = line+f'{sp_type+'('+ff_type+')':>25s}'
+                        label = f"{sp_type}({ff_type})"
+                        line = line + f"{label:>25s}"
 
             line = line+"\n"
             f.write(line)
@@ -316,9 +318,11 @@ def write_spectra(file_name, parent_nucleus: str, process: str, e_grid: np.ndarr
             for sp_type in spectra[ff_type]:
                 if type(spectra[ff_type][sp_type]) is dict:
                     for ord in spectra[ff_type][sp_type]:
-                        line = line+f'{sp_type+'_'+ord+'('+ff_type+')':>25s}'
+                        label = f"{sp_type}_{ord}({ff_type})"
+                        line = line + f"{label:>25s}"
                 else:
-                    line = line+f'{sp_type+'('+ff_type+')':>25s}'
+                    label = f"{sp_type}({ff_type})"
+                    line = line + f"{label:>25s}"
 
         line = line+"\n"
         f.write(line)
@@ -476,10 +480,11 @@ def write_2d_spectra(file_name, parent_nucleus: str, process: str, e1_grid: np.n
             for sp_type in psfs[ff_type]:
                 if type(psfs[ff_type][sp_type]) is dict:
                     for ord in psfs[ff_type][sp_type]:
-                        line = line +\
-                            f'{sp_type+"_"+ord+'('+ff_type+')':>25s}'
+                        label = f"{sp_type}_{ord}({ff_type})"
+                        line = line + f"{label:>25s}"
                 else:
-                    line = line+f'{sp_type+'('+ff_type+')':>25s}'
+                    label = f"{sp_type}({ff_type})"
+                    line = line + f"{label:>25s}"
 
         line = line+"\n"
         f.write(line)
@@ -501,9 +506,11 @@ def write_2d_spectra(file_name, parent_nucleus: str, process: str, e1_grid: np.n
             for sp_type in spectra[ff_type]:
                 if type(spectra[ff_type][sp_type]) is dict:
                     for ord in spectra[ff_type][sp_type]:
-                        line = line+f'{sp_type+"_"+ord+'('+ff_type+')':>25s}'
+                        label = f"{sp_type}_{ord}({ff_type})"
+                        line = line + f"{label:>25s}"
                 else:
-                    line = line+f'{sp_type+'('+ff_type+')':>25s}'
+                    label = f"{sp_type}({ff_type})"
+                    line = line + f"{label:>25s}"
 
         line = line+"\n"
         f.write(line)
@@ -658,12 +665,12 @@ def write_fermi_functions(file_name, parent_nucleus: str, process: str, e_grid: 
 
         line = f'{"E":>10s}'
         for ff_type in ff0:
-            line = line + \
-                f'{'FF0(' + ph.FERMIFUNCTIONS_MAP_REV[ff_type]+')':>25s}'
+            label = f"FF0({ph.FERMIFUNCTIONS_MAP_REV[ff_type]})"
+            line = line + f"{label:>25s}"
         if not (ff1 is None):
             for ff_type in ff1:
-                line = line + \
-                    f'{'FF1(' + ph.FERMIFUNCTIONS_MAP_REV[ff_type]+')':>25s}'
+                label = f"FF1({ph.FERMIFUNCTIONS_MAP_REV[ff_type]})"
+                line = line + f"{label:>25s}"
 
         line = line + '\n'
         f.write(line)
