@@ -6,21 +6,77 @@ import ctypes
 import os
 from . import ph
 
-try:
-    _dir_name = os.path.dirname(__file__)
-    dhfs_lib = cdll.LoadLibrary(os.path.join(_dir_name, "../build/libdhfs.so"))
-except OSError as e:
-    print(f"Error: Unable to load dhfs.so: {e}")
+def _load_dhfs_library():
+    """Load the shared DHFS library from the local build directory.
 
-# configuration and wrapper for CONFIGURATION_INPUT
-dhfs_lib.configuration_input_.argtypes = [ctypes.POINTER(ctypes.c_int),
-                                          ctypes.POINTER(ctypes.c_int),
-                                          ctypes.POINTER(ctypes.c_int),
-                                          ctypes.POINTER(ctypes.c_double),
-                                          ctypes.POINTER(ctypes.c_int),
-                                          ctypes.POINTER(ctypes.c_int),
+    Returns
+    -------
+    ctypes.CDLL
+        Loaded ``libdhfs.so`` handle.
+    """
+    _dir_name = os.path.dirname(__file__)
+    return cdll.LoadLibrary(os.path.join(_dir_name, "../build/libdhfs.so"))
+
+
+def _configure_dhfs_signatures(lib) -> None:
+    """Configure ctypes signatures for exported DHFS Fortran routines.
+
+    Parameters
+    ----------
+    lib:
+        Loaded shared-library object returned by :func:`_load_dhfs_library`.
+    """
+    # configuration and wrapper for CONFIGURATION_INPUT
+    lib.configuration_input_.argtypes = [ctypes.POINTER(ctypes.c_int),
+                                         ctypes.POINTER(ctypes.c_int),
+                                         ctypes.POINTER(ctypes.c_int),
+                                         ctypes.POINTER(ctypes.c_double),
+                                         ctypes.POINTER(ctypes.c_int),
+                                         ctypes.POINTER(ctypes.c_int),
+                                         ctypes.POINTER(ctypes.c_int)]
+    lib.configuration_input_.restype = None
+
+    # configuration and wrapper for SET_PARAMETERS
+    lib.set_parameters_.argtypes = [ctypes.POINTER(ctypes.c_double),
+                                    ctypes.POINTER(ctypes.c_double),
+                                    ctypes.POINTER(ctypes.c_int),
+                                    ctypes.POINTER(ctypes.c_int)]
+    lib.set_parameters_.restype = None
+
+    # configuration and wrapper for DHFS_MAIN
+    lib.dhfs_main_.argtypes = [ctypes.POINTER(ctypes.c_double),
+                               ctypes.POINTER(ctypes.c_int)]
+    lib.dhfs_main_.restype = None
+
+    # configuration and wrapper for GET_WAVEFUNCTIONS
+    lib.get_wavefunctions_.argtypes = [ctypes.POINTER(ctypes.c_double),
+                                       ctypes.POINTER(ctypes.c_double),
+                                       ctypes.POINTER(ctypes.c_double),
+                                       ctypes.POINTER(ctypes.c_int),
+                                       ctypes.POINTER(ctypes.c_int)]
+    lib.get_wavefunctions_.restype = None
+
+    # configuration and wrapper for GET_POTENTIALS
+    lib.get_potentials_.argtypes = [ctypes.POINTER(ctypes.c_double),
+                                    ctypes.POINTER(ctypes.c_double),
+                                    ctypes.POINTER(ctypes.c_double),
+                                    ctypes.POINTER(ctypes.c_int)]
+    lib.get_potentials_.restype = None
+
+    # wrapper and definition for GET_BINDING_ENERGIES
+    lib.get_binding_energies_.argtypes = [ctypes.POINTER(ctypes.c_double),
                                           ctypes.POINTER(ctypes.c_int)]
-dhfs_lib.configuration_input_.restype = None
+    lib.get_binding_energies_.restype = None
+
+
+try:
+    dhfs_lib = _load_dhfs_library()
+    _configure_dhfs_signatures(dhfs_lib)
+except OSError as e:
+    raise OSError(
+        "Unable to load libdhfs.so. Build the Fortran library first "
+        "(e.g. via the package build backend)."
+    ) from e
 
 
 def call_configuration_input(n: np.ndarray, l: np.ndarray, jj: np.ndarray, occup: np.ndarray, i_z: int):
@@ -47,12 +103,6 @@ def call_configuration_input(n: np.ndarray, l: np.ndarray, jj: np.ndarray, occup
                                   ctypes.c_int(ph.verbose))
 
 
-# configuration and wrapper for SET_PARAMETERS
-dhfs_lib.set_parameters_.argtypes = [ctypes.POINTER(ctypes.c_double),
-                                     ctypes.POINTER(ctypes.c_double),
-                                     ctypes.POINTER(ctypes.c_int),
-                                     ctypes.POINTER(ctypes.c_int)]
-dhfs_lib.set_parameters_.restype = None
 
 
 def call_set_parameters(atomic_weight: float, outer_radius: float, n_grid_points: int):
@@ -80,10 +130,6 @@ def call_set_parameters(atomic_weight: float, outer_radius: float, n_grid_points
     return n_points.value
 
 
-# configuration and wrapper for DHFS_MAIN
-dhfs_lib.dhfs_main_.argtypes = [ctypes.POINTER(ctypes.c_double),
-                                ctypes.POINTER(ctypes.c_int)]
-dhfs_lib.dhfs_main_.restype = None
 
 
 def call_dhfs_main(alpha: float):
@@ -97,13 +143,6 @@ def call_dhfs_main(alpha: float):
     dhfs_lib.dhfs_main_(ctypes.c_double(alpha), ctypes.c_int(ph.verbose))
 
 
-# configuration and wrapper for GET_WAVEFUNCTIONS
-dhfs_lib.get_wavefunctions_.argtypes = [ctypes.POINTER(ctypes.c_double),
-                                        ctypes.POINTER(ctypes.c_double),
-                                        ctypes.POINTER(ctypes.c_double),
-                                        ctypes.POINTER(ctypes.c_int),
-                                        ctypes.POINTER(ctypes.c_int)]
-dhfs_lib.get_wavefunctions_.restype = None
 
 
 def call_get_wavefunctions(n_shells: int, n_points: int):
@@ -136,12 +175,6 @@ def call_get_wavefunctions(n_shells: int, n_points: int):
     return (rad_grid, p_grid, q_grid)
 
 
-# configuration and wrapper for GET_POTENTIALS
-dhfs_lib.get_potentials_.argtypes = [ctypes.POINTER(ctypes.c_double),
-                                     ctypes.POINTER(ctypes.c_double),
-                                     ctypes.POINTER(ctypes.c_double),
-                                     ctypes.POINTER(ctypes.c_int)]
-dhfs_lib.get_potentials_.restype = None
 
 
 def call_get_potentials(n_points: int):
@@ -172,10 +205,6 @@ def call_get_potentials(n_points: int):
             v_ex)
 
 
-# wrapper and definition for GET_BINDING_ENERGIES
-dhfs_lib.get_binding_energies_.argtypes = [ctypes.POINTER(ctypes.c_double),
-                                           ctypes.POINTER(ctypes.c_int)]
-dhfs_lib.get_binding_energies_.restype = None
 
 
 def call_get_binding_energies(n_shells: int) -> np.ndarray:

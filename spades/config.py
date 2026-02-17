@@ -96,7 +96,13 @@ class RunConfig:
     """Runtime configuration wrapper with unit conversion and option resolution."""
 
     def __init__(self, config: dict) -> None:
-        """Parse raw configuration and initialize process-level options."""
+        """Parse raw configuration and initialize process-level options.
+
+        Parameters
+        ----------
+        config:
+            Parsed input dictionary loaded from YAML.
+        """
         self._raw_config = config  # store for later use
         # change input values to fm and MeV
         to_fm = ph.user_distance_unit/ph.fm
@@ -157,17 +163,17 @@ class RunConfig:
         """
         to_MeV = ph.user_energy_unit/ph.MeV
         if (type(self._raw_config["spectra_computation"]["total_ke"]) is float):
-            print("Received float total_ke. All good, continue.")
+            logger.info("Received float total_ke from input.")
             total_ke = self._raw_config["spectra_computation"]["total_ke"] * to_MeV
         elif (type(self._raw_config["spectra_computation"]["total_ke"]) is str):
             if (self._raw_config["spectra_computation"]["total_ke"] != "auto"):
                 raise ValueError(
                     "Cannot interpret total_ke. Valid options: float or 'auto' ")
             # now we know ei_ef is "auto". Read files
-            print("total_ke is 'auto'. Will read from file")
+            logger.info("total_ke is 'auto'; reading from mass-difference file.")
             delta_m_map = ph.read_mass_difference(ph.delta_m_files)
             delta_m_tmp = delta_m_map[initial_atom.name_nice]["delta_M"]
-            print(f"Found delta_M = {delta_m_tmp}")
+            logger.info("Found delta_M = %s", delta_m_tmp)
 
             if (self.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOBMINUS, ph.ProcessTypes.NEUTRINOLESS_TWOBMINUS]):
                 total_ke = delta_m_tmp
@@ -193,7 +199,7 @@ class RunConfig:
                 total_ke = total_ke - delta_m_map[initial_atom.name_nice]["E2"]
             self._raw_config["spectra_computation"]["total_ke"] = total_ke
 
-            print(f"Q-value = {total_ke}")
+            logger.info("Resolved Q-value = %s", total_ke)
             if (total_ke < 0.):
                 raise ValueError("Q-value is negative")
         else:

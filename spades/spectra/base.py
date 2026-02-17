@@ -75,12 +75,24 @@ class BetaSpectrumBase(SpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
-        """Compute a 1D beta spectrum for ``sp_type``."""
+        """Compute a 1D beta spectrum for ``sp_type``.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+        """
         pass
 
     @abstractmethod
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
-        """Compute a 2D beta spectrum for ``sp_type``."""
+        """Compute a 2D beta spectrum for ``sp_type``.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+        """
         pass
 
     @abstractmethod

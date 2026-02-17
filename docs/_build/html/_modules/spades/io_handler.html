@@ -31,16 +31,15 @@
   <h1>Source code for spades.io_handler</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Serialization helpers for wavefunctions, spectra, PSFs, and Fermi functions.&quot;&quot;&quot;</span>
 
-<span class="kn">import</span> <span class="nn">enum</span>
 <span class="kn">import</span> <span class="nn">struct</span>
-<span class="kn">import</span> <span class="nn">token</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">ph</span>
+<span class="kn">from</span> <span class="nn">.data_models</span> <span class="kn">import</span> <span class="n">BoundWavefunctions</span><span class="p">,</span> <span class="n">ScatteringWavefunctions</span>
 
 
-<div class="viewcode-block" id="write_scattring_wf">
-<a class="viewcode-back" href="../../api/core.html#spades.io_handler.write_scattring_wf">[docs]</a>
-<span class="k">def</span> <span class="nf">write_scattring_wf</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">kappa</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">ke_grid</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">inner_grid</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">coulomb_grid</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">r_values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<div class="viewcode-block" id="write_scattering_wf">
+<a class="viewcode-back" href="../../api/core.html#spades.io_handler.write_scattering_wf">[docs]</a>
+<span class="k">def</span> <span class="nf">write_scattering_wf</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">kappa</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">ke_grid</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">inner_grid</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">coulomb_grid</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">r_values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Write scattering wavefunctions to a compact binary format.</span>
 
 <span class="sd">    Parameters</span>
@@ -79,10 +78,18 @@
 
 
 
+<div class="viewcode-block" id="write_scattring_wf">
+<a class="viewcode-back" href="../../api/core.html#spades.io_handler.write_scattring_wf">[docs]</a>
+<span class="k">def</span> <span class="nf">write_scattring_wf</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">kappa</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">ke_grid</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">inner_grid</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">coulomb_grid</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">r_values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">q</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Backward-compatible alias for :func:`write_scattering_wf`.&quot;&quot;&quot;</span>
+    <span class="n">write_scattering_wf</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">kappa</span><span class="p">,</span> <span class="n">ke_grid</span><span class="p">,</span> <span class="n">inner_grid</span><span class="p">,</span> <span class="n">coulomb_grid</span><span class="p">,</span> <span class="n">r_values</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span></div>
+
+
+
 <div class="viewcode-block" id="read_scattering_wf">
 <a class="viewcode-back" href="../../api/core.html#spades.io_handler.read_scattering_wf">[docs]</a>
 <span class="k">def</span> <span class="nf">read_scattering_wf</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read scattering wavefunctions from the binary format written by `write_scattring_wf`.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read scattering wavefunctions from the binary format written by ``write_scattering_wf``.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -134,6 +141,23 @@
                     <span class="n">q_values</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ie</span><span class="p">][</span><span class="n">ir</span><span class="p">]</span> <span class="o">=</span> <span class="n">q</span>
 
     <span class="k">return</span> <span class="p">(</span><span class="n">k_values</span><span class="p">,</span> <span class="n">e_values</span><span class="p">,</span> <span class="n">r_values</span><span class="p">,</span> <span class="n">inner_phase_values</span><span class="p">,</span> <span class="n">coulomb_values</span><span class="p">,</span> <span class="n">p_values</span><span class="p">,</span> <span class="n">q_values</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="read_scattering_wf_data">
+<a class="viewcode-back" href="../../api/core.html#spades.io_handler.read_scattering_wf_data">[docs]</a>
+<span class="k">def</span> <span class="nf">read_scattering_wf_data</span><span class="p">(</span><span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ScatteringWavefunctions</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read scattering wavefunctions and return a typed data container.&quot;&quot;&quot;</span>
+    <span class="n">k</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">inner</span><span class="p">,</span> <span class="n">coul</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">q</span> <span class="o">=</span> <span class="n">read_scattering_wf</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ScatteringWavefunctions</span><span class="p">(</span>
+        <span class="n">k_values</span><span class="o">=</span><span class="n">k</span><span class="p">,</span>
+        <span class="n">energy_grid</span><span class="o">=</span><span class="n">e</span><span class="p">,</span>
+        <span class="n">radial_grid</span><span class="o">=</span><span class="n">r</span><span class="p">,</span>
+        <span class="n">inner_phase_values</span><span class="o">=</span><span class="n">inner</span><span class="p">,</span>
+        <span class="n">coulomb_phase_values</span><span class="o">=</span><span class="n">coul</span><span class="p">,</span>
+        <span class="n">p_values</span><span class="o">=</span><span class="n">p</span><span class="p">,</span>
+        <span class="n">q_values</span><span class="o">=</span><span class="n">q</span><span class="p">,</span>
+    <span class="p">)</span></div>
 
 
 
@@ -199,7 +223,7 @@
         <span class="n">q_values</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">r_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nr</span><span class="p">)</span>
 
-        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">n_shells</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_shells</span><span class="p">):</span>
             <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">be</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;iid&#39;</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">16</span><span class="p">))</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">be_values</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">be</span>
@@ -219,10 +243,24 @@
 
                 <span class="k">for</span> <span class="n">ir</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nr</span><span class="p">):</span>
                     <span class="n">p</span><span class="p">,</span> <span class="n">q</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s2">&quot;&lt;dd&quot;</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">16</span><span class="p">))</span>
-                    <span class="n">p_values</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span>
-                    <span class="n">q_values</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">q</span>
+                    <span class="n">p_values</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">][</span><span class="n">ir</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span>
+                    <span class="n">q_values</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">][</span><span class="n">ir</span><span class="p">]</span> <span class="o">=</span> <span class="n">q</span>
 
     <span class="k">return</span> <span class="n">r_grid</span><span class="p">,</span> <span class="n">be_values</span><span class="p">,</span> <span class="n">p_values</span><span class="p">,</span> <span class="n">q_values</span></div>
+
+
+
+<div class="viewcode-block" id="read_bound_wf_data">
+<a class="viewcode-back" href="../../api/core.html#spades.io_handler.read_bound_wf_data">[docs]</a>
+<span class="k">def</span> <span class="nf">read_bound_wf_data</span><span class="p">(</span><span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BoundWavefunctions</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read bound wavefunctions and return a typed data container.&quot;&quot;&quot;</span>
+    <span class="n">r</span><span class="p">,</span> <span class="n">be</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">q</span> <span class="o">=</span> <span class="n">read_bound_wf</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">BoundWavefunctions</span><span class="p">(</span>
+        <span class="n">radial_grid</span><span class="o">=</span><span class="n">r</span><span class="p">,</span>
+        <span class="n">binding_energies</span><span class="o">=</span><span class="n">be</span><span class="p">,</span>
+        <span class="n">p_values</span><span class="o">=</span><span class="n">p</span><span class="p">,</span>
+        <span class="n">q_values</span><span class="o">=</span><span class="n">q</span><span class="p">,</span>
+    <span class="p">)</span></div>
 
 
 
@@ -264,7 +302,6 @@
 <span class="sd">    psfs:</span>
 <span class="sd">        Optional nested PSF dictionary.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">n_fermi_functions</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">spectra</span><span class="p">)</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
         <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">header_spectra</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">parent_nucleus</span><span class="o">=</span><span class="n">parent_nucleus</span><span class="p">,</span>
                                       <span class="n">process</span><span class="o">=</span><span class="n">process</span><span class="p">,</span>
@@ -277,7 +314,6 @@
             <span class="n">line</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
             <span class="k">for</span> <span class="n">ff_type</span> <span class="ow">in</span> <span class="n">psfs</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">sp_type</span> <span class="ow">in</span> <span class="n">psfs</span><span class="p">[</span><span class="n">ff_type</span><span class="p">]:</span>
-                    <span class="nb">print</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">psfs</span><span class="p">[</span><span class="n">ff_type</span><span class="p">][</span><span class="n">sp_type</span><span class="p">]))</span>
                     <span class="k">if</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">psfs</span><span class="p">[</span><span class="n">ff_type</span><span class="p">][</span><span class="n">sp_type</span><span class="p">])</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">):</span>
                         <span class="k">for</span> <span class="nb">ord</span> <span class="ow">in</span> <span class="n">psfs</span><span class="p">[</span><span class="n">ff_type</span><span class="p">][</span><span class="n">sp_type</span><span class="p">]:</span>
                             <span class="n">line</span> <span class="o">=</span> <span class="n">line</span> <span class="o">+</span>\
@@ -346,41 +382,42 @@
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
         <span class="n">lines</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
 
-    <span class="c1"># determine number of header lines</span>
+    <span class="c1"># determine location of spectra section</span>
+    <span class="n">i_spectra</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">):</span>
         <span class="k">if</span> <span class="s2">&quot;Spectra:&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+            <span class="n">i_spectra</span> <span class="o">=</span> <span class="n">i</span>
             <span class="k">break</span>
-    <span class="n">n_header_lines</span> <span class="o">=</span> <span class="n">i</span><span class="o">+</span><span class="mi">1</span>
+    <span class="k">if</span> <span class="n">i_spectra</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Could not find &#39;Spectra:&#39; section in file&quot;</span><span class="p">)</span>
 
     <span class="c1"># read header</span>
     <span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="n">psfs_order</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">[:</span><span class="n">n_header_lines</span><span class="p">]):</span>
+    <span class="n">psfs_order</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">[:</span><span class="n">i_spectra</span><span class="o">+</span><span class="mi">1</span><span class="p">]):</span>
         <span class="n">tokens</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="s2">&quot;Parent nucleus&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;parent_nucleus&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">if</span> <span class="s2">&quot;Porcess = &quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;process&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;parent_nucleus&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s2">&quot;Process = &quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="s2">&quot;Porcess = &quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">):</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;process&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
         <span class="k">if</span> <span class="s2">&quot;Energy unit = &quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;energy_unit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;energy_unit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
         <span class="k">if</span> <span class="s2">&quot;PSF unit = &quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;psf_unit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;psf_unit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
         <span class="k">if</span> <span class="s2">&quot;emin =&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
             <span class="n">data</span><span class="p">[</span><span class="s2">&quot;emin&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
         <span class="k">if</span> <span class="s2">&quot;PSFs:&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
             <span class="n">data</span><span class="p">[</span><span class="s2">&quot;PSFs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="n">tokens_psfs</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
-            <span class="n">i_order</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="k">for</span> <span class="n">tok</span> <span class="ow">in</span> <span class="n">tokens_psfs</span><span class="p">:</span>
                 <span class="n">toks</span> <span class="o">=</span> <span class="n">tok</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;(&#39;</span><span class="p">)</span>
                 <span class="n">key_ff</span> <span class="o">=</span> <span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;)&#39;</span><span class="p">)</span>
                 <span class="n">sp_type</span> <span class="o">=</span> <span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-                <span class="n">psfs_order</span><span class="p">[</span><span class="n">i_order</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">key_ff</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">)</span>
+                <span class="n">psfs_order</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">key_ff</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">))</span>
                 <span class="k">if</span> <span class="n">key_ff</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;PSFs&quot;</span><span class="p">]:</span>
                     <span class="n">data</span><span class="p">[</span><span class="s2">&quot;PSFs&quot;</span><span class="p">][</span><span class="n">key_ff</span><span class="p">][</span><span class="n">sp_type</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">data</span><span class="p">[</span><span class="s2">&quot;PSFs&quot;</span><span class="p">][</span><span class="n">key_ff</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">sp_type</span><span class="p">:</span> <span class="mf">0.</span><span class="p">}</span>
-                <span class="n">i_order</span> <span class="o">+=</span> <span class="mi">1</span>
 
             <span class="n">tokens_values</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tok</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tokens_values</span><span class="p">):</span>
@@ -394,19 +431,25 @@
     <span class="n">ie</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="n">data</span><span class="p">[</span><span class="s2">&quot;energy_grid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;n_points&quot;</span><span class="p">])</span>
     <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
-
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">psfs_order</span><span class="p">)):</span>
-        <span class="n">key_ff</span><span class="p">,</span> <span class="n">sp_type</span> <span class="o">=</span> <span class="n">psfs_order</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">key_ff</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">]:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">][</span><span class="n">key_ff</span><span class="p">][</span><span class="n">sp_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;n_points&quot;</span><span class="p">])</span>
+    <span class="n">spectra_order</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">spectra_labels</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">i_spectra</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">spectra_labels</span><span class="p">:</span>
+        <span class="n">tok</span><span class="p">,</span> <span class="n">ff_tok</span> <span class="o">=</span> <span class="n">label</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;(&quot;</span><span class="p">)</span>
+        <span class="n">ff_type</span> <span class="o">=</span> <span class="n">ff_tok</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">)</span>
+        <span class="n">sp_type</span> <span class="o">=</span> <span class="n">tok</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">spectra_order</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">ff_type</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">ff_type</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">]:</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">][</span><span class="n">ff_type</span><span class="p">][</span><span class="n">sp_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;n_points&quot;</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">][</span><span class="n">key_ff</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">sp_type</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;n_points&quot;</span><span class="p">])}</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">][</span><span class="n">ff_type</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">sp_type</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;n_points&quot;</span><span class="p">])}</span>
 
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="n">n_header_lines</span><span class="o">+</span><span class="mi">1</span><span class="p">:]):</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="n">i_spectra</span><span class="o">+</span><span class="mi">2</span><span class="p">:]):</span>
         <span class="n">tokens_values</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">tokens_values</span><span class="p">:</span>
+            <span class="k">continue</span>
         <span class="n">data</span><span class="p">[</span><span class="s2">&quot;energy_grid&quot;</span><span class="p">][</span><span class="n">ie</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">tokens_values</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
         <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">tok</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tokens_values</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
-            <span class="n">key_ff</span><span class="p">,</span> <span class="n">sp_type</span> <span class="o">=</span> <span class="n">psfs_order</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">key_ff</span><span class="p">,</span> <span class="n">sp_type</span> <span class="o">=</span> <span class="n">spectra_order</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
             <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">][</span><span class="n">key_ff</span><span class="p">][</span><span class="n">sp_type</span><span class="p">][</span><span class="n">ie</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">tok</span><span class="p">)</span>
         <span class="n">ie</span> <span class="o">+=</span> <span class="mi">1</span>
     <span class="k">return</span> <span class="n">data</span></div>
@@ -535,41 +578,42 @@
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
         <span class="n">lines</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
 
-    <span class="c1"># determine number of header lines</span>
+    <span class="c1"># determine location of spectra section</span>
+    <span class="n">i_spectra</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">):</span>
         <span class="k">if</span> <span class="s2">&quot;Spectra:&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+            <span class="n">i_spectra</span> <span class="o">=</span> <span class="n">i</span>
             <span class="k">break</span>
-    <span class="n">n_header_lines</span> <span class="o">=</span> <span class="n">i</span><span class="o">+</span><span class="mi">1</span>
+    <span class="k">if</span> <span class="n">i_spectra</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Could not find &#39;Spectra:&#39; section in file&quot;</span><span class="p">)</span>
 
     <span class="c1"># read header</span>
     <span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="n">psfs_order</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">[:</span><span class="n">n_header_lines</span><span class="p">]):</span>
+    <span class="n">psfs_order</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">[:</span><span class="n">i_spectra</span><span class="o">+</span><span class="mi">1</span><span class="p">]):</span>
         <span class="n">tokens</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="s2">&quot;Parent nucleus&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;parent_nucleus&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">if</span> <span class="s2">&quot;Porcess = &quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;process&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;parent_nucleus&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s2">&quot;Process = &quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="s2">&quot;Porcess = &quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">):</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;process&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
         <span class="k">if</span> <span class="s2">&quot;Energy unit = &quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;energy_unit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;energy_unit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
         <span class="k">if</span> <span class="s2">&quot;PSF unit = &quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;psf_unit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;psf_unit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
         <span class="k">if</span> <span class="s2">&quot;emin =&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
             <span class="n">data</span><span class="p">[</span><span class="s2">&quot;emin&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
         <span class="k">if</span> <span class="s2">&quot;PSFs:&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
             <span class="n">data</span><span class="p">[</span><span class="s2">&quot;PSFs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="n">tokens_psfs</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
-            <span class="n">i_order</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="k">for</span> <span class="n">tok</span> <span class="ow">in</span> <span class="n">tokens_psfs</span><span class="p">:</span>
                 <span class="n">toks</span> <span class="o">=</span> <span class="n">tok</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;(&#39;</span><span class="p">)</span>
                 <span class="n">key_ff</span> <span class="o">=</span> <span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;)&#39;</span><span class="p">)</span>
                 <span class="n">sp_type</span> <span class="o">=</span> <span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-                <span class="n">psfs_order</span><span class="p">[</span><span class="n">i_order</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">key_ff</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">)</span>
+                <span class="n">psfs_order</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">key_ff</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">))</span>
                 <span class="k">if</span> <span class="n">key_ff</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;PSFs&quot;</span><span class="p">]:</span>
                     <span class="n">data</span><span class="p">[</span><span class="s2">&quot;PSFs&quot;</span><span class="p">][</span><span class="n">key_ff</span><span class="p">][</span><span class="n">sp_type</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">data</span><span class="p">[</span><span class="s2">&quot;PSFs&quot;</span><span class="p">][</span><span class="n">key_ff</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">sp_type</span><span class="p">:</span> <span class="mf">0.</span><span class="p">}</span>
-                <span class="n">i_order</span> <span class="o">+=</span> <span class="mi">1</span>
 
             <span class="n">tokens_values</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tok</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tokens_values</span><span class="p">):</span>
@@ -586,20 +630,26 @@
     <span class="n">data</span><span class="p">[</span><span class="s2">&quot;e1_grid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;n_points_e1&quot;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;n_points_e2&quot;</span><span class="p">]))</span>
     <span class="n">data</span><span class="p">[</span><span class="s2">&quot;e2_grid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;n_points_e1&quot;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;n_points_e2&quot;</span><span class="p">]))</span>
     <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">psfs_order</span><span class="p">)):</span>
-        <span class="n">key_ff</span><span class="p">,</span> <span class="n">sp_type</span> <span class="o">=</span> <span class="n">psfs_order</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="n">spectra_order</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">spectra_labels</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">i_spectra</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">2</span><span class="p">:]</span>
+    <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">spectra_labels</span><span class="p">:</span>
+        <span class="n">tok</span><span class="p">,</span> <span class="n">ff_tok</span> <span class="o">=</span> <span class="n">label</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;(&quot;</span><span class="p">)</span>
+        <span class="n">key_ff</span> <span class="o">=</span> <span class="n">ff_tok</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">)</span>
+        <span class="n">sp_type</span> <span class="o">=</span> <span class="n">tok</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">spectra_order</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">key_ff</span><span class="p">,</span> <span class="n">sp_type</span><span class="p">))</span>
         <span class="k">if</span> <span class="n">key_ff</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">]:</span>
             <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">][</span><span class="n">key_ff</span><span class="p">][</span><span class="n">sp_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;e1_grid&quot;</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">][</span><span class="n">key_ff</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">sp_type</span><span class="p">:</span>
-                                       <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;e1_grid&quot;</span><span class="p">])}</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">][</span><span class="n">key_ff</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">sp_type</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;e1_grid&quot;</span><span class="p">])}</span>
 
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="n">n_header_lines</span><span class="o">+</span><span class="mi">1</span><span class="p">:]):</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="n">i_spectra</span><span class="o">+</span><span class="mi">2</span><span class="p">:]):</span>
         <span class="n">tokens_values</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">tokens_values</span><span class="p">:</span>
+            <span class="k">continue</span>
         <span class="n">data</span><span class="p">[</span><span class="s2">&quot;e1_grid&quot;</span><span class="p">][</span><span class="n">ie</span><span class="p">,</span> <span class="n">je</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">tokens_values</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
         <span class="n">data</span><span class="p">[</span><span class="s2">&quot;e2_grid&quot;</span><span class="p">][</span><span class="n">ie</span><span class="p">,</span> <span class="n">je</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">tokens_values</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
         <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">tok</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tokens_values</span><span class="p">[</span><span class="mi">2</span><span class="p">:]):</span>
-            <span class="n">key_ff</span><span class="p">,</span> <span class="n">sp_type</span> <span class="o">=</span> <span class="n">psfs_order</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">key_ff</span><span class="p">,</span> <span class="n">sp_type</span> <span class="o">=</span> <span class="n">spectra_order</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
             <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Spectra&quot;</span><span class="p">][</span><span class="n">key_ff</span><span class="p">][</span><span class="n">sp_type</span><span class="p">][</span><span class="n">ie</span><span class="p">,</span> <span class="n">je</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">tok</span><span class="p">)</span>
         <span class="n">je</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="k">if</span> <span class="n">je</span> <span class="o">==</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;n_points_e2&quot;</span><span class="p">]:</span>

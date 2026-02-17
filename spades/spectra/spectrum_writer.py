@@ -11,7 +11,18 @@ class NumpyArrayEncoder(json.JSONEncoder):
     """
 
     def default(self, obj):
-        """Convert NumPy arrays to JSON-serializable lists."""
+        """Convert NumPy arrays to JSON-serializable lists.
+
+        Parameters
+        ----------
+        obj:
+            Object being serialized.
+
+        Returns
+        -------
+        object
+            JSON-serializable representation.
+        """
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return super().default(obj)

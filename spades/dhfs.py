@@ -3,18 +3,69 @@
 import re
 import periodictable
 import os
+import runpy
+import logging
 import yaml
 import numpy as np
 from copy import deepcopy
 from . import dhfs_wrapper
 from . import ph
 
+logger = logging.getLogger(__name__)
+
+
+def _ensure_ground_state_config_file(z: int) -> str:
+    """Ensure generated ground-state configuration YAML exists for atomic number ``z``.
+
+    Parameters
+    ----------
+    z:
+        Atomic number.
+
+    Returns
+    -------
+    str
+        Absolute path to ``ground_state_config_Z###.yaml``.
+    """
+    data_dir = os.path.join(os.path.dirname(__file__), "../data/atomic_gs_configurations")
+    config_path = os.path.join(data_dir, f"ground_state_config_Z{z:03d}.yaml")
+    if os.path.exists(config_path):
+        return config_path
+
+    build_script = os.path.join(data_dir, "build_standard_files.py")
+    logger.info("Generating atomic ground-state configuration files via %s", build_script)
+    namespace = runpy.run_path(build_script)
+    build_fn = namespace.get("build_all_files")
+    if build_fn is None:
+        raise RuntimeError("build_standard_files.py does not expose build_all_files()")
+    build_fn()
+
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(
+            f"Ground-state config generation completed, but {config_path} was not created."
+        )
+    return config_path
+
 
 class AtomicSystem:
     """Atomic nucleus plus electron-shell configuration used by DHFS and RADIAL."""
 
     def __init__(self, name="", atomic_number=-1, mass_number=-1, electron_config="auto", weight=-1.) -> None:
-        """Create an atomic system from isotope name or explicit ``(Z, A)``."""
+        """Create an atomic system from isotope name or explicit ``(Z, A)``.
+
+        Parameters
+        ----------
+        name:
+            Isotope label such as ``"100Mo"``.
+        atomic_number:
+            Nuclear charge ``Z`` (used when ``name`` is not provided).
+        mass_number:
+            Mass number ``A`` (used when ``name`` is not provided).
+        electron_config:
+            ``"auto"`` to load built-in ground-state shells, or a YAML file path.
+        weight:
+            Atomic weight in g/mol. If negative, defaults to ``mass_number``.
+        """
         if (name != ""):
             self.name_nice = name
             matches = re.match(r'(\d+)([A-Za-z]+)', self.name_nice)
@@ -44,8 +95,7 @@ class AtomicSystem:
         tmp = electron_config
         if (tmp == "auto"):
             z = periodictable.elements.isotope(self.symbol).number
-            electron_configuration_filename = os.path.join(os.path.dirname(__file__),
-                                                           f"../data/atomic_gs_configurations/ground_state_config_Z{z:03d}.yaml")
+            electron_configuration_filename = _ensure_ground_state_config_file(z)
         else:
             electron_configuration_filename = tmp
 
@@ -82,7 +132,20 @@ configuration:[n,l,2j,occupation]
 
 
 def create_ion(atom: AtomicSystem, z_nuc) -> AtomicSystem:
-    """Clone an atomic system and update its nuclear charge to ``z_nuc``."""
+    """Clone an atomic system and update its nuclear charge to ``z_nuc``.
+
+    Parameters
+    ----------
+    atom:
+        Source atomic-system object.
+    z_nuc:
+        New nuclear charge.
+
+    Returns
+    -------
+    AtomicSystem
+        Deep-copied ion with updated nuclear charge and symbol.
+    """
     ion = deepcopy(atom)
     ion.Z = z_nuc
     ion.name = f"{int(ion.mass_number):d}{periodictable.elements[ion.Z].symbol:s}"
@@ -121,16 +184,14 @@ class DHFSHandler:
         self.config.print()
 
     def run_dhfs(self, max_radius: float, n_points=1000):
-        """Organizes the call to DHFS_MAIN from DHFS.f.
-        Sets appropriate parameters first.
+        """Run DHFS after setting shell configuration and radial-grid controls.
 
-
-        Args:
-            max_radius (float): Maximum radius for radial grid
-            n_points (int, optional): Number of radial points to use (tentative). Defaults to 1000.
-
-        Raises:
-            ValueError: _description_
+        Parameters
+        ----------
+        max_radius:
+            Maximum radial distance in fm.
+        n_points:
+            Requested number of radial points.
         """
         dhfs_wrapper.call_configuration_input(self.config.n_values,
                                               self.config.l_values,
@@ -163,8 +224,10 @@ class DHFSHandler:
         The resulting potential is suitable for the computation of both bound and scattering states
         and yields scattering states orthogonal on bound ones.
 
-        Returns:
-            np.ndarray: r times the modified potential
+        Returns
+        -------
+        np.ndarray
+            Modified ``r*V(r)`` potential in MeV*fm.
         """
         rv_exchange_modified = np.zeros(len(self.rv_ex))
         density = np.zeros(len(self.rv_el))

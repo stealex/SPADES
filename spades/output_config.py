@@ -25,4 +25,7 @@ class output_config:
         self.out_spectra = out_spectra
         self.out_psfs = out_psfs
         self.out_binding_energies = out_binding_energies
-        
+
+
+class OutputConfig(output_config):
+    """PEP8-compatible alias for :class:`output_config`."""

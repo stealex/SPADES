@@ -51,6 +51,7 @@
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">yaml</span>
 <span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">IntEnum</span>
 <span class="n">electron_mass</span> <span class="o">=</span> <span class="mf">0.51099895000</span><span class="o">*</span><span class="n">MeV</span>
 <span class="n">proton_mass</span> <span class="o">=</span> <span class="mf">938.27208943</span><span class="o">*</span><span class="n">MeV</span>
@@ -68,6 +69,53 @@
 <span class="n">user_psf_unit_name</span> <span class="o">=</span> <span class="s2">&quot;1/year&quot;</span>
 
 <span class="n">delta_m_files</span> <span class="o">=</span> <span class="s2">&quot;deltaM_KI_2012_2013.yaml&quot;</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="RuntimeSettings">
+<a class="viewcode-back" href="../../api/core.html#spades.config.RuntimeSettings">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">RuntimeSettings</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mutable-at-runtime settings used by CLI workflows.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    verbose:</span>
+<span class="sd">        Verbosity level in ``[0, 5]``.</span>
+<span class="sd">    distance_unit_name:</span>
+<span class="sd">        Symbolic distance unit name (must be defined in :mod:`spades.ph`).</span>
+<span class="sd">    energy_unit_name:</span>
+<span class="sd">        Symbolic energy unit name (must be defined in :mod:`spades.ph`).</span>
+<span class="sd">    qvalues_file:</span>
+<span class="sd">        Mass-difference YAML file name or absolute path.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">distance_unit_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;fm&quot;</span>
+    <span class="n">energy_unit_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;MeV&quot;</span>
+    <span class="n">qvalues_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">delta_m_files</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">_resolve_unit</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">globals</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown unit &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">globals</span><span class="p">()[</span><span class="n">name</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="apply_runtime_settings">
+<a class="viewcode-back" href="../../api/core.html#spades.config.apply_runtime_settings">[docs]</a>
+<span class="k">def</span> <span class="nf">apply_runtime_settings</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="n">RuntimeSettings</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply runtime settings to module-level variables used by legacy APIs.&quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">verbose</span><span class="p">,</span> <span class="n">user_distance_unit_name</span><span class="p">,</span> <span class="n">user_energy_unit_name</span>
+    <span class="k">global</span> <span class="n">user_distance_unit</span><span class="p">,</span> <span class="n">user_energy_unit</span><span class="p">,</span> <span class="n">delta_m_files</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">verbose</span>
+    <span class="n">user_distance_unit_name</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">distance_unit_name</span>
+    <span class="n">user_energy_unit_name</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">energy_unit_name</span>
+    <span class="n">user_distance_unit</span> <span class="o">=</span> <span class="n">_resolve_unit</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">distance_unit_name</span><span class="p">)</span>
+    <span class="n">user_energy_unit</span> <span class="o">=</span> <span class="n">_resolve_unit</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">energy_unit_name</span><span class="p">)</span>
+    <span class="n">delta_m_files</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">qvalues_file</span></div>
+
 
 
 <div class="viewcode-block" id="read_mass_difference">
@@ -80,16 +128,16 @@
 <span class="sd">    file_name:</span>
 <span class="sd">        Relative file name inside ``data/mass_difference`` or an absolute path.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Reading </span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Reading mass differences from </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">file_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">((</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">))):</span>
         <span class="c1"># we were given an absolute path</span>
-        <span class="n">file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+            <span class="n">qvalues</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="c1"># we were given a file name, check in the repo</span>
         <span class="n">_dir_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span>
-        <span class="n">file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-            <span class="n">_dir_name</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;../data/mass_difference/</span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span>
-    <span class="n">qvalues</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_dir_name</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;../data/mass_difference/</span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+            <span class="n">qvalues</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">qvalues</span></div>
 
 

@@ -1,6 +1,6 @@
 build
 .vscode
-data/*/*.yaml
+data/atomic_gs_configurations/ground_state_config_Z*.yaml
 config_files
 __pycache__
 src/constants.mod
@@ -28,3 +28,6 @@ Qval_Study
 AME2020_ENSDF2025
 data_server
 *.pdf
+.gitignore
+.venv
+docs/_build

@@ -1,13 +1,12 @@
 """Serialization helpers for wavefunctions, spectra, PSFs, and Fermi functions."""
 
-import enum
 import struct
-import token
 import numpy as np
 from . import ph
+from .data_models import BoundWavefunctions, ScatteringWavefunctions
 
 
-def write_scattring_wf(file_name, kappa: list[int], ke_grid: np.ndarray, inner_grid: dict, coulomb_grid: dict, r_values: np.ndarray, p: dict, q: dict):
+def write_scattering_wf(file_name, kappa: list[int], ke_grid: np.ndarray, inner_grid: dict, coulomb_grid: dict, r_values: np.ndarray, p: dict, q: dict):
     """Write scattering wavefunctions to a compact binary format.
 
     Parameters
@@ -45,8 +44,19 @@ def write_scattring_wf(file_name, kappa: list[int], ke_grid: np.ndarray, inner_g
                     f.write(struct.pack('<dd', p[k][ie][ir], q[k][ie][ir]))
 
 
+def write_scattring_wf(file_name, kappa: list[int], ke_grid: np.ndarray, inner_grid: dict, coulomb_grid: dict, r_values: np.ndarray, p: dict, q: dict):
+    """Backward-compatible alias for :func:`write_scattering_wf`.
+
+    Parameters
+    ----------
+    file_name, kappa, ke_grid, inner_grid, coulomb_grid, r_values, p, q:
+        Forwarded unchanged to :func:`write_scattering_wf`.
+    """
+    write_scattering_wf(file_name, kappa, ke_grid, inner_grid, coulomb_grid, r_values, p, q)
+
+
 def read_scattering_wf(file_name):
-    """Read scattering wavefunctions from the binary format written by `write_scattring_wf`.
+    """Read scattering wavefunctions from the binary format written by ``write_scattering_wf``.
 
     Parameters
     ----------
@@ -98,6 +108,31 @@ def read_scattering_wf(file_name):
                     q_values[k][ie][ir] = q
 
     return (k_values, e_values, r_values, inner_phase_values, coulomb_values, p_values, q_values)
+
+
+def read_scattering_wf_data(file_name: str) -> ScatteringWavefunctions:
+    """Read scattering wavefunctions and return a typed data container.
+
+    Parameters
+    ----------
+    file_name:
+        Input binary file path.
+
+    Returns
+    -------
+    ScatteringWavefunctions
+        Structured scattering-wavefunction container.
+    """
+    k, e, r, inner, coul, p, q = read_scattering_wf(file_name)
+    return ScatteringWavefunctions(
+        k_values=k,
+        energy_grid=e,
+        radial_grid=r,
+        inner_phase_values=inner,
+        coulomb_phase_values=coul,
+        p_values=p,
+        q_values=q,
+    )
 
 
 def write_bound_wf(file_name, r_grid: np.ndarray, be_values: dict, p_values: dict, q_values: dict):
@@ -157,7 +192,7 @@ def read_bound_wf(file_name):
         q_values = {}
         r_grid = np.zeros(nr)
 
-        for _ in n_shells:
+        for _ in range(n_shells):
             n, k, be = struct.unpack('<iid', f.read(16))
             try:
                 be_values[n][k] = be
@@ -177,10 +212,32 @@ def read_bound_wf(file_name):
 
                 for ir in range(nr):
                     p, q = struct.unpack("<dd", f.read(16))
-                    p_values[n][k] = p
-                    q_values[n][k] = q
+                    p_values[n][k][ir] = p
+                    q_values[n][k][ir] = q
 
     return r_grid, be_values, p_values, q_values
+
+
+def read_bound_wf_data(file_name: str) -> BoundWavefunctions:
+    """Read bound wavefunctions and return a typed data container.
+
+    Parameters
+    ----------
+    file_name:
+        Input binary file path.
+
+    Returns
+    -------
+    BoundWavefunctions
+        Structured bound-wavefunction container.
+    """
+    r, be, p, q = read_bound_wf(file_name)
+    return BoundWavefunctions(
+        radial_grid=r,
+        binding_energies=be,
+        p_values=p,
+        q_values=q,
+    )
 
 
 header_spectra = '''# Spectra and PSF values computed with project_name version
@@ -219,7 +276,6 @@ def write_spectra(file_name, parent_nucleus: str, process: str, e_grid: np.ndarr
     psfs:
         Optional nested PSF dictionary.
     """
-    n_fermi_functions = len(spectra)
     with open(file_name, "w") as f:
         f.write(header_spectra.format(parent_nucleus=parent_nucleus,
                                       process=process,
@@ -232,7 +288,6 @@ def write_spectra(file_name, parent_nucleus: str, process: str, e_grid: np.ndarr
             line = ""
             for ff_type in psfs:
                 for sp_type in psfs[ff_type]:
-                    print(type(psfs[ff_type][sp_type]))
                     if (type(psfs[ff_type][sp_type]) is dict):
                         for ord in psfs[ff_type][sp_type]:
                             line = line +\
@@ -298,41 +353,42 @@ def load_data(filename):
     with open(filename, 'r') as f:
         lines = f.readlines()
 
-    # determine number of header lines
+    # determine location of spectra section
+    i_spectra = -1
     for i, line in enumerate(lines):
         if "Spectra:" in line:
+            i_spectra = i
             break
-    n_header_lines = i+1
+    if i_spectra < 0:
+        raise ValueError("Could not find 'Spectra:' section in file")
 
     # read header
     data = {}
-    psfs_order = {}
-    for i, line in enumerate(lines[:n_header_lines]):
+    psfs_order = []
+    for i, line in enumerate(lines[:i_spectra+1]):
         tokens = line.split("=")
         if "Parent nucleus" in line:
-            data["parent_nucleus"] = tokens[1]
-        if "Porcess = " in line:
-            data["process"] = tokens[1]
+            data["parent_nucleus"] = tokens[1].strip()
+        if ("Process = " in line) or ("Porcess = " in line):
+            data["process"] = tokens[1].strip()
         if "Energy unit = " in line:
-            data["energy_unit"] = tokens[1]
+            data["energy_unit"] = tokens[1].strip()
         if "PSF unit = " in line:
-            data["psf_unit"] = tokens[1]
+            data["psf_unit"] = tokens[1].strip()
         if "emin =" in line:
             data["emin"] = float(tokens[1])
         if "PSFs:" in line:
             data["PSFs"] = {}
             tokens_psfs = lines[i+1].strip().split()
-            i_order = 0
             for tok in tokens_psfs:
                 toks = tok.split('(')
                 key_ff = toks[1].strip(')')
                 sp_type = toks[0].strip()
-                psfs_order[i_order] = (key_ff, sp_type)
+                psfs_order.append((key_ff, sp_type))
                 if key_ff in data["PSFs"]:
                     data["PSFs"][key_ff][sp_type] = 0.
                 else:
                     data["PSFs"][key_ff] = {sp_type: 0.}
-                i_order += 1
 
             tokens_values = lines[i+2].strip().split()
             for i, tok in enumerate(tokens_values):
@@ -346,19 +402,25 @@ def load_data(filename):
     ie = 0
     data["energy_grid"] = np.zeros(data["n_points"])
     data["Spectra"] = {}
-
-    for i in range(len(psfs_order)):
-        key_ff, sp_type = psfs_order[i]
-        if key_ff in data["Spectra"]:
-            data["Spectra"][key_ff][sp_type] = np.zeros(data["n_points"])
+    spectra_order = []
+    spectra_labels = lines[i_spectra+1].strip().split()[1:]
+    for label in spectra_labels:
+        tok, ff_tok = label.split("(")
+        ff_type = ff_tok.strip(")")
+        sp_type = tok.strip()
+        spectra_order.append((ff_type, sp_type))
+        if ff_type in data["Spectra"]:
+            data["Spectra"][ff_type][sp_type] = np.zeros(data["n_points"])
         else:
-            data["Spectra"][key_ff] = {sp_type: np.zeros(data["n_points"])}
+            data["Spectra"][ff_type] = {sp_type: np.zeros(data["n_points"])}
 
-    for i, line in enumerate(lines[n_header_lines+1:]):
+    for i, line in enumerate(lines[i_spectra+2:]):
         tokens_values = line.strip().split()
+        if not tokens_values:
+            continue
         data["energy_grid"][ie] = float(tokens_values[0])
         for j, tok in enumerate(tokens_values[1:]):
-            key_ff, sp_type = psfs_order[j]
+            key_ff, sp_type = spectra_order[j]
             data["Spectra"][key_ff][sp_type][ie] = float(tok)
         ie += 1
     return data
@@ -481,41 +543,42 @@ def load_2d_spectra(filename):
     with open(filename, 'r') as f:
         lines = f.readlines()
 
-    # determine number of header lines
+    # determine location of spectra section
+    i_spectra = -1
     for i, line in enumerate(lines):
         if "Spectra:" in line:
+            i_spectra = i
             break
-    n_header_lines = i+1
+    if i_spectra < 0:
+        raise ValueError("Could not find 'Spectra:' section in file")
 
     # read header
     data = {}
-    psfs_order = {}
-    for i, line in enumerate(lines[:n_header_lines]):
+    psfs_order = []
+    for i, line in enumerate(lines[:i_spectra+1]):
         tokens = line.split("=")
         if "Parent nucleus" in line:
-            data["parent_nucleus"] = tokens[1]
-        if "Porcess = " in line:
-            data["process"] = tokens[1]
+            data["parent_nucleus"] = tokens[1].strip()
+        if ("Process = " in line) or ("Porcess = " in line):
+            data["process"] = tokens[1].strip()
         if "Energy unit = " in line:
-            data["energy_unit"] = tokens[1]
+            data["energy_unit"] = tokens[1].strip()
         if "PSF unit = " in line:
-            data["psf_unit"] = tokens[1]
+            data["psf_unit"] = tokens[1].strip()
         if "emin =" in line:
             data["emin"] = float(tokens[1])
         if "PSFs:" in line:
             data["PSFs"] = {}
             tokens_psfs = lines[i+1].strip().split()
-            i_order = 0
             for tok in tokens_psfs:
                 toks = tok.split('(')
                 key_ff = toks[1].strip(')')
                 sp_type = toks[0].strip()
-                psfs_order[i_order] = (key_ff, sp_type)
+                psfs_order.append((key_ff, sp_type))
                 if key_ff in data["PSFs"]:
                     data["PSFs"][key_ff][sp_type] = 0.
                 else:
                     data["PSFs"][key_ff] = {sp_type: 0.}
-                i_order += 1
 
             tokens_values = lines[i+2].strip().split()
             for i, tok in enumerate(tokens_values):
@@ -532,20 +595,26 @@ def load_2d_spectra(filename):
     data["e1_grid"] = np.zeros((data["n_points_e1"], data["n_points_e2"]))
     data["e2_grid"] = np.zeros((data["n_points_e1"], data["n_points_e2"]))
     data["Spectra"] = {}
-    for i in range(len(psfs_order)):
-        key_ff, sp_type = psfs_order[i]
+    spectra_order = []
+    spectra_labels = lines[i_spectra+1].strip().split()[2:]
+    for label in spectra_labels:
+        tok, ff_tok = label.split("(")
+        key_ff = ff_tok.strip(")")
+        sp_type = tok.strip()
+        spectra_order.append((key_ff, sp_type))
         if key_ff in data["Spectra"]:
             data["Spectra"][key_ff][sp_type] = np.zeros_like(data["e1_grid"])
         else:
-            data["Spectra"][key_ff] = {sp_type:
-                                       np.zeros_like(data["e1_grid"])}
+            data["Spectra"][key_ff] = {sp_type: np.zeros_like(data["e1_grid"])}
 
-    for i, line in enumerate(lines[n_header_lines+1:]):
+    for i, line in enumerate(lines[i_spectra+2:]):
         tokens_values = line.strip().split()
+        if not tokens_values:
+            continue
         data["e1_grid"][ie, je] = float(tokens_values[0])
         data["e2_grid"][ie, je] = float(tokens_values[1])
         for j, tok in enumerate(tokens_values[2:]):
-            key_ff, sp_type = psfs_order[j]
+            key_ff, sp_type = spectra_order[j]
             data["Spectra"][key_ff][sp_type][ie, je] = float(tok)
         je += 1
         if je == data["n_points_e2"]:

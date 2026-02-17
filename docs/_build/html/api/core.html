@@ -366,6 +366,57 @@
 </dd></dl>
 
 <p id="module-spades.ph">Physical constants, units, enums, and name maps used across SPADES.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="spades.ph.RuntimeSettings">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">spades.ph.</span></span><span class="sig-name descname"><span class="pre">RuntimeSettings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_unit_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'fm'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">energy_unit_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'MeV'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qvalues_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'deltaM_KI_2012_2013.yaml'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/spades/ph.html#RuntimeSettings"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#spades.ph.RuntimeSettings" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Mutable-at-runtime settings used by CLI workflows.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>verbose</strong> (<em>int</em>) – Verbosity level in <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">5]</span></code>.</p></li>
+<li><p><strong>distance_unit_name</strong> (<em>str</em>) – Symbolic distance unit name (must be defined in <a class="reference internal" href="#module-spades.ph" title="spades.ph"><code class="xref py py-mod docutils literal notranslate"><span class="pre">spades.ph</span></code></a>).</p></li>
+<li><p><strong>energy_unit_name</strong> (<em>str</em>) – Symbolic energy unit name (must be defined in <a class="reference internal" href="#module-spades.ph" title="spades.ph"><code class="xref py py-mod docutils literal notranslate"><span class="pre">spades.ph</span></code></a>).</p></li>
+<li><p><strong>qvalues_file</strong> (<em>str</em>) – Mass-difference YAML file name or absolute path.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="spades.ph.RuntimeSettings.verbose">
+<span class="sig-name descname"><span class="pre">verbose</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#spades.ph.RuntimeSettings.verbose" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="spades.ph.RuntimeSettings.distance_unit_name">
+<span class="sig-name descname"><span class="pre">distance_unit_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'fm'</span></em><a class="headerlink" href="#spades.ph.RuntimeSettings.distance_unit_name" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="spades.ph.RuntimeSettings.energy_unit_name">
+<span class="sig-name descname"><span class="pre">energy_unit_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'MeV'</span></em><a class="headerlink" href="#spades.ph.RuntimeSettings.energy_unit_name" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="spades.ph.RuntimeSettings.qvalues_file">
+<span class="sig-name descname"><span class="pre">qvalues_file</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'deltaM_KI_2012_2013.yaml'</span></em><a class="headerlink" href="#spades.ph.RuntimeSettings.qvalues_file" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="spades.ph.apply_runtime_settings">
+<span class="sig-prename descclassname"><span class="pre">spades.ph.</span></span><span class="sig-name descname"><span class="pre">apply_runtime_settings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">settings</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/spades/ph.html#apply_runtime_settings"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#spades.ph.apply_runtime_settings" title="Link to this definition">¶</a></dt>
+<dd><p>Apply runtime settings to module-level variables used by legacy APIs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>settings</strong> (<a class="reference internal" href="#spades.ph.RuntimeSettings" title="spades.ph.RuntimeSettings"><em>RuntimeSettings</em></a>) – </p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py function">
 <dt class="sig sig-object py" id="spades.ph.read_mass_difference">
 <span class="sig-prename descclassname"><span class="pre">spades.ph.</span></span><span class="sig-name descname"><span class="pre">read_mass_difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/spades/ph.html#read_mass_difference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#spades.ph.read_mass_difference" title="Link to this definition">¶</a></dt>
@@ -1294,8 +1345,8 @@ and yields scattering states orthogonal on bound ones.</p>
 
 <p id="module-spades.io_handler">Serialization helpers for wavefunctions, spectra, PSFs, and Fermi functions.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="spades.io_handler.write_scattring_wf">
-<span class="sig-prename descclassname"><span class="pre">spades.io_handler.</span></span><span class="sig-name descname"><span class="pre">write_scattring_wf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kappa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ke_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inner_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coulomb_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/spades/io_handler.html#write_scattring_wf"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#spades.io_handler.write_scattring_wf" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="spades.io_handler.write_scattering_wf">
+<span class="sig-prename descclassname"><span class="pre">spades.io_handler.</span></span><span class="sig-name descname"><span class="pre">write_scattering_wf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kappa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ke_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inner_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coulomb_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/spades/io_handler.html#write_scattering_wf"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#spades.io_handler.write_scattering_wf" title="Link to this definition">¶</a></dt>
 <dd><p>Write scattering wavefunctions to a compact binary format.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -1314,9 +1365,28 @@ and yields scattering states orthogonal on bound ones.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="spades.io_handler.write_scattring_wf">
+<span class="sig-prename descclassname"><span class="pre">spades.io_handler.</span></span><span class="sig-name descname"><span class="pre">write_scattring_wf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kappa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ke_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inner_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coulomb_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/spades/io_handler.html#write_scattring_wf"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#spades.io_handler.write_scattring_wf" title="Link to this definition">¶</a></dt>
+<dd><p>Backward-compatible alias for <a class="reference internal" href="#spades.io_handler.write_scattering_wf" title="spades.io_handler.write_scattering_wf"><code class="xref py py-func docutils literal notranslate"><span class="pre">write_scattering_wf()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>kappa</strong> (<em>list</em><em>[</em><em>int</em><em>]</em>) – </p></li>
+<li><p><strong>ke_grid</strong> (<em>ndarray</em>) – </p></li>
+<li><p><strong>inner_grid</strong> (<em>dict</em>) – </p></li>
+<li><p><strong>coulomb_grid</strong> (<em>dict</em>) – </p></li>
+<li><p><strong>r_values</strong> (<em>ndarray</em>) – </p></li>
+<li><p><strong>p</strong> (<em>dict</em>) – </p></li>
+<li><p><strong>q</strong> (<em>dict</em>) – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="spades.io_handler.read_scattering_wf">
 <span class="sig-prename descclassname"><span class="pre">spades.io_handler.</span></span><span class="sig-name descname"><span class="pre">read_scattering_wf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/spades/io_handler.html#read_scattering_wf"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#spades.io_handler.read_scattering_wf" title="Link to this definition">¶</a></dt>
-<dd><p>Read scattering wavefunctions from the binary format written by <cite>write_scattring_wf</cite>.</p>
+<dd><p>Read scattering wavefunctions from the binary format written by <code class="docutils literal notranslate"><span class="pre">write_scattering_wf</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>file_name</strong> – Input binary file path.</p>
@@ -1326,6 +1396,20 @@ and yields scattering states orthogonal on bound ones.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="spades.io_handler.read_scattering_wf_data">
+<span class="sig-prename descclassname"><span class="pre">spades.io_handler.</span></span><span class="sig-name descname"><span class="pre">read_scattering_wf_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/spades/io_handler.html#read_scattering_wf_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#spades.io_handler.read_scattering_wf_data" title="Link to this definition">¶</a></dt>
+<dd><p>Read scattering wavefunctions and return a typed data container.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>file_name</strong> (<em>str</em>) – </p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ScatteringWavefunctions</em></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1360,6 +1444,20 @@ and yields scattering states orthogonal on bound ones.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="spades.io_handler.read_bound_wf_data">
+<span class="sig-prename descclassname"><span class="pre">spades.io_handler.</span></span><span class="sig-name descname"><span class="pre">read_bound_wf_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/spades/io_handler.html#read_bound_wf_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#spades.io_handler.read_bound_wf_data" title="Link to this definition">¶</a></dt>
+<dd><p>Read bound wavefunctions and return a typed data container.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>file_name</strong> (<em>str</em>) – </p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>BoundWavefunctions</em></p>
 </dd>
 </dl>
 </dd></dl>

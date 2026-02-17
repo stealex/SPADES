@@ -31,16 +31,11 @@
   <h1>Source code for spades.wavefunctions</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Bound and scattering electron wavefunction solvers.&quot;&quot;&quot;</span>
 
-<span class="kn">import</span> <span class="nn">re</span>
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">hepunits</span> <span class="kn">import</span> <span class="n">rad</span>
-<span class="k">except</span> <span class="ne">ModuleNotFoundError</span><span class="p">:</span>
-    <span class="n">rad</span> <span class="o">=</span> <span class="mf">1.0</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">spades.config</span> <span class="kn">import</span> <span class="n">BoundConfig</span><span class="p">,</span> <span class="n">ScatteringConfig</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">ph</span><span class="p">,</span> <span class="n">radial_wrapper</span><span class="p">,</span> <span class="n">math_stuff</span><span class="p">,</span> <span class="n">dhfs</span>
-<span class="kn">from</span> <span class="nn">spades.math_stuff</span> <span class="kn">import</span> <span class="n">hydrogenic_binding_energy</span><span class="p">,</span> <span class="n">coulomb_phase_shift</span>
+<span class="kn">from</span> <span class="nn">spades.math_stuff</span> <span class="kn">import</span> <span class="n">coulomb_phase_shift</span>
 <span class="kn">from</span> <span class="nn">.radial_wrapper</span> <span class="kn">import</span> <span class="n">RADIALError</span>
 <span class="kn">from</span> <span class="nn">.dhfs</span> <span class="kn">import</span> <span class="n">AtomicSystem</span><span class="p">,</span> <span class="n">DHFSHandler</span><span class="p">,</span> <span class="n">create_ion</span>
 <span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
@@ -48,56 +43,6 @@
 
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-
-
-<span class="c1"># class bound_config_old:</span>
-<span class="c1">#     def __init__(self, max_r: float, n_radial_points: int,</span>
-<span class="c1">#                  n_values: int | tuple[int, int] | list[int],</span>
-<span class="c1">#                  k_values: str | int | tuple[int, int] | dict[int, list[int]] = &quot;auto&quot;) -&gt; None:</span>
-<span class="c1">#         self.max_r = max_r</span>
-<span class="c1">#         self.n_radial_points = n_radial_points</span>
-
-<span class="c1">#         if (type(n_values) == int):</span>
-<span class="c1">#             self.n_values = [n_values]</span>
-<span class="c1">#         elif (type(n_values) == tuple):</span>
-<span class="c1">#             self.n_values = range(n_values[0], n_values[1]+1)</span>
-<span class="c1">#         elif (type(n_values) == list):</span>
-<span class="c1">#             self.n_values = n_values</span>
-
-<span class="c1">#         self.k_values = {}</span>
-<span class="c1">#         for i_n in range(len(self.n_values)):</span>
-<span class="c1">#             n = self.n_values[i_n]</span>
-<span class="c1">#             if (type(k_values) == str):</span>
-<span class="c1">#                 if k_values != &quot;auto&quot;:</span>
-<span class="c1">#                     raise ValueError(&quot;Cannot interpret k_values option&quot;)</span>
-<span class="c1">#                 else:</span>
-<span class="c1">#                     k_tmp = range(-n, n)</span>
-<span class="c1">#             if (type(k_values) == int):</span>
-<span class="c1">#                 if (k_values &lt; -n) or (k_values &gt;= n) or (k_values == 0):</span>
-<span class="c1">#                     continue</span>
-<span class="c1">#                 self.k_values[n] = k_values</span>
-<span class="c1">#                 continue</span>
-<span class="c1">#             elif type(k_values) == tuple:</span>
-<span class="c1">#                 k_tmp = range(k_values[0], k_values[1]+1)</span>
-<span class="c1">#             elif type(k_values) == dict:</span>
-<span class="c1">#                 self.k_values = k_values</span>
-<span class="c1">#                 break</span>
-
-<span class="c1">#             for i_k in range(len(k_tmp)):</span>
-<span class="c1">#                 if (k_tmp[i_k] &lt; -n) or (k_tmp[i_k] &gt;= n) or (k_tmp[i_k] == 0):</span>
-<span class="c1">#                     continue</span>
-<span class="c1">#                 if (n not in self.k_values):</span>
-<span class="c1">#                     self.k_values[n] = []</span>
-<span class="c1">#                 self.k_values[n].append(k_tmp[i_k])</span>
-
-<span class="c1">#     def print(self):</span>
-<span class="c1">#         print(&quot;Configuration for bound states&quot;)</span>
-<span class="c1">#         print(f&quot;  - Maximum radial distance: {self.max_r*ph.to_distance_units(): 8.3f}&quot;,</span>
-<span class="c1">#               f&quot;{ph.user_distance_unit_name}&quot;)</span>
-<span class="c1">#         print(f&quot;  - Number of radial points: {self.n_radial_points: d}&quot;)</span>
-<span class="c1">#         print(f&quot;  - N and K values:&quot;)</span>
-<span class="c1">#         for i in range(len(self.n_values)):</span>
-<span class="c1">#             print(f&quot;    - {self.n_values[i]}&quot;, self.k_values[self.n_values[i]])</span>
 
 
 <div class="viewcode-block" id="BoundHandler">
@@ -172,7 +117,7 @@
                 <span class="k">except</span> <span class="n">RADIALError</span><span class="p">:</span>
                     <span class="c1"># means computation did not succeed for whatever reason</span>
                     <span class="c1"># don&#39;t stop, just don&#39;t add this to the class</span>
-                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;could not find bound state for </span><span class="si">{</span><span class="n">n</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">k</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Could not find bound state for n=</span><span class="si">%d</span><span class="s2">, k=</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
                     <span class="k">continue</span>
 
                 <span class="n">p</span><span class="p">,</span> <span class="n">q</span> <span class="o">=</span> <span class="n">radial_wrapper</span><span class="o">.</span><span class="n">call_getpq</span><span class="p">(</span>
@@ -217,44 +162,6 @@
                          <span class="bp">self</span><span class="o">.</span><span class="n">q_func</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">kappa</span><span class="p">](</span><span class="n">radius</span><span class="p">)</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">radius</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">constant_term</span><span class="o">*</span><span class="n">function_term</span></div>
 </div>
-
-<span class="c1"># class scattering_config_old:</span>
-<span class="c1">#     def __init__(self, max_r: float, n_radial_points: int,</span>
-<span class="c1">#                  min_ke: float, max_ke: float, n_ke_points: int,</span>
-<span class="c1">#                  k_values: int | tuple[int, int] | list[int]) -&gt; None:</span>
-<span class="c1">#         self.max_r = max_r</span>
-<span class="c1">#         self.n_radial_points = n_radial_points</span>
-
-<span class="c1">#         self.min_ke = min_ke</span>
-<span class="c1">#         self.max_ke = max_ke</span>
-<span class="c1">#         self.n_ke_points = n_ke_points</span>
-
-<span class="c1">#         self.k_values = []</span>
-<span class="c1">#         if type(k_values) == int:</span>
-<span class="c1">#             self.k_values.append(k_values)</span>
-<span class="c1">#         elif type(k_values) == tuple:</span>
-<span class="c1">#             for i_k in range(k_values[0], k_values[1]+1):</span>
-<span class="c1">#                 if (k_values[i_k] == 0):</span>
-<span class="c1">#                     continue</span>
-<span class="c1">#                 self.k_values.append(k_values[i_k])</span>
-<span class="c1">#         elif type(k_values) == list:</span>
-<span class="c1">#             for k in k_values:</span>
-<span class="c1">#                 if (k == 0):</span>
-<span class="c1">#                     continue</span>
-<span class="c1">#                 self.k_values.append(k)</span>
-<span class="c1">#         else:</span>
-<span class="c1">#             raise ValueError(&quot;Cannot interpret the type of k_values&quot;)</span>
-
-<span class="c1">#     def print(self):</span>
-<span class="c1">#         print(&quot;Configuration for scattering states&quot;)</span>
-<span class="c1">#         print(f&quot;  - Maximum radial distance: {self.max_r*ph.to_distance_units(): 8.3f}&quot;</span>
-<span class="c1">#               f&quot; {ph.user_distance_unit_name}&quot;)</span>
-<span class="c1">#         print(f&quot;  - Number of radial points: {self.n_radial_points: d}&quot;)</span>
-<span class="c1">#         print(f&quot;  - K values: &quot;, self.k_values)</span>
-<span class="c1">#         print(f&quot;  - Energy limits: [&quot;, self.min_ke/ph.user_energy_unit,</span>
-<span class="c1">#               &quot;, &quot;, self.max_ke/ph.user_energy_unit, f&quot;] {ph.user_energy_unit_name}&quot;)</span>
-<span class="c1">#         print(f&quot;  - Number of energy points: {self.n_ke_points}&quot;)</span>
-
 
 <div class="viewcode-block" id="ScatteringHandler">
 <a class="viewcode-back" href="../../api/core.html#spades.wavefunctions.ScatteringHandler">[docs]</a>
@@ -332,7 +239,7 @@
                     <span class="n">phase</span> <span class="o">=</span> <span class="n">radial_wrapper</span><span class="o">.</span><span class="n">call_dfree</span><span class="p">(</span>
                         <span class="n">e</span><span class="o">/</span><span class="n">ph</span><span class="o">.</span><span class="n">hartree_energy</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="mf">1E-14</span><span class="p">)</span>
                 <span class="k">except</span> <span class="n">RADIALError</span><span class="p">:</span>
-                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find scattering state </span><span class="si">{</span><span class="n">k</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">e</span><span class="si">:</span><span class="s2">f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Could not find scattering state k=</span><span class="si">%d</span><span class="s2">, E=</span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
                     <span class="k">continue</span>
 
                 <span class="n">p</span><span class="p">,</span> <span class="n">q</span> <span class="o">=</span> <span class="n">radial_wrapper</span><span class="o">.</span><span class="n">call_getpq</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r_grid</span><span class="p">))</span>
@@ -345,20 +252,6 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">coul_phase_grid</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">i_e</span><span class="p">]</span> <span class="o">=</span> <span class="n">coul_phase_shift</span></div>
 </div>
 
-
-            <span class="c1"># delta_corr = self.phase_grid[k].copy()</span>
-            <span class="c1"># p_corr = self.p_grid[k].copy()</span>
-            <span class="c1"># q_corr = self.q_grid[k].copy()</span>
-            <span class="c1"># for i in range(len(delta_corr)-1, 0, -1):</span>
-            <span class="c1">#     if (np.abs(delta_corr[i] - delta_corr[i-1]) &gt; 1.0):</span>
-            <span class="c1">#         # print(&quot;found discontinuity at &quot;, i)</span>
-            <span class="c1">#         delta_corr[:i] = delta_corr[:i] + np.pi</span>
-            <span class="c1">#         p_corr[:i] = -1.*p_corr[:i]</span>
-            <span class="c1">#         q_corr[:i] = -1.*q_corr[:i]</span>
-
-            <span class="c1"># self.phase_grid[k] = delta_corr</span>
-            <span class="c1"># self.p_grid[k] = p_corr</span>
-            <span class="c1"># self.q_grid[k] = q_corr</span>
 
 
 <div class="viewcode-block" id="WaveFunctionsHandler">

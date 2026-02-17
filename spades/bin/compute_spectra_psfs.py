@@ -14,24 +14,27 @@ from spades import fermi_functions, math_stuff, ph, exchange
 from spades.config import RunConfig
 from spades.dhfs import AtomicSystem, create_ion
 from spades.spectra.base import SpectrumBase
-import spades.spectra.twobeta
-import spades.spectra.ecbeta
-import spades.spectra.twoec
 from spades.wavefunctions import WaveFunctionsHandler
 from spades.spectra.spectrum_writer import SpectrumWriter
+from spades.bin.spectrum_factory import create_spectrum as create_spectrum_from_factory
 
 logger = logging.getLogger(__name__)
 
 
-def parse_input():
+def parse_input(argv=None):
     """Parse CLI arguments and build resolved runtime objects.
 
     Returns
     -------
     tuple[RunConfig, AtomicSystem, AtomicSystem]
         Resolved run configuration, initial atom, and final atom.
+
+    Parameters
+    ----------
+    argv:
+        Optional CLI argument list. If ``None``, ``sys.argv`` is used.
     """
-    print("Parsing input arguments")
+    logger.info("Parsing input arguments")
     parser = ArgumentParser(
         description="Compute spectra and PSFs for 2nubb decay")
     parser.add_argument("config_file",
@@ -62,16 +65,15 @@ def parse_input():
                         default=False,
                         help="Compute 2D spectrum as well as 1D spectrum")
 
-    args = parser.parse_args()
-    ph.verbose = args.verbose
-    logging.basicConfig(level=10*(5-ph.verbose))
-    # logging.basicConfig(level=logging.DEBUG)
-    ph.user_distance_unit_name = args.distance_unit
-    ph.user_energy_unit_name = args.energy_unit
-    ph.user_distance_unit = ph.__dict__[
-        args.distance_unit]
-    ph.user_energy_unit = ph.__dict__[args.energy_unit]
-    ph.delta_m_files = args.qvalues_file
+    args = parser.parse_args(argv)
+    runtime_settings = ph.RuntimeSettings(
+        verbose=args.verbose,
+        distance_unit_name=args.distance_unit,
+        energy_unit_name=args.energy_unit,
+        qvalues_file=args.qvalues_file,
+    )
+    ph.apply_runtime_settings(runtime_settings)
+    logging.basicConfig(level=10*(5-runtime_settings.verbose))
 
     with open(args.config_file, 'r') as f:
         conf = yaml.safe_load(f)
@@ -103,7 +105,10 @@ def create_atoms(input_config: RunConfig):
         Initial and final atomic systems used throughout the workflow.
     """
     initial_atom = AtomicSystem(**input_config.initial_atom_dict)
-    initial_atom.print()
+    if ph.verbose >= 3:
+        initial_atom.print()
+    else:
+        logger.info("Initial atom: %s", initial_atom.name_nice)
 
     proc = input_config.process.type
     if (proc in [ph.ProcessTypes.TWONEUTRINO_TWOBMINUS, ph.ProcessTypes.NEUTRINOLESS_TWOBMINUS,
@@ -123,11 +128,14 @@ def create_atoms(input_config: RunConfig):
                                   mass_number=initial_atom.mass_number,
                                   electron_config="auto")
 
-    final_atom.print()
+    if ph.verbose >= 3:
+        final_atom.print()
+    else:
+        logger.info("Final atom: %s", final_atom.name_nice)
     return (initial_atom, final_atom)
 
 
-def find_wave_functions(input_config: RunConfig, initial_atom: AtomicSystem, final_atom: AtomicSystem):
+def find_wavefunctions(input_config: RunConfig, initial_atom: AtomicSystem, final_atom: AtomicSystem):
     """Compute bound/scattering wavefunctions for initial and final atoms.
 
     Parameters
@@ -160,6 +168,22 @@ def find_wave_functions(input_config: RunConfig, initial_atom: AtomicSystem, fin
     return (wf_handler_init, wf_handler_final)
 
 
+def find_wave_functions(input_config: RunConfig, initial_atom: AtomicSystem, final_atom: AtomicSystem):
+    """Backward-compatible alias for :func:`find_wavefunctions`.
+
+    Parameters
+    ----------
+    input_config, initial_atom, final_atom:
+        Forwarded unchanged to :func:`find_wavefunctions`.
+
+    Returns
+    -------
+    tuple[WaveFunctionsHandler | None, WaveFunctionsHandler | None]
+        Result returned by :func:`find_wavefunctions`.
+    """
+    return find_wavefunctions(input_config, initial_atom, final_atom)
+
+
 def build_exchange_correction(wf_handler_init: WaveFunctionsHandler, wf_handler_final: WaveFunctionsHandler, nuclear_radius: float):
     """Apply exchange-driven orthogonalization to final-state scattering functions.
 
@@ -177,7 +201,7 @@ def build_exchange_correction(wf_handler_init: WaveFunctionsHandler, wf_handler_
     exchange.ExchangeCorrection
         Exchange correction object used to transform scattering wavefunctions.
     """
-    print(f"Computing exchange correction")
+    logger.info("Computing exchange correction")
     ex_corr = exchange.ExchangeCorrection(wf_handler_init,
                                           wf_handler_final,
                                           nuclear_radius)
@@ -187,7 +211,7 @@ def build_exchange_correction(wf_handler_init: WaveFunctionsHandler, wf_handler_
     wf_handler_final.scattering_handler.q_grid = q_new
     # ex_corr.compute_eta_total()
     stop_time = time.time()
-    print(f"... took {stop_time-start_time: .2f} seconds")
+    logger.info("Exchange correction took %.2f seconds", stop_time-start_time)
     return ex_corr
 
 
@@ -285,7 +309,15 @@ def create_fermi_functions(ff_type: int, input_config: RunConfig, wf_handler_fin
 
 
 def compute_two_ec_psfs(input_config: RunConfig, wf_handler_init: WaveFunctionsHandler):
-    """Placeholder for double-electron-capture PSF pipeline."""
+    """Placeholder for double-electron-capture PSF pipeline.
+
+    Parameters
+    ----------
+    input_config:
+        Run configuration.
+    wf_handler_init:
+        Initial-state wavefunction handler.
+    """
     pass
 
 
@@ -313,169 +345,41 @@ def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.Fe
     SpectrumBase | dict
         One spectrum object or a dictionary of order-resolved spectrum objects.
     """
-    # prepare for all options
-    atilde = 1.12*(final_atom.mass_number**0.5)
-    if ("enei" in input_config.spectra_config.method):
-        if (isinstance(input_config.spectra_config.method["enei"], float)):
-            enei = input_config.spectra_config.method["enei"]
-        elif isinstance(input_config.spectra_config.method["enei"], str):
-            if (input_config.spectra_config.method["enei"] != "auto"):
-                raise ValueError("Cannot interpret enei option")
-            enei = atilde - 0.5 * input_config.spectra_config.ei_ef
+    return create_spectrum_from_factory(
+        input_config=input_config,
+        fermi_func=fermi_functions,
+        eta_total=eta_total,
+        final_atom=final_atom,
+        wf_handler_init=wf_handler_init,
+        e1_grid_2D=e1_grid_2D,
+        e2_grid_2D=e2_grid_2D,
+    )
 
-    if ("orders" in input_config.spectra_config.method):
-        if (isinstance(input_config.spectra_config.method["orders"], list)):
-            orders = []
-            for key in input_config.spectra_config.method["orders"]:
-                orders.append(ph.TAYLOR_ORDER_NAMES_MAP[str(key)])
-        elif (isinstance(input_config.spectra_config.method["orders"], str)):
-            if (input_config.spectra_config.method["orders"] != "auto"):
-                raise ValueError("Cannot interpret orders option")
-            if input_config.process.transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
-                orders = [ph.TaylorOrders.TWOTWO, ph.TaylorOrders.SIX]
-            else:
-                orders = [ph.TaylorOrders.ZERO, ph.TaylorOrders.TWO,
-                          ph.TaylorOrders.TWOTWO, ph.TaylorOrders.FOUR]
 
-    if (input_config.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOBMINUS, ph.ProcessTypes.TWONEUTRINO_TWOBPLUS]):
-        if (input_config.spectra_config.method["name"] == "Closure"):
-            print("EN-EI=", enei, " atilde=", atilde, " totalKE=", input_config.spectra_config.total_ke,
-                  " R=", input_config.spectra_config.nuclear_radius)
-            if fermi_functions is None:
-                print("Cannot use ff none")
-                exit(1)
+def _run_spectrum_calculation(
+    spectrum_obj: SpectrumBase,
+    input_config: RunConfig,
+) -> None:
+    """Execute compute/integrate/psf lifecycle for a single spectrum object.
 
-            return spades.spectra.twobeta.ClosureSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
-                                                             ei_ef=input_config.spectra_config.ei_ef,
-                                                             enei=enei,
-                                                             fermi_functions=fermi_functions,
-                                                             eta_total=eta_total,
-                                                             transition=input_config.process.transition,
-                                                             min_ke=input_config.spectra_config.min_ke,
-                                                             n_ke_points=input_config.spectra_config.n_ke_points,
-                                                             energy_grid_type=input_config.spectra_config.energy_grid_type,
-                                                             e1_grid_2D=e1_grid_2D,
-                                                             e2_grid_2D=e2_grid_2D)
+    Parameters
+    ----------
+    spectrum_obj:
+        Spectrum object to run.
+    input_config:
+        Run configuration controlling selected spectrum types and options.
+    """
+    for sp_type in input_config.spectra_config.types:
+        spectrum_obj.compute_spectrum(sp_type)
+        if input_config.spectra_config.compute_2d:
+            spectrum_obj.compute_2D_spectrum(sp_type)
 
-        elif (input_config.spectra_config.method["name"] == "Taylor"):
-            print("Computing with Taylor")
-            spectra = {}
-            if fermi_functions is None:
-                print("Cannot use ff none")
-                exit(1)
-
-            for ord in orders:
-                spectra[ord] = spades.spectra.twobeta.TaylorSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
-                                                                        ei_ef=input_config.spectra_config.ei_ef,
-                                                                        fermi_functions=fermi_functions,
-                                                                        eta_total=eta_total,
-                                                                        taylor_order=ord,
-                                                                        transition=input_config.process.transition,
-                                                                        min_ke=input_config.spectra_config.min_ke,
-                                                                        n_ke_points=input_config.spectra_config.n_ke_points,
-                                                                        energy_grid_type=input_config.spectra_config.energy_grid_type,
-                                                                        e1_grid_2D=e1_grid_2D,
-                                                                        e2_grid_2D=e2_grid_2D)
-
-            return spectra
-
-        else:
-            raise NotImplementedError()
-    elif (input_config.process.type in [ph.ProcessTypes.NEUTRINOLESS_TWOBMINUS, ph.ProcessTypes.NEUTRINOLESS_TWOBPLUS]):
-        if (input_config.spectra_config.method["name"] == "Closure"):
-            if (input_config.process.mechanism == ph.NeutrinoLessModes.LIGHT_NEUTRINO_EXCHANGE):
-                if fermi_functions is None:
-                    print("Cannot use ff none")
-                    exit(1)
-
-                return spades.spectra.twobeta.ClosureSpectrum0nu_LNE(total_ke=input_config.spectra_config.total_ke,
-                                                                     ei_ef=input_config.spectra_config.ei_ef,
-                                                                     nuclear_radius=input_config.spectra_config.nuclear_radius,
-                                                                     fermi_functions=fermi_functions,
-                                                                     eta_total=eta_total,
-                                                                     min_ke=input_config.spectra_config.min_ke,
-                                                                     n_ke_points=input_config.spectra_config.n_ke_points,
-                                                                     energy_grid_type=input_config.spectra_config.energy_grid_type)
-            else:
-                raise NotImplementedError()
-        else:
-            raise NotImplementedError()
-
-    elif (input_config.process.type == ph.ProcessTypes.TWONEUTRINO_BPLUSEC):
-        if (wf_handler_init is None):
-            raise ValueError(
-                "Received None for wf_handler_init. Cannot compute EC withouot it.")
-
-        if input_config.spectra_config.method["name"] == "Closure":
-            print(enei, atilde, input_config.spectra_config.total_ke,
-                  input_config.spectra_config.nuclear_radius)
-            if fermi_functions is None:
-                print("Cannot use ff none")
-                exit(1)
-
-            return spades.spectra.ecbeta.ClosureSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
-                                                            ei_ef=input_config.spectra_config.ei_ef,
-                                                            fermi_functions=fermi_functions,
-                                                            bound_handler=wf_handler_init.bound_handler,
-                                                            nuclear_radius=input_config.spectra_config.nuclear_radius,
-                                                            enei=enei,
-                                                            transition_type=input_config.process.transition,
-                                                            min_ke=input_config.spectra_config.min_ke,
-                                                            n_ke_points=input_config.spectra_config.n_ke_points,
-                                                            energy_grid_type=input_config.spectra_config.energy_grid_type,
-                                                            e1_grid_2D=e1_grid_2D,
-                                                            e2_grid_2D=e2_grid_2D)
-        else:
-            raise NotImplementedError()
-    elif (input_config.process.type == ph.ProcessTypes.NEUTRINOLESS_BPLUSEC):
-        if (wf_handler_init is None):
-            raise ValueError(
-                "Received None for wf_handler_init. Cannot compute EC withouot it.")
-        if input_config.spectra_config.method["name"] == "Closure":
-            print(enei, atilde, input_config.spectra_config.total_ke,
-                  input_config.spectra_config.nuclear_radius)
-            if fermi_functions is None:
-                print("Cannot use ff none")
-                exit(1)
-
-            return spades.spectra.ecbeta.ClosureSpectrum0nu_LNE(total_ke=input_config.spectra_config.total_ke,
-                                                                ei_ef=input_config.spectra_config.ei_ef,
-                                                                fermi_functions=fermi_functions,
-                                                                bound_handler=wf_handler_init.bound_handler,
-                                                                nuclear_radius=input_config.spectra_config.nuclear_radius,
-                                                                enei=enei)
-        else:
-            raise NotImplementedError()
-
-    elif (input_config.process.type == ph.ProcessTypes.TWONEUTRINO_TWOEC):
-        if (wf_handler_init is None):
-            raise ValueError(
-                "Received None for wf_handler_init. Cannot compute EC withouot it.")
-        if input_config.spectra_config.method["name"] == "Closure":
-            print(enei, atilde, input_config.spectra_config.total_ke,
-                  input_config.spectra_config.nuclear_radius)
-            print("Creating 2EC spectrum Closure")
-            return spades.spectra.twoec.TwoECSpectrumClosure(total_ke=input_config.spectra_config.total_ke,
-                                                             ei_ef=input_config.spectra_config.ei_ef,
-                                                             bound_handler=wf_handler_init.bound_handler,
-                                                             nuclear_radius=input_config.spectra_config.nuclear_radius,
-                                                             enei=enei,
-                                                             transition_type=input_config.process.transition)
-        elif input_config.spectra_config.method["name"] == "Taylor":
-            spectra = {}
-            for ord in orders:
-                spectra[ord] = spades.spectra.twoec.TwoECSpectrumTaylor(total_ke=input_config.spectra_config.total_ke,
-                                                                        ei_ef=input_config.spectra_config.ei_ef,
-                                                                        bound_handler=wf_handler_init.bound_handler,
-                                                                        nuclear_radius=input_config.spectra_config.nuclear_radius,
-                                                                        transition_type=input_config.process.transition,
-                                                                        order=ord)
-            return spectra
-        else:
-            raise NotImplementedError
-
-    else:
-        raise NotImplementedError()
+    if input_config.process.type not in [
+        ph.ProcessTypes.TWONEUTRINO_TWOEC,
+        ph.ProcessTypes.NEUTRINOLESS_BPLUSEC,
+    ]:
+        spectrum_obj.integrate_spectrum()
+    spectrum_obj.compute_psf()
 
 
 def compute_spectra_and_psfs(input_config: RunConfig,
@@ -525,31 +429,16 @@ def compute_spectra_and_psfs(input_config: RunConfig,
                                    e1_grid_2D=e1_grid_2D,
                                    e2_grid_2D=e2_grid_2D)
         if isinstance(spectrum, SpectrumBase):
-            for sp_type in input_config.spectra_config.types:
-                spectrum.compute_spectrum(sp_type)
-                if (input_config.spectra_config.compute_2d):
-                    spectrum.compute_2D_spectrum(sp_type)
+            _run_spectrum_calculation(spectrum, input_config)
 
-            if not (input_config.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOEC, ph.ProcessTypes.NEUTRINOLESS_BPLUSEC]):
-                spectrum.integrate_spectrum()
-            spectrum.compute_psf()
-
-            print("These are the PSFS ", spectrum.psfs)
+            logger.info("Computed PSFs for %s", ph.FERMIFUNCTIONS_MAP_REV[ff_type])
             spectra[ph.FERMIFUNCTIONS_MAP_REV[ff_type]] = spectrum
         elif isinstance(spectrum, dict):
-            print("Doing this")
             spectra[ph.FERMIFUNCTIONS_MAP_REV[ff_type]] = {}
             for key in spectrum:
-                for sp_type in input_config.spectra_config.types:
-                    spectrum[key].compute_spectrum(sp_type)
-                    if (input_config.spectra_config.compute_2d):
-                        spectrum[key].compute_2D_spectrum(sp_type)
+                _run_spectrum_calculation(spectrum[key], input_config)
 
-                if not (input_config.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOEC, ph.ProcessTypes.NEUTRINOLESS_BPLUSEC]):
-                    spectrum[key].integrate_spectrum()
-                spectrum[key].compute_psf()
-
-                print(f"These are the PSFs for {key} ", spectrum[key].psfs)
+                logger.info("Computed PSFs for %s order %s", ph.FERMIFUNCTIONS_MAP_REV[ff_type], key)
                 spectra[ph.FERMIFUNCTIONS_MAP_REV[ff_type]] = spectrum
     return spectra
 
@@ -572,17 +461,9 @@ def build_corrections(input_config: RunConfig, wf_handler_init: WaveFunctionsHan
     eta_total = None
     e_values = None
     if (ph.CorrectionTypes.EXCHANGE_CORRECTION in input_config.spectra_config.corrections) and (wf_handler_init != None) and (wf_handler_final != None):
-        # exchange_correction = build_exchange_correction(
-        #     wf_handler_init, wf_handler_final, input_config.spectra_config.nuclear_radius
-        # )
-        # e_values = ph.electron_mass + \
-        #     wf_handler_final.scattering_handler.energy_grid
-        # eta_total = 1.+exchange_correction.eta_total
-
         build_exchange_correction(
             wf_handler_init, wf_handler_final, input_config.spectra_config.nuclear_radius
         )
-        # print(eta_total)
 
     if (ph.CorrectionTypes.RADIATIVE_CORRECTION in input_config.spectra_config.corrections) and (wf_handler_final != None) and (wf_handler_final.scattering_handler != None):
         e_values = ph.electron_mass + \
@@ -590,7 +471,7 @@ def build_corrections(input_config: RunConfig, wf_handler_init: WaveFunctionsHan
         rad_cor = np.ones_like(e_values)
         for i_e in range(len(e_values)-1):
             rad_cor[i_e] = math_stuff.r_radiative(e_values[i_e], e_values[-1])
-            print(e_values[i_e], rad_cor[i_e])
+            logger.debug("Radiative correction at E=%s: %s", e_values[i_e], rad_cor[i_e])
 
         if (eta_total is None):
             eta_total = rad_cor
@@ -604,11 +485,61 @@ def build_corrections(input_config: RunConfig, wf_handler_init: WaveFunctionsHan
     return eta_total
 
 
-def main(argv=None):
-    """Run end-to-end CLI workflow: parse input, compute spectra/PSFs, write outputs."""
-    input_config, initial_atom, final_atom = parse_input()
+def _write_outputs(input_config: RunConfig, spectra_psfs: dict[str, SpectrumBase | dict]) -> None:
+    """Write spectra/PSF outputs according to output configuration.
 
-    wf_handler_init, wf_handler_final = find_wave_functions(
+    Parameters
+    ----------
+    input_config:
+        Run configuration with output settings.
+    spectra_psfs:
+        Computed spectrum objects grouped by Fermi-function type.
+    """
+    if input_config.output_config is None:
+        logger.info("Did not receive output configuration. Skip writing files.")
+        return
+
+    output_dir_name = input_config.output_config.location
+    try:
+        os.mkdir(output_dir_name)
+        logger.info("Directory %s created successfully.", output_dir_name)
+    except FileExistsError:
+        logger.warning("Directory %s already exists. Contents will be overwritten.", output_dir_name)
+    except Exception as e:
+        logger.error("An error occurred while preparing output directory: %s", e)
+        return
+
+    write_spectra = getattr(input_config.output_config, "spectra", False)
+    write_psfs = getattr(input_config.output_config, "psfs", False)
+    logger.debug("Output config: %s", input_config.output_config)
+    if not (write_spectra or write_psfs):
+        logger.info("Skipping spectra/PSF writing by configuration.")
+        return
+
+    spectrum_writer = SpectrumWriter(write_spectra=write_spectra,
+                                     write_psfs=write_psfs)
+    logger.info("Writing output file")
+    for key in spectra_psfs:
+        if isinstance(spectra_psfs[key], SpectrumBase):
+            spectrum_writer.add_spectrum(spectra_psfs[key], key)
+        elif isinstance(spectra_psfs[key], dict):
+            for key1 in spectra_psfs[key]:
+                spectrum_writer.add_spectrum(
+                    spectra_psfs[key][key1], f"{key}_{key1}")
+    spectrum_writer.write(f"{output_dir_name}/spectra.json")
+
+
+def main(argv=None):
+    """Run end-to-end CLI workflow: parse input, compute spectra/PSFs, write outputs.
+
+    Parameters
+    ----------
+    argv:
+        Optional CLI argument list. If ``None``, ``sys.argv`` is used.
+    """
+    input_config, initial_atom, final_atom = parse_input(argv)
+
+    wf_handler_init, wf_handler_final = find_wavefunctions(
         input_config, initial_atom, final_atom)
 
     energy_grid_1D, e1_grid_2D, e2_grid_2D = build_energy_grids(input_config)
@@ -625,41 +556,7 @@ def main(argv=None):
                                             energy_grid_1D=energy_grid_1D,
                                             e1_grid_2D=e1_grid_2D,
                                             e2_grid_2D=e2_grid_2D)
-    # write the output
-    if (input_config.output_config is None):
-        print("Did not receive output configuration. Skip writting files...")
-    else:
-        output_dir_name = input_config.output_config.location
-        try:
-            os.mkdir(output_dir_name)
-            print(f"Directory {output_dir_name} created successfully.")
-        except FileExistsError:
-            print(
-                f"Directory {output_dir_name} already exists. Contents will be overwritten")
-        except Exception as e:
-            print(f"An error occured {e}")
-            return
-
-        write_spectra = getattr(input_config.output_config, "spectra", False)
-        write_psfs = getattr(input_config.output_config, "psfs", False)
-        print(input_config.output_config)
-        if (write_spectra or write_psfs):
-            spectrum_writer = SpectrumWriter(write_spectra=write_spectra,
-                                             write_psfs=write_psfs)
-            if spectra_psfs is None:
-                raise NotImplementedError
-            else:
-                print("Writing output file")
-                for key in spectra_psfs:
-                    if isinstance(spectra_psfs[key], SpectrumBase):
-                        spectrum_writer.add_spectrum(spectra_psfs[key], key)
-                    elif isinstance(spectra_psfs[key], dict):
-                        for key1 in spectra_psfs[key]:
-                            spectrum_writer.add_spectrum(
-                                spectra_psfs[key][key1], f"{key}_{key1}")
-                spectrum_writer.write(f"{output_dir_name}/spectra.json")
-        else:
-            print("Will not write spectra and psfs")
+    _write_outputs(input_config, spectra_psfs)
 
 
 if __name__ == "__main__":

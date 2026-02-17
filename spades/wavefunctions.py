@@ -1,15 +1,10 @@
 """Bound and scattering electron wavefunction solvers."""
 
-import re
-try:
-    from hepunits import rad
-except ModuleNotFoundError:
-    rad = 1.0
 import numpy as np
 
 from spades.config import BoundConfig, ScatteringConfig
 from . import ph, radial_wrapper, math_stuff, dhfs
-from spades.math_stuff import hydrogenic_binding_energy, coulomb_phase_shift
+from spades.math_stuff import coulomb_phase_shift
 from .radial_wrapper import RADIALError
 from .dhfs import AtomicSystem, DHFSHandler, create_ion
 from tqdm import tqdm
@@ -19,61 +14,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# class bound_config_old:
-#     def __init__(self, max_r: float, n_radial_points: int,
-#                  n_values: int | tuple[int, int] | list[int],
-#                  k_values: str | int | tuple[int, int] | dict[int, list[int]] = "auto") -> None:
-#         self.max_r = max_r
-#         self.n_radial_points = n_radial_points
-
-#         if (type(n_values) == int):
-#             self.n_values = [n_values]
-#         elif (type(n_values) == tuple):
-#             self.n_values = range(n_values[0], n_values[1]+1)
-#         elif (type(n_values) == list):
-#             self.n_values = n_values
-
-#         self.k_values = {}
-#         for i_n in range(len(self.n_values)):
-#             n = self.n_values[i_n]
-#             if (type(k_values) == str):
-#                 if k_values != "auto":
-#                     raise ValueError("Cannot interpret k_values option")
-#                 else:
-#                     k_tmp = range(-n, n)
-#             if (type(k_values) == int):
-#                 if (k_values < -n) or (k_values >= n) or (k_values == 0):
-#                     continue
-#                 self.k_values[n] = k_values
-#                 continue
-#             elif type(k_values) == tuple:
-#                 k_tmp = range(k_values[0], k_values[1]+1)
-#             elif type(k_values) == dict:
-#                 self.k_values = k_values
-#                 break
-
-#             for i_k in range(len(k_tmp)):
-#                 if (k_tmp[i_k] < -n) or (k_tmp[i_k] >= n) or (k_tmp[i_k] == 0):
-#                     continue
-#                 if (n not in self.k_values):
-#                     self.k_values[n] = []
-#                 self.k_values[n].append(k_tmp[i_k])
-
-#     def print(self):
-#         print("Configuration for bound states")
-#         print(f"  - Maximum radial distance: {self.max_r*ph.to_distance_units(): 8.3f}",
-#               f"{ph.user_distance_unit_name}")
-#         print(f"  - Number of radial points: {self.n_radial_points: d}")
-#         print(f"  - N and K values:")
-#         for i in range(len(self.n_values)):
-#             print(f"    - {self.n_values[i]}", self.k_values[self.n_values[i]])
-
-
 class BoundHandler:
     """Compute bound-state Dirac wavefunctions for a fixed central potential."""
 
     def __init__(self, z_nuc: int, n_e: int, bound_states_configuration: BoundConfig) -> None:
-        """Build radial grid and initialize RADIAL for bound-state solutions."""
+        """Build radial grid and initialize RADIAL for bound-state solutions.
+
+        Parameters
+        ----------
+        z_nuc:
+            Nuclear charge.
+        n_e:
+            Number of electrons (reserved for future use).
+        bound_states_configuration:
+            Bound-state configuration object.
+        """
         self.config = bound_states_configuration
         self.z_nuc = z_nuc
         self.n_e = n_e
@@ -102,7 +57,13 @@ class BoundHandler:
             r_grid*ph.fm/ph.bohr_radius, rv_grid*ph.MeV*ph.fm/(ph.hartree_energy*ph.bohr_radius))
 
     def find_bound_states(self, binding_energies=None):
-        """Solve requested bound shells and build interpolation splines."""
+        """Solve requested bound shells and build interpolation splines.
+
+        Parameters
+        ----------
+        binding_energies:
+            Optional nested dictionary of trial binding energies keyed by ``n`` and ``kappa``.
+        """
         self.p_grid = {}
         self.q_grid = {}
         self.p_func = {}
@@ -129,12 +90,15 @@ class BoundHandler:
                     trial_be = math_stuff.hydrogenic_binding_energy(
                         self.z_nuc, n, k)
                 try:
+                    logger.info(f"Testing {trial_be/ph.hartree_energy}")
                     true_be = radial_wrapper.call_dbound(
                         trial_be/ph.hartree_energy, n, k)
+                    logger.debug("Obtained bound-state energy %s for n=%d, k=%d", true_be, n, k)
                 except RADIALError:
                     # means computation did not succeed for whatever reason
                     # don't stop, just don't add this to the class
-                    print(f"could not find bound state for {n:d}, {k:d}")
+                    logger.warning(
+                        "Could not find bound state for n=%d, k=%d", n, k)
                     continue
 
                 p, q = radial_wrapper.call_getpq(
@@ -175,49 +139,23 @@ class BoundHandler:
         function_term = (self.p_func[n][kappa](radius)**2.0 +
                          self.q_func[n][kappa](radius)**2.0)/(radius**2.0)
         return constant_term*function_term
-# class scattering_config_old:
-#     def __init__(self, max_r: float, n_radial_points: int,
-#                  min_ke: float, max_ke: float, n_ke_points: int,
-#                  k_values: int | tuple[int, int] | list[int]) -> None:
-#         self.max_r = max_r
-#         self.n_radial_points = n_radial_points
-
-#         self.min_ke = min_ke
-#         self.max_ke = max_ke
-#         self.n_ke_points = n_ke_points
-
-#         self.k_values = []
-#         if type(k_values) == int:
-#             self.k_values.append(k_values)
-#         elif type(k_values) == tuple:
-#             for i_k in range(k_values[0], k_values[1]+1):
-#                 if (k_values[i_k] == 0):
-#                     continue
-#                 self.k_values.append(k_values[i_k])
-#         elif type(k_values) == list:
-#             for k in k_values:
-#                 if (k == 0):
-#                     continue
-#                 self.k_values.append(k)
-#         else:
-#             raise ValueError("Cannot interpret the type of k_values")
-
-#     def print(self):
-#         print("Configuration for scattering states")
-#         print(f"  - Maximum radial distance: {self.max_r*ph.to_distance_units(): 8.3f}"
-#               f" {ph.user_distance_unit_name}")
-#         print(f"  - Number of radial points: {self.n_radial_points: d}")
-#         print(f"  - K values: ", self.k_values)
-#         print(f"  - Energy limits: [", self.min_ke/ph.user_energy_unit,
-#               ", ", self.max_ke/ph.user_energy_unit, f"] {ph.user_energy_unit_name}")
-#         print(f"  - Number of energy points: {self.n_ke_points}")
 
 
 class ScatteringHandler:
     """Compute continuum Dirac wavefunctions and phase shifts."""
 
     def __init__(self, z_nuc: int, n_e: int, scattering_states_configuration: ScatteringConfig) -> None:
-        """Build radial and kinetic-energy grids for scattering states."""
+        """Build radial and kinetic-energy grids for scattering states.
+
+        Parameters
+        ----------
+        z_nuc:
+            Nuclear charge.
+        n_e:
+            Number of electrons (reserved for future use).
+        scattering_states_configuration:
+            Scattering-state configuration object.
+        """
         self.config = scattering_states_configuration
 
         logger.debug(
@@ -282,7 +220,8 @@ class ScatteringHandler:
                     phase = radial_wrapper.call_dfree(
                         e/ph.hartree_energy, k, 1E-14)
                 except RADIALError:
-                    print(f"Could not find scattering state {k:d}, {e:f}")
+                    logger.warning(
+                        "Could not find scattering state k=%d, E=%f", k, e)
                     continue
 
                 p, q = radial_wrapper.call_getpq(len(self.r_grid))
@@ -294,26 +233,24 @@ class ScatteringHandler:
                 self.phase_grid[k][i_e] = phase  # coul_phase_shift
                 self.coul_phase_grid[k][i_e] = coul_phase_shift
 
-            # delta_corr = self.phase_grid[k].copy()
-            # p_corr = self.p_grid[k].copy()
-            # q_corr = self.q_grid[k].copy()
-            # for i in range(len(delta_corr)-1, 0, -1):
-            #     if (np.abs(delta_corr[i] - delta_corr[i-1]) > 1.0):
-            #         # print("found discontinuity at ", i)
-            #         delta_corr[:i] = delta_corr[:i] + np.pi
-            #         p_corr[:i] = -1.*p_corr[:i]
-            #         q_corr[:i] = -1.*q_corr[:i]
-
-            # self.phase_grid[k] = delta_corr
-            # self.p_grid[k] = p_corr
-            # self.q_grid[k] = q_corr
-
 
 class WaveFunctionsHandler:
     """High-level orchestrator for DHFS, bound, and scattering wavefunctions."""
 
     def __init__(self, atom: dhfs.AtomicSystem, bound_conf: BoundConfig | None = None, scattering_conf: ScatteringConfig | None = None, rad_grid: np.ndarray | None = None, rv_grid: np.ndarray | None = None) -> None:
-        """Create a wavefunction workflow for one atomic system."""
+        """Create a wavefunction workflow for one atomic system.
+
+        Parameters
+        ----------
+        atom:
+            Atomic system for which wavefunctions are computed.
+        bound_conf:
+            Optional bound-state configuration.
+        scattering_conf:
+            Optional scattering-state configuration.
+        rad_grid, rv_grid:
+            Optional precomputed potential grid and ``r*V(r)`` values in fm/MeV*fm.
+        """
         self.atomic_system = atom
         if (bound_conf is None) and (scattering_conf is None):
             raise ValueError(

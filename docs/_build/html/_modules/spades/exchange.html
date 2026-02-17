@@ -33,11 +33,12 @@
 
 <span class="kn">from</span> <span class="nn">.wavefunctions</span> <span class="kn">import</span> <span class="n">WaveFunctionsHandler</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">Akima1DInterpolator</span><span class="p">,</span> <span class="n">CubicSpline</span>
+<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">CubicSpline</span>
 <span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">integrate</span>
-<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
-<span class="kn">from</span> <span class="nn">.radial_wrapper</span> <span class="kn">import</span> <span class="n">call_slag6</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">ph</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="integrate_wf">
@@ -58,26 +59,8 @@
         <span class="n">y</span><span class="o">=</span><span class="n">integrant</span><span class="p">,</span>
         <span class="n">x</span><span class="o">=</span><span class="n">r2</span>
     <span class="p">)</span>
-    <span class="c1"># print(result)</span>
-    <span class="c1"># print(a)</span>
 
-    <span class="c1"># fig, ax = plt.subplots(ncols=3)</span>
-    <span class="c1"># ax[0].plot(r1, f1)</span>
-    <span class="c1"># ax[0].plot(r2, f2)</span>
-    <span class="c1"># ax[0].set_xscale(&#39;log&#39;)</span>
-    <span class="c1"># ax[1].plot(r1, integrant)</span>
-    <span class="c1"># ax[1].set_xscale(&#39;log&#39;)</span>
-    <span class="c1"># ax[2].plot(r2, a)</span>
-    <span class="c1"># ax[2].set_xscale(&#39;log&#39;)</span>
-
-    <span class="c1"># plt.show()</span>
-    <span class="c1"># return</span>
-
-    <span class="k">return</span> <span class="n">result</span>
-    <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="nb">tuple</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">result</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Something went wrong&quot;</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">result</span></div>
 
 
 
@@ -96,7 +79,7 @@
 <a class="viewcode-back" href="../../api/core.html#spades.exchange.ExchangeCorrection.compute_overlaps">[docs]</a>
     <span class="k">def</span> <span class="nf">compute_overlaps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute scattering-bound and bound-bound overlaps for one ``kappa``.&quot;&quot;&quot;</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Computing overlaps&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Computing overlaps for k=</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
         <span class="n">n_vals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_handler</span><span class="o">.</span><span class="n">bound_config</span><span class="o">.</span><span class="n">n_values</span>
         <span class="n">energy_vals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_handler</span><span class="o">.</span><span class="n">scattering_handler</span><span class="o">.</span><span class="n">energy_grid</span>
 
@@ -141,7 +124,7 @@
 <span class="sd">        https://doi.org/10.1063/5.0205270</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Transforming scattering wavefunctions&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Transforming scattering wavefunctions&quot;</span><span class="p">)</span>
         <span class="n">n_values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_handler</span><span class="o">.</span><span class="n">bound_config</span><span class="o">.</span><span class="n">n_values</span>
         <span class="n">k_values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_handler</span><span class="o">.</span><span class="n">bound_config</span><span class="o">.</span><span class="n">k_values</span>
 
@@ -172,7 +155,7 @@
 <a class="viewcode-back" href="../../api/core.html#spades.exchange.ExchangeCorrection.compute_t">[docs]</a>
     <span class="k">def</span> <span class="nf">compute_t</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute shell-dependent exchange amplitudes ``t_n``.&quot;&quot;&quot;</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;computing T_ns&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Computing T_ns exchange amplitudes&quot;</span><span class="p">)</span>
         <span class="n">n_values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_handler</span><span class="o">.</span><span class="n">bound_config</span><span class="o">.</span><span class="n">n_values</span>
         <span class="n">k_values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_handler</span><span class="o">.</span><span class="n">bound_config</span><span class="o">.</span><span class="n">k_values</span>
 
@@ -214,7 +197,7 @@
 <a class="viewcode-back" href="../../api/core.html#spades.exchange.ExchangeCorrection.compute_eta">[docs]</a>
     <span class="k">def</span> <span class="nf">compute_eta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute partial exchange corrections for ``s`` and ``p`` channels.&quot;&quot;&quot;</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Computing partial eta&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Computing partial eta correction&quot;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">tn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">t</span>
         <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
@@ -257,7 +240,7 @@
 <a class="viewcode-back" href="../../api/core.html#spades.exchange.ExchangeCorrection.compute_eta_total">[docs]</a>
     <span class="k">def</span> <span class="nf">compute_eta_total</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute total exchange correction and interpolation function.&quot;&quot;&quot;</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Computing eta total&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Computing total eta correction&quot;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">eta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eta</span>
         <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>

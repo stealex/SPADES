@@ -5,19 +5,54 @@ from numba import njit
 
 @njit
 def kn(e1: float, e2: float, enu1: float, enu2: float, enei: float):
-    """Return the ``K`` closure denominator combination."""
+    """Return the ``K`` closure denominator combination.
+
+    Parameters
+    ----------
+    e1, e2:
+        Total electron/positron energies.
+    enu1, enu2:
+        Neutrino energies.
+    enei:
+        Closure parameter ``<E_N> - E_I``.
+    """
     return 1./(e1+enu1+enei) + 1./(e2+enu2+enei)
 
 
 @njit
 def ln(e1: float, e2: float, enu1: float, enu2: float, enei: float):
-    """Return the ``L`` closure denominator combination."""
+    """Return the ``L`` closure denominator combination.
+
+    Parameters
+    ----------
+    e1, e2:
+        Total electron/positron energies.
+    enu1, enu2:
+        Neutrino energies.
+    enei:
+        Closure parameter ``<E_N> - E_I``.
+    """
     return 1./(e1+enu2+enei) + 1./(e2+enu1+enei)
 
 
 @njit
 def neutrino_integrand_closure_standard_00(enu1: float, e1: float, e2: float, enu2: float, enei: float):
-    """Compute standard closure neutrino integrand for ``0+ -> 0+`` like channels."""
+    """Compute standard closure neutrino integrand for ``0+ -> 0+`` like channels.
+
+    Parameters
+    ----------
+    enu1, enu2:
+        Neutrino energies.
+    e1, e2:
+        Total electron/positron energies.
+    enei:
+        Closure parameter ``<E_N> - E_I``.
+
+    Returns
+    -------
+    float
+        Standard closure kernel value.
+    """
     k = kn(e1, e2, enu1, enu2, enei)
     l = ln(e1, e2, enu1, enu2, enei)
     return (k*k+l*l+k*l)*(enu1**2.0)*(enu2**2.0)

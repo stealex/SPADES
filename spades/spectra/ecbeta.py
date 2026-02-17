@@ -1,26 +1,18 @@
 """Spectra and PSFs for electron-capture plus beta-plus channels."""
 
-from abc import ABC, abstractmethod
-
-import numpy as np
-from scipy import interpolate
-from scipy.interpolate import CubicSpline
-from spades.spectra.base import BetaSpectrumBase
-from spades.fermi_functions import FermiFunctions
-from spades.wavefunctions import BoundHandler
-from spades import ph
-
 from abc import abstractmethod
-from functools import lru_cache
-from typing import Callable
+import logging
 import numpy as np
-from numpy import ndarray
 from tqdm import tqdm
-from scipy import integrate
-from spades import fermi_functions, ph
+from scipy import integrate, interpolate
+
+from spades import ph
 from spades.fermi_functions import FermiFunctions
+from spades.spectra.base import BetaSpectrumBase
 from spades.wavefunctions import BoundHandler
 from spades.spectra.closure_helpers import neutrino_integrand_closure_standard_00, neutrino_integrand_closure_standard_02
+
+logger = logging.getLogger(__name__)
 
 
 def neutrino_integrand_closure(enu_1, e_positron, e_electron, enu_2, enei, transition: ph.TransitionTypes):
@@ -106,7 +98,13 @@ class ECBetaSpectrumBase(BetaSpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: ph.SpectrumTypes = ph.SpectrumTypes.SINGLESPECTRUM):
-        """Compute EC beta-plus spectrum values."""
+        """Compute EC beta-plus spectrum values.
+
+        Parameters
+        ----------
+        sp_type:
+            Requested spectrum type.
+        """
         pass
 
     @abstractmethod
@@ -120,7 +118,13 @@ class ECBetaSpectrumBase(BetaSpectrumBase):
         pass
 
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
-        """2D EC beta-plus spectra are not implemented."""
+        """2D EC beta-plus spectra are not implemented.
+
+        Parameters
+        ----------
+        sp_type:
+            Requested spectrum type.
+        """
         raise NotImplementedError()
 
 
@@ -154,7 +158,13 @@ class ClosureSpectrum(ECBetaSpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: int):
-        """Compute closure EC beta-plus spectrum values."""
+        """Compute closure EC beta-plus spectrum values.
+
+        Parameters
+        ----------
+        sp_type:
+            Requested spectrum type.
+        """
         pass
 
     def integrate_spectrum(self):
@@ -164,7 +174,7 @@ class ClosureSpectrum(ECBetaSpectrumBase):
             for k in self.spectrum_values[n]:
                 if k != -1:
                     continue
-                print(f"Doing for {n} {k}")
+                logger.debug("Integrating ECbeta+ shell n=%s k=%s", n, k)
                 interp_func = interpolate.CubicSpline(
                     self.energy_points[n][k], self.spectrum_values[n][k]
                 )
@@ -198,7 +208,25 @@ class ClosureSpectrum2nu(ClosureSpectrum):
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, enei: float,
                  transition_type: ph.TransitionTypes, **kwargs) -> None:
-        """Initialize closure 2nu EC beta-plus model with transition-dependent prefactor."""
+        """Initialize closure 2nu EC beta-plus model with transition-dependent prefactor.
+
+        Parameters
+        ----------
+        total_ke, ei_ef:
+            Process energy scales.
+        fermi_functions:
+            Fermi-function backend.
+        bound_handler:
+            Bound-state handler for capture shells.
+        nuclear_radius:
+            Nuclear radius in fm.
+        enei:
+            Closure parameter ``<E_N> - E_I``.
+        transition_type:
+            Nuclear transition selector.
+        **kwargs:
+            Forwarded grid settings.
+        """
         super().__init__(total_ke, ei_ef, fermi_functions,
                          bound_handler, nuclear_radius, enei, **kwargs)
         self.constant_in_front = 2*(self.atilde**2.0)*((ph.fermi_coupling_constant*ph.v_ud)**4) /\
@@ -251,7 +279,6 @@ class ClosureSpectrum2nu(ClosureSpectrum):
             spectrum_current[-1] = 0.
 
             self.spectrum_values[n][-1] = spectrum_current
-        # print(f"spectrum_valeus = {self.spectrum_values}")
 
 
 class ECBetaSpectrumBase0nu(BetaSpectrumBase):
@@ -259,7 +286,6 @@ class ECBetaSpectrumBase0nu(BetaSpectrumBase):
     """
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, **kwargs) -> None:
-        """Initialize shell-wise storage for 0nu EC beta-plus integrals."""
         """Initialize shell containers for 0nu EC beta-plus calculations.
 
         Parameters
@@ -280,7 +306,6 @@ class ECBetaSpectrumBase0nu(BetaSpectrumBase):
         self.g_func = {}
         self.f_func = {}
         self.nuclear_radius = nuclear_radius
-        print(kwargs)
 
         for n in self.bound_handler.p_grid:
             self.spectrum_integrals[n] = {}
@@ -291,7 +316,13 @@ class ECBetaSpectrumBase0nu(BetaSpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: ph.SpectrumTypes = ph.SpectrumTypes.SINGLESPECTRUM):
-        """Compute 0nu EC beta-plus shell integrals."""
+        """Compute 0nu EC beta-plus shell integrals.
+
+        Parameters
+        ----------
+        sp_type:
+            Requested spectrum type.
+        """
         pass
 
     def integrate_spectrum(self):
@@ -304,7 +335,13 @@ class ECBetaSpectrumBase0nu(BetaSpectrumBase):
         pass
 
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
-        """2D EC beta-plus spectra are not implemented."""
+        """2D EC beta-plus spectra are not implemented.
+
+        Parameters
+        ----------
+        sp_type:
+            Requested spectrum type.
+        """
         raise NotImplementedError()
 
 
@@ -338,7 +375,13 @@ class ClosureSpectrum0nu(ECBetaSpectrumBase0nu):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: int):
-        """Compute closure 0nu EC beta-plus spectrum values."""
+        """Compute closure 0nu EC beta-plus spectrum values.
+
+        Parameters
+        ----------
+        sp_type:
+            Requested spectrum type.
+        """
         pass
 
     def compute_psf(self):
@@ -356,7 +399,23 @@ class ClosureSpectrum0nu_LNE(ClosureSpectrum0nu):
     """
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, bound_handler: BoundHandler, nuclear_radius: float, enei: float, **kwargs) -> None:
-        """Initialize light-neutrino-exchange prefactor for 0nu EC beta-plus."""
+        """Initialize light-neutrino-exchange prefactor for 0nu EC beta-plus.
+
+        Parameters
+        ----------
+        total_ke, ei_ef:
+            Process energy scales.
+        fermi_functions:
+            Fermi-function backend.
+        bound_handler:
+            Bound-state handler for capture shells.
+        nuclear_radius:
+            Nuclear radius in fm.
+        enei:
+            Closure parameter ``<E_N> - E_I``.
+        **kwargs:
+            Reserved for future options.
+        """
         super().__init__(total_ke, ei_ef, fermi_functions,
                          bound_handler, nuclear_radius, enei, **kwargs)
         self.constant_in_front = ((ph.fermi_coupling_constant*ph.v_ud)**4) / \

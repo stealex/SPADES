@@ -1,10 +1,18 @@
 """Physical constants, units, enums, and name maps used across SPADES."""
 
+import os
+
 # values taken from https://pdg.lbl.gov/2019/reviews/rpp2018-rev-phys-constants.pdf
 try:
     from hepunits.units import *
     from hepunits.constants import *
-except ModuleNotFoundError:
+except ModuleNotFoundError as exc:
+    if os.environ.get("SPADES_ALLOW_UNIT_FALLBACK", "0") != "1":
+        raise ModuleNotFoundError(
+            "Missing dependency 'hepunits'. Install SPADES runtime dependencies "
+            "(e.g. `pip install -e .`) or set SPADES_ALLOW_UNIT_FALLBACK=1 "
+            "for documentation-only builds."
+        ) from exc
     # Fallback units for documentation/static workflows where hepunits is absent.
     eV = 1.0
     keV = 1.0e3 * eV
@@ -17,9 +25,9 @@ except ModuleNotFoundError:
     fermi = 1.0e-15 * meter
     fm = fermi
     hbarc = 197.3269804 * MeV * fm
-import os
 import yaml
 import logging
+from dataclasses import dataclass
 from enum import IntEnum
 electron_mass = 0.51099895000*MeV
 proton_mass = 938.27208943*MeV
@@ -37,6 +45,65 @@ user_energy_unit_name = "MeV"
 user_psf_unit_name = "1/year"
 
 delta_m_files = "deltaM_KI_2012_2013.yaml"
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class RuntimeSettings:
+    """Mutable-at-runtime settings used by CLI workflows.
+
+    Parameters
+    ----------
+    verbose:
+        Verbosity level in ``[0, 5]``.
+    distance_unit_name:
+        Symbolic distance unit name (must be defined in :mod:`spades.ph`).
+    energy_unit_name:
+        Symbolic energy unit name (must be defined in :mod:`spades.ph`).
+    qvalues_file:
+        Mass-difference YAML file name or absolute path.
+    """
+
+    verbose: int = 0
+    distance_unit_name: str = "fm"
+    energy_unit_name: str = "MeV"
+    qvalues_file: str = delta_m_files
+
+
+def _resolve_unit(name: str):
+    """Resolve a unit symbol from this module namespace.
+
+    Parameters
+    ----------
+    name:
+        Unit symbol (for example ``"MeV"`` or ``"fm"``).
+
+    Returns
+    -------
+    float
+        Numeric unit scale.
+    """
+    if name not in globals():
+        raise ValueError(f"Unknown unit '{name}'")
+    return globals()[name]
+
+
+def apply_runtime_settings(settings: RuntimeSettings) -> None:
+    """Apply runtime settings to module-level variables used by legacy APIs.
+
+    Parameters
+    ----------
+    settings:
+        Runtime settings selected by the CLI.
+    """
+    global verbose, user_distance_unit_name, user_energy_unit_name
+    global user_distance_unit, user_energy_unit, delta_m_files
+    verbose = settings.verbose
+    user_distance_unit_name = settings.distance_unit_name
+    user_energy_unit_name = settings.energy_unit_name
+    user_distance_unit = _resolve_unit(settings.distance_unit_name)
+    user_energy_unit = _resolve_unit(settings.energy_unit_name)
+    delta_m_files = settings.qvalues_file
 
 
 def read_mass_difference(file_name: str):
@@ -46,17 +113,22 @@ def read_mass_difference(file_name: str):
     ----------
     file_name:
         Relative file name inside ``data/mass_difference`` or an absolute path.
+
+    Returns
+    -------
+    dict
+        Parsed YAML mapping with isotope keys and mass-difference metadata.
     """
-    print(f"Reading {file_name}")
+    logger.info("Reading mass differences from %s", file_name)
     if (file_name.startswith((".", "/"))):
         # we were given an absolute path
-        file = open(file_name, 'r')
+        with open(file_name, 'r') as file:
+            qvalues = yaml.safe_load(file)
     else:
         # we were given a file name, check in the repo
         _dir_name = os.path.dirname(__file__)
-        file = open(os.path.join(
-            _dir_name, f"../data/mass_difference/{file_name}"))
-    qvalues = yaml.safe_load(file)
+        with open(os.path.join(_dir_name, f"../data/mass_difference/{file_name}"), 'r') as file:
+            qvalues = yaml.safe_load(file)
     return qvalues
 
 

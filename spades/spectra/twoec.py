@@ -75,7 +75,13 @@ class TwoECSpectrum(SpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: int):
-        """Compute shell-pair spectrum integrals for 2EC."""
+        """Compute shell-pair spectrum integrals for 2EC.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector (kept for interface compatibility).
+        """
         pass
 
     def integrate_spectrum(self):
@@ -94,7 +100,13 @@ class TwoECSpectrum(SpectrumBase):
                 self.psfs[n1][-1][n2] = {-1: psf_years}
 
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
-        """2D spectra are not implemented for 2EC classes."""
+        """2D spectra are not implemented for 2EC classes.
+
+        Parameters
+        ----------
+        sp_type:
+            Requested spectrum type.
+        """
         raise NotImplementedError()
 
 
@@ -102,7 +114,21 @@ class TwoECSpectrumClosure(TwoECSpectrum):
     """Closure-approximation implementation for 2nu double electron capture."""
 
     def __init__(self, total_ke: float, ei_ef: float, bound_handler: BoundHandler, nuclear_radius: float, enei: float, transition_type: ph.TransitionTypes) -> None:
-        """Initialize closure constants and transition for 2EC."""
+        """Initialize closure constants and transition for 2EC.
+
+        Parameters
+        ----------
+        total_ke, ei_ef:
+            Process energy scales.
+        bound_handler:
+            Bound-state wavefunction handler.
+        nuclear_radius:
+            Nuclear radius in fm.
+        enei:
+            Closure parameter ``<E_N> - E_I``.
+        transition_type:
+            Nuclear transition selector.
+        """
         super().__init__(total_ke, ei_ef, bound_handler, nuclear_radius)
         self.enei = enei
         self.atilde = self.enei+0.5*(self.total_ke-2*ph.electron_mass)
@@ -157,7 +183,21 @@ class TwoECSpectrumTaylor(TwoECSpectrum):
     """Taylor-expansion implementation for double-electron-capture integrals."""
 
     def __init__(self, total_ke: float, ei_ef: float, bound_handler: BoundHandler, nuclear_radius: float, order: ph.TaylorOrders, transition_type: ph.TransitionTypes) -> None:
-        """Initialize Taylor order and transition for 2EC integrals."""
+        """Initialize Taylor order and transition for 2EC integrals.
+
+        Parameters
+        ----------
+        total_ke, ei_ef:
+            Process energy scales.
+        bound_handler:
+            Bound-state wavefunction handler.
+        nuclear_radius:
+            Nuclear radius in fm.
+        order:
+            Taylor expansion order.
+        transition_type:
+            Nuclear transition selector.
+        """
         super().__init__(total_ke, ei_ef, bound_handler, nuclear_radius)
         self.order = order
         self.transition_type = transition_type

@@ -2,18 +2,32 @@
 
 from .wavefunctions import WaveFunctionsHandler
 import numpy as np
-from scipy.interpolate import Akima1DInterpolator, CubicSpline
+from scipy.interpolate import CubicSpline
 from scipy import integrate
-import matplotlib.pyplot as plt
-from .radial_wrapper import call_slag6
 from . import ph
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def integrate_wf(f1: np.ndarray,
                  f2: np.ndarray,
                  r1: np.ndarray,
                  r2: np.ndarray):
-    """Integrate product of two radial wavefunction components on a common grid."""
+    """Integrate product of two radial wavefunction components on a common grid.
+
+    Parameters
+    ----------
+    f1, f2:
+        Radial arrays to multiply point-wise.
+    r1, r2:
+        Radial grids for ``f1`` and ``f2``. Currently the integral is evaluated on ``r2``.
+
+    Returns
+    -------
+    float
+        Simpson integral of the product.
+    """
     # test with only interpolation
     # scattering_func = Akima1DInterpolator(r1, f1)
     # bound_func = Akima1DInterpolator(r2, f2)
@@ -25,40 +39,43 @@ def integrate_wf(f1: np.ndarray,
         y=integrant,
         x=r2
     )
-    # print(result)
-    # print(a)
-
-    # fig, ax = plt.subplots(ncols=3)
-    # ax[0].plot(r1, f1)
-    # ax[0].plot(r2, f2)
-    # ax[0].set_xscale('log')
-    # ax[1].plot(r1, integrant)
-    # ax[1].set_xscale('log')
-    # ax[2].plot(r2, a)
-    # ax[2].set_xscale('log')
-
-    # plt.show()
-    # return
 
     return result
-    if result is tuple:
-        return result
-    else:
-        print("Something went wrong")
 
 
 class ExchangeCorrection:
     """Compute exchange-correction factors for beta-decay observables."""
 
     def __init__(self, initial_handler: WaveFunctionsHandler, final_handler: WaveFunctionsHandler, nuclear_radius: float) -> None:
-        """Store initial/final wavefunction handlers and nuclear-size scale."""
+        """Store initial/final wavefunction handlers and nuclear-size scale.
+
+        Parameters
+        ----------
+        initial_handler:
+            Wavefunction handler for the initial atom (bound states).
+        final_handler:
+            Wavefunction handler for the final atom (bound + scattering states).
+        nuclear_radius:
+            Nuclear radius in fm.
+        """
         self.initial_handler = initial_handler
         self.final_handler = final_handler
         self.nuclear_radius = nuclear_radius
 
     def compute_overlaps(self, k: int) -> tuple[np.ndarray, np.ndarray]:
-        """Compute scattering-bound and bound-bound overlaps for one ``kappa``."""
-        print("Computing overlaps")
+        """Compute scattering-bound and bound-bound overlaps for one ``kappa``.
+
+        Parameters
+        ----------
+        k:
+            Relativistic angular quantum number.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray]
+            ``(scattering_bound, bound_bound)`` overlap arrays.
+        """
+        logger.debug("Computing overlaps for k=%d", k)
         n_vals = self.initial_handler.bound_config.n_values
         energy_vals = self.final_handler.scattering_handler.energy_grid
 
@@ -99,8 +116,13 @@ class ExchangeCorrection:
         """Transformation according to AIP Conf. Proc. 3138, 020012 (2024)
         https://doi.org/10.1063/5.0205270
 
+        
+        Returns
+        -------
+        tuple[dict, dict]
+            Transformed ``(p_grid, q_grid)`` dictionaries keyed by ``kappa``.
         """
-        print("Transforming scattering wavefunctions")
+        logger.info("Transforming scattering wavefunctions")
         n_values = self.initial_handler.bound_config.n_values
         k_values = self.initial_handler.bound_config.k_values
 
@@ -127,8 +149,14 @@ class ExchangeCorrection:
         return p_new, q_new
 
     def compute_t(self):
-        """Compute shell-dependent exchange amplitudes ``t_n``."""
-        print("computing T_ns")
+        """Compute shell-dependent exchange amplitudes ``t_n``.
+
+        Returns
+        -------
+        dict
+            Nested dictionary ``t[n][kappa](E)``.
+        """
+        logger.info("Computing T_ns exchange amplitudes")
         n_values = self.initial_handler.bound_config.n_values
         k_values = self.initial_handler.bound_config.k_values
 
@@ -166,8 +194,14 @@ class ExchangeCorrection:
         return self.t
 
     def compute_eta(self):
-        """Compute partial exchange corrections for ``s`` and ``p`` channels."""
-        print("Computing partial eta")
+        """Compute partial exchange corrections for ``s`` and ``p`` channels.
+
+        Returns
+        -------
+        dict
+            Nested dictionary ``eta[n][kappa](E)``.
+        """
+        logger.info("Computing partial eta correction")
         try:
             tn = self.t
         except AttributeError:
@@ -206,8 +240,14 @@ class ExchangeCorrection:
         return self.eta
 
     def compute_eta_total(self):
-        """Compute total exchange correction and interpolation function."""
-        print("Computing eta total")
+        """Compute total exchange correction and interpolation function.
+
+        Returns
+        -------
+        np.ndarray
+            Total exchange correction sampled on the scattering-energy grid.
+        """
+        logger.info("Computing total eta correction")
         try:
             eta = self.eta
         except AttributeError:

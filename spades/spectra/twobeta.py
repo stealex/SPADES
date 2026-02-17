@@ -213,12 +213,24 @@ class TwoBetaSpectrumBase(BetaSpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: int):
-        """Compute one 1D spectrum for spectrum type ``sp_type``."""
+        """Compute one 1D spectrum for spectrum type ``sp_type``.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+        """
         pass
 
     @abstractmethod
     def compute_2D_spectrum(self, sp_type: int):
-        """Compute one 2D spectrum for spectrum type ``sp_type``."""
+        """Compute one 2D spectrum for spectrum type ``sp_type``.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+        """
         pass
 
     @abstractmethod
@@ -236,19 +248,43 @@ class TaylorSpectrumBase(TwoBetaSpectrumBase):
     """Base implementation for Taylor-expansion 2nu spectra."""
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, taylor_order: ph.TaylorOrders, **kwargs) -> None:
-        """Initialize Taylor-order selection and base normalization constant."""
+        """Initialize Taylor-order selection and base normalization constant.
+
+        Parameters
+        ----------
+        total_ke, ei_ef:
+            Process energy scales.
+        fermi_functions:
+            Fermi-function backend.
+        taylor_order:
+            Requested Taylor order.
+        **kwargs:
+            Forwarded grid settings.
+        """
         super().__init__(total_ke, ei_ef, fermi_functions, **kwargs)
         self.taylor_order = taylor_order
         self.constant_in_front = 1.0
 
     @abstractmethod
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
-        """Compute one 1D Taylor spectrum for spectrum type ``sp_type``."""
+        """Compute one 1D Taylor spectrum for spectrum type ``sp_type``.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+        """
         pass
 
     @abstractmethod
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
-        """Compute one 2D Taylor spectrum for spectrum type ``sp_type``."""
+        """Compute one 2D Taylor spectrum for spectrum type ``sp_type``.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+        """
         pass
 
     def integrate_spectrum(self):
@@ -328,7 +364,23 @@ class TaylorSpectrum2nu(TaylorSpectrumBase):
     """Taylor-expansion implementation for 2nu two-beta spectra."""
 
     def __init__(self, total_ke: float, ei_ef: float, fermi_functions: FermiFunctions, taylor_order: ph.TaylorOrders, eta_total: Callable | None, transition, **kwargs) -> None:
-        """Build 2nu Taylor spectra object with optional exchange correction factor."""
+        """Build 2nu Taylor spectra object with optional exchange correction factor.
+
+        Parameters
+        ----------
+        total_ke, ei_ef:
+            Process energy scales.
+        fermi_functions:
+            Fermi-function backend.
+        taylor_order:
+            Requested Taylor order.
+        eta_total:
+            Optional correction-factor callable.
+        transition:
+            Nuclear transition selector.
+        **kwargs:
+            Forwarded grid settings.
+        """
         super().__init__(total_ke, ei_ef, fermi_functions, taylor_order, **kwargs)
         self.transition = transition
         if (transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS):
@@ -344,14 +396,28 @@ class TaylorSpectrum2nu(TaylorSpectrumBase):
             self.eta_total = eta_total
 
     def full_func(self, x, sp_type):
-        """Return energy-dependent Fermi/correction factor for a given spectrum type."""
+        """Return energy-dependent Fermi/correction factor for a given spectrum type.
+
+        Parameters
+        ----------
+        x:
+            Kinetic energy.
+        sp_type:
+            Spectrum type selector.
+        """
         if sp_type == ph.SpectrumTypes.ANGULARSPECTRUM:
             return self.fermi_functions.ff1_eval(x)*self.eta_total(x)
         else:
             return self.fermi_functions.ff0_eval(x)*self.eta_total(x)
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
-        """Compute the selected 1D Taylor spectrum over the configured energy grid."""
+        """Compute the selected 1D Taylor spectrum over the configured energy grid.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+        """
         self.spectrum_values[sp_type] = np.zeros_like(self.energy_points)
         for i_e in tqdm(range(len(self.energy_points)-1),
                         desc="\t"*2 +
@@ -381,7 +447,13 @@ class TaylorSpectrum2nu(TaylorSpectrumBase):
         self.spectrum_values[sp_type][-1] = 0.
 
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
-        """2D spectra are not implemented for Taylor 2nu in this class."""
+        """2D spectra are not implemented for Taylor 2nu in this class.
+
+        Parameters
+        ----------
+        sp_type:
+            Requested spectrum type.
+        """
         raise NotImplementedError()
 
 
@@ -412,12 +484,24 @@ class ClosureSpectrumBase(TwoBetaSpectrumBase):
 
     @abstractmethod
     def compute_spectrum(self, sp_type: int):
-        """Compute one 1D closure spectrum for spectrum type ``sp_type``."""
+        """Compute one 1D closure spectrum for spectrum type ``sp_type``.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+        """
         pass
 
     @abstractmethod
     def compute_2D_spectrum(self, sp_type: int):
-        """Compute one 2D closure spectrum for spectrum type ``sp_type``."""
+        """Compute one 2D closure spectrum for spectrum type ``sp_type``.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+        """
         pass
 
     def integrate_spectrum(self):
@@ -489,14 +573,28 @@ class ClosureSpectrum2nu(ClosureSpectrumBase):
 
     # @lru_cache(maxsize=None)
     def full_func(self, x, sp_type):
-        """Return Fermi and correction factor for one outgoing-lepton kinetic energy."""
+        """Return Fermi and correction factor for one outgoing-lepton kinetic energy.
+
+        Parameters
+        ----------
+        x:
+            Kinetic energy.
+        sp_type:
+            Spectrum type selector.
+        """
         if sp_type == ph.SpectrumTypes.ANGULARSPECTRUM:
             return self.fermi_functions.ff1_eval(x)*self.eta_total(x)
         else:
             return self.fermi_functions.ff0_eval(x)*self.eta_total(x)
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
-        """Compute one 1D closure spectrum by nested neutrino/lepton integration."""
+        """Compute one 1D closure spectrum by nested neutrino/lepton integration.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+        """
         self.spectrum_values[sp_type] = np.zeros_like(self.energy_points)
         for i_e in tqdm(range(len(self.energy_points)-1),
                         desc="\t"*2 +
@@ -523,7 +621,13 @@ class ClosureSpectrum2nu(ClosureSpectrumBase):
         self.spectrum_values[sp_type][-1] = 0.
 
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
-        """Compute one 2D closure spectrum on pre-configured ``(e1, e2)`` meshgrids."""
+        """Compute one 2D closure spectrum on pre-configured ``(e1, e2)`` meshgrids.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+        """
         self.spectrum_2D_values[sp_type] = np.zeros_like(self.e1_grid_2D)
         if (self.e1_grid_2D is None) or (self.e2_grid_2D is None):
             raise ValueError("2D energy grid not initialized properly")
@@ -582,7 +686,21 @@ class ClosureSpectrum0nu_LNE(ClosureSpectrumBase):
     """Closure model for neutrinoless 2-beta with light-neutrino exchange."""
 
     def __init__(self, total_ke: float, ei_ef: float, nuclear_radius: float, fermi_functions: FermiFunctions, eta_total: Callable | None, **kwargs) -> None:
-        """Initialize LNE prefactor and optional exchange correction."""
+        """Initialize LNE prefactor and optional exchange correction.
+
+        Parameters
+        ----------
+        total_ke, ei_ef:
+            Process energy scales.
+        nuclear_radius:
+            Nuclear radius in fm.
+        fermi_functions:
+            Fermi-function backend.
+        eta_total:
+            Optional correction-factor callable.
+        **kwargs:
+            Forwarded grid settings.
+        """
         super().__init__(total_ke, ei_ef, 0., fermi_functions, **kwargs)
         self.constant_in_front = ((ph.fermi_coupling_constant*ph.v_ud)**4) / \
             (32.*(np.pi**5)*(nuclear_radius**2.)) * \
@@ -594,7 +712,17 @@ class ClosureSpectrum0nu_LNE(ClosureSpectrumBase):
 
     @lru_cache(maxsize=None)
     def full_func(self, x, sp_type, tr_type: ph.TransitionTypes = ph.TransitionTypes.ZEROPLUS_TO_ZEROPLUS):
-        """Return Fermi and correction factor for a given kinetic energy and spectrum type."""
+        """Return Fermi and correction factor for a given kinetic energy and spectrum type.
+
+        Parameters
+        ----------
+        x:
+            Kinetic energy.
+        sp_type:
+            Spectrum type selector.
+        tr_type:
+            Transition selector.
+        """
         if tr_type == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
             raise NotImplementedError()
 
@@ -604,7 +732,18 @@ class ClosureSpectrum0nu_LNE(ClosureSpectrumBase):
             return self.fermi_functions.ff0_eval(x)*self.eta_total(x)
 
     def compute_spectrum(self, sp_type: ph.SpectrumTypes):
-        """Compute 0nu closure spectrum over the configured 1D energy grid."""
+        """Compute 0nu closure spectrum over the configured 1D energy grid.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+
+        Returns
+        -------
+        dict
+            Updated ``self.spectrum_values`` mapping.
+        """
         self.spectrum_values[sp_type] = np.zeros_like(self.energy_points)
         fact = 1.0
         if (sp_type == ph.SpectrumTypes.ANGULARSPECTRUM):
@@ -620,5 +759,13 @@ class ClosureSpectrum0nu_LNE(ClosureSpectrumBase):
         return self.spectrum_values
 
     def compute_2D_spectrum(self, sp_type: int, e1_grid: np.ndarray, e2_grid: np.ndarray):
-        """Not implemented for this 0nu closure class."""
+        """Not implemented for this 0nu closure class.
+
+        Parameters
+        ----------
+        sp_type:
+            Spectrum type selector.
+        e1_grid, e2_grid:
+            2D energy meshgrids.
+        """
         raise NotImplementedError

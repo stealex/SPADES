@@ -34,11 +34,14 @@ radial_lib = load_radial_library()
 
 
 def call_vint(r: np.ndarray, rv: np.ndarray) -> None:
-    """Wrapper function to call VINT from RADIAL
+    """Load a tabulated central potential into RADIAL via ``VINT``.
 
-    Args:
-        r (np.ndarray): radial points (in atomic units) where the potential was computed
-        rv (np.ndarray): values of R*V(R) (in atomic units)
+    Parameters
+    ----------
+    r:
+        Radial grid points in atomic units.
+    rv:
+        ``r * V(r)`` values in atomic units on ``r``.
     """
     radial_lib.vint_(r.ctypes.data_as(POINTER(c_double)),
                      rv.ctypes.data_as(POINTER(c_double)),
@@ -87,7 +90,6 @@ def call_sgrid(rn: float, r2: float, drn: float, n: int, nmax: int) -> tuple[int
                       n_new,
                       c_int(nmax),
                       ierr)
-
     if (ierr.value != 0):
         raise RADIALError(
             f"SGRID returned the following error: {ierr.value: d}")

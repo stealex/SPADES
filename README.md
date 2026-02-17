@@ -7,6 +7,12 @@ For the moment, please use the DOI above
 ## Documentation
 API and user documentation is generated with Sphinx from the `docs/` folder.
 
+## CLI
+After installing with `pip install -e .` (or `pip install .`), run:
+```bash
+spades path/to/config.yaml
+```
+
 ### Build docs locally
 ```bash
 pip install -e ".[docs]"

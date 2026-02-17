@@ -31,27 +31,19 @@
   <h1>Source code for spades.spectra.ecbeta</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Spectra and PSFs for electron-capture plus beta-plus channels.&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
-
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">interpolate</span>
-<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">CubicSpline</span>
-<span class="kn">from</span> <span class="nn">spades.spectra.base</span> <span class="kn">import</span> <span class="n">BetaSpectrumBase</span>
-<span class="kn">from</span> <span class="nn">spades.fermi_functions</span> <span class="kn">import</span> <span class="n">FermiFunctions</span>
-<span class="kn">from</span> <span class="nn">spades.wavefunctions</span> <span class="kn">import</span> <span class="n">BoundHandler</span>
-<span class="kn">from</span> <span class="nn">spades</span> <span class="kn">import</span> <span class="n">ph</span>
-
 <span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">lru_cache</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">ndarray</span>
 <span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
-<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">integrate</span>
-<span class="kn">from</span> <span class="nn">spades</span> <span class="kn">import</span> <span class="n">fermi_functions</span><span class="p">,</span> <span class="n">ph</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">integrate</span><span class="p">,</span> <span class="n">interpolate</span>
+
+<span class="kn">from</span> <span class="nn">spades</span> <span class="kn">import</span> <span class="n">ph</span>
 <span class="kn">from</span> <span class="nn">spades.fermi_functions</span> <span class="kn">import</span> <span class="n">FermiFunctions</span>
+<span class="kn">from</span> <span class="nn">spades.spectra.base</span> <span class="kn">import</span> <span class="n">BetaSpectrumBase</span>
 <span class="kn">from</span> <span class="nn">spades.wavefunctions</span> <span class="kn">import</span> <span class="n">BoundHandler</span>
 <span class="kn">from</span> <span class="nn">spades.spectra.closure_helpers</span> <span class="kn">import</span> <span class="n">neutrino_integrand_closure_standard_00</span><span class="p">,</span> <span class="n">neutrino_integrand_closure_standard_02</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="neutrino_integrand_closure">
@@ -220,7 +212,7 @@
             <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_values</span><span class="p">[</span><span class="n">n</span><span class="p">]:</span>
                 <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
                     <span class="k">continue</span>
-                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Doing for </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Integrating ECbeta+ shell n=</span><span class="si">%s</span><span class="s2"> k=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
                 <span class="n">interp_func</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">CubicSpline</span><span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">energy_points</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_values</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="n">k</span><span class="p">]</span>
                 <span class="p">)</span>
@@ -318,7 +310,6 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_values</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">spectrum_current</span></div>
 </div>
 
-        <span class="c1"># print(f&quot;spectrum_valeus = {self.spectrum_values}&quot;)</span>
 
 
 <div class="viewcode-block" id="ECBetaSpectrumBase0nu">
@@ -349,7 +340,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">g_func</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">f_func</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nuclear_radius</span> <span class="o">=</span> <span class="n">nuclear_radius</span>
-        <span class="nb">print</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bound_handler</span><span class="o">.</span><span class="n">p_grid</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">spectrum_integrals</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
