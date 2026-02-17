@@ -7,6 +7,8 @@ import sys
 
 PROJECT_ROOT = os.path.abspath("..")
 sys.path.insert(0, PROJECT_ROOT)
+# Enable documentation-only import fallback when optional unit packages are absent.
+os.environ.setdefault("SPADES_ALLOW_UNIT_FALLBACK", "1")
 
 project = "SPADES"
 author = "SPADES contributors"
@@ -35,12 +37,14 @@ napoleon_numpy_docstring = True
 autodoc_mock_imports = [
     "spades.dhfs_wrapper",
     "spades.radial_wrapper",
+    "numpy",
     "periodictable",
     "scipy",
     "numba",
     "tqdm",
     "mpmath",
     "matplotlib",
+    "yaml",
 ]
 
 html_theme = "alabaster"
