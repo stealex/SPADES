@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from typing import Callable
 from scipy import interpolate
 import yaml
 from argparse import ArgumentParser
