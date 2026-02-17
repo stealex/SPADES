@@ -8,5 +8,9 @@ SPADES provides numerical tools for double-beta decay spectra and phase-space-fa
    :caption: Contents
 
    overview
+   installation
+   quickstart
    usage
+   configuration
+   outputs
    api/index

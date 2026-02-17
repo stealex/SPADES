@@ -1,31 +1,37 @@
 Usage
 =====
 
-Command-line entry point
-------------------------
+CLI entrypoint
+--------------
 
-SPADES includes a CLI entry script:
+The installed command is:
 
 .. code-block:: bash
 
-   python -m spades.bin.compute_spectra_psfs path/to/config.yaml
+   spades path/to/config.yaml
 
-Configuration
+Equivalent module form:
+
+.. code-block:: bash
+
+   python3 -m spades.bin.compute_spectra_psfs path/to/config.yaml
+
+CLI arguments
 -------------
 
-Run configuration is parsed by :class:`spades.config.RunConfig`, which resolves:
+Required positional argument:
 
-- process channel and transition types,
-- unit conversions to internal MeV/fm representation,
-- bound/scattering wavefunction settings,
-- spectra computation options and output selections.
+- ``config_file``: path to YAML configuration file.
 
-Outputs
--------
+Optional flags:
 
-Serialized data products are handled by :mod:`spades.io_handler` and include:
+- ``--verbose``: integer in ``[0, 5]``.
+- ``--energy_unit``: output/input energy unit symbol (default ``MeV``).
+- ``--distance_unit``: distance unit symbol (default ``fm``).
+- ``--qvalues_file``: alternate YAML file with mass-difference values.
+- ``--compute_2d_spectrum``: enable 2D spectra generation.
 
-- bound/scattering wavefunctions,
-- 1D and 2D spectra,
-- phase-space factors (PSFs),
-- tabulated Fermi functions.
+Exit behavior
+-------------
+
+The command raises Python exceptions for invalid config combinations (unknown process names, unsupported methods/options, or inconsistent physics settings). In CI, this is useful to catch bad configurations early.
