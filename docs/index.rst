@@ -11,6 +11,7 @@ SPADES provides numerical tools for double-beta decay spectra and phase-space-fa
    installation
    quickstart
    usage
+   physics_background
    configuration
    outputs
    api/index
