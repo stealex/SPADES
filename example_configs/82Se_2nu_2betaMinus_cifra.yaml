@@ -1,0 +1,109 @@
+---
+# name of the task. Used for printing purposes only
+task: 82Se_2nu_2betaMinus # name of the task. For printing purposes only
+
+# Specification of the process. The format is a dict of the form:
+# {"name": name, "option1": value1, ...}
+# For 2nu modes the option is "transition". Possible values:
+#   0->0: transition from gs (0+) to gs (0+)
+#   0->2: transition from gs (0+) to first excited 2+ state.
+# For 0nu modes the option "mechanism" can be used. Possible values:
+#   "LNE": light neutrino exchange
+process: 
+  name: 2nu_2betaMinus
+  transition: 0->0
+  
+# Specification of the initial atom.  
+initial_atom:
+  name: 82Se # Has to be given in the form <A><Symbol>
+  weight: -1. # <A> will be used if this value is negative
+  electron_config: auto # auto or a path to the configuration file a la DHFS
+
+# Configuration for bound states computation.
+# NB: length units given in CLI are used. 
+bound_states:
+  max_r: 100
+  n_radial_points: 1000
+  n_values: auto # can be auto, int, (nmin, nmax), [n1,n2,n3...]
+  k_values: auto # can be auto, int, (kmin, kmax), {n1:[k1,k2,...]...}
+
+# Configuration for scattering states computation.
+# NB: length units given in CLI are used
+scattering_states:
+  max_r: 100
+  n_radial_points: 1000
+  n_ke_points: 100 # number of energy points for which scattering wave functions are computed
+  k_values: [-1, 1] # can be auto, int, (kmin, kmax), [k1, k2, ...]
+
+# Configuration for spectra and/or PSFs computation
+spectra_computation:
+# method: a dict with format {"name": value, "option1": value1...}
+#   If "name" == Closure, "option1" is "enei". If used, it must be 
+#         a positive number representing the energy of the first excited state
+#         or "auto" in which case the systematics tilde{A} = 1.12 A^{-1/2} is used
+#         and EN-EI is extracted from there.
+#
+#   If "name" == Taylor, "option1" is "orders". If used, it must be
+#         a list of strings. representing the orders used in the Taylor expansion
+#         The default value in this case is [0, 2, 22, 4] intepreted as strings.
+  method:
+    # name: Closure
+    # enei: auto
+    # name: Taylor
+    # orders: [0,2,22,4]
+    name: CIFRA # allowed values: "Closure" and "Taylor"
+    # e1plus: [1.6691,1.708,2.04,2.3151,2.4671,2.564,2.655,2.891,3.189,3.3441,3.456,3.523,3.581,3.621,3.6971,3.74,3.7841,3.8421,3.898,3.951,4.0291,4.0581,4.145,4.198,4.2191,4.266,4.282,4.293,4.328,4.359,4.4091,4.4471,4.4711,4.4791,4.5121,4.569,4.59,4.617,4.619,4.655,4.657,4.6901,4.716,4.769,4.814,4.8201,4.8371,4.881,4.898,4.944,]
+    e1plus: [2.3581, 2.397, 2.729, 3.0041, 3.1560999999999995, 3.253, 3.3439999999999994, 3.58, 3.878, 4.0331, 4.145, 4.212, 4.27, 4.31, 4.3861, 4.429, 4.4731, 4.5310999999999995, 4.587, 4.64, 4.7181, 4.7471, 4.834, 4.8870000000000005, 4.9081, 4.955, 4.971, 4.982, 5.017, 5.048, 5.0981, 5.1361, 5.1601, 5.1681, 5.2011, 5.258, 5.279, 5.306, 5.308, 5.344, 5.346, 5.3791, 5.405, 5.458, 5.503, 5.5091, 5.5261000000000005, 5.57, 5.587, 5.633]
+    melems: [-0.1820035,-0.11992001,-0.00439348,-0.00183008,-0.0129876,-0.00825957,-0.00086905,-0.0353793,-0.00304139,-0.0535572,0.01539648,-0.00070716,-0.0003521,0.0021801,-0.0139284,-0.00291368,0.0010768,-0.01477812,-0.00225828,-0.00604656,-0.01846418,-0.00649044,0.0008928,-0.0438901,-0.04608352,-0.0023052,-0.00069916,-0.02751018,0.00313223,-0.03440074,9.912e-05,-0.00136224,-0.00942795,0.00299728,-0.00459418,-0.00267456,-0.00071581,0.00345667,0.00135036,-4.56e-05,-0.00385221,-0.00200328,-0.01094016,0.00020631,0.00065626,-0.00970254,0.00011662,-0.00500973,-0.00037092,-0.00215296,]
+    # e1plus: [1.320] # auto uses \tilde{A} = 1.12 A^{-1/2} and extracts EN-EI from there. 
+    # melems: [1.]
+    #            # One can specify a positive excitation energy otherwise.
+# wave_function_evaluation: the method to evaluate wave functions entering the spectra
+#                           and PSFs formulas. 
+# Valid options:
+#   OnSurface: the wave functions will be evaluated on the nuclear radius                           
+  wave_function_evaluation: OnSurface # can be one of: OnSurface, We
+# nuclear_radius: the radius of the nucleus to consider for spectra/PSFs computation
+# Valid options:
+#   auto: the systematics 1.2*A^{1/3} will be used
+#   float: a given positive number
+  nuclear_radius: auto # can be a number or 'auto'
+# types: list of spectra types to compute.
+# NB. the user has to make sure the respective spectra exist for the process
+# for example, there is no Sum or Angular Spectrum for (0/2)nu_ecbetaPlus process  
+# Valid entries:
+#   Single: Single electron/positron energy spectrum
+#   Angular: Angular correlation spectrum between emitted electrons/positrons
+#   Sum: Summed electron/positron energy spectrum 
+  types: [Single, Sum, Angular] # a list of any combination of: Single, Sum, Angular
+# energy_grid_type: type of energy grid to use for spectra computation
+# Valid options:
+#   lin: linear grid
+#   log: logarithmic grid
+  energy_grid_type: lin # log available as well
+# corrections: list of corrections to apply to the spectrum
+# Valid entries:
+#   exchange: The exchange correction a la Nitescu et al is applied
+#   radiative: The radiative correction is applied
+  corrections: [] # can be a list of any of: Exchange
+  fermi_function_types: [Numeric] # Can be a list of any of : Numeric, PointLike, ChargedSphere
+# total_ke: Total kinetic energy of the emitted leptons
+# Valid options: 
+#   positive number
+#   "auto": will be computed from the mass difference file based on process
+# N.B.: for modes involving electron capture, the value below should not include
+#       any binding energy
+  total_ke: auto 
+  min_ke: 0.00001 # can be a number
+  n_ke_points: 100 # integer
+  compute_2d: False
+  n_points_log_2d: 100 # integer, number of log points up to e_max_log
+  e_max_log_2d: 0.1 # float, maximum energy in log scale for first domain
+  n_points_lin_2d: 100 # integer, number of linear points from e_max_log to q_value
+output:
+  location: 82Se_2nu_2betaMinus_cifra_0.763
+  what:
+    - psfs
+    - spectra
+  file_prefix: 82Se_2nu_2betaMinus_cifra
+  
