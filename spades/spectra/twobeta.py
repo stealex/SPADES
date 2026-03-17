@@ -1,4 +1,5 @@
 from abc import abstractmethod
+import enum
 
 from spades.fermi_functions import FermiFunctions
 from spades.spectra.base import BetaSpectrumBase
@@ -11,6 +12,7 @@ from spades import ph
 import numpy as np
 from spades.spectra.closure_helpers import neutrino_integrand_closure_standard_00, neutrino_integrand_closure_standard_02, neutrino_integrand_closure_angular_00, neutrino_integrand_closure_angular_02
 from spades.spectra.taylor_helpers import integral_order
+from spades.spectra.cifra_helpers import neutrino_integrand_cifra_angular_00, neutrino_integrand_cifra_standard_00
 
 
 @lru_cache(maxsize=None)
@@ -32,7 +34,7 @@ def standard_electron_integrant_2nubb(e1, e2, fermi_func: Callable) -> float:
 
 
 def spectrum_integrant_closure_2nubb(enu: float, e2: float, e1: float, total_ke: float,
-                                     sp_type: ph.SpectrumTypes, emin: float, enei: float, full_func: Callable,
+                                     sp_type: ph.SpectrumTypes, emin: float, e1plus, melems, enei: float, full_func: Callable,
                                      transition: ph.TransitionTypes) -> float:
     """Full Spectrum integrant in closure approximation
 
@@ -106,7 +108,7 @@ def spectrum_integrant_closure_2nubb(enu: float, e2: float, e1: float, total_ke:
         raise NotImplementedError("Unknown spectrum type")
 
 
-def range_enu(e2: float, e1: float, total_ke: float, sp_type: ph.SpectrumTypes, emin: float, enei: float, full_func: Callable, transition: ph.TransitionTypes):
+def range_enu(e2: float, e1: float, total_ke: float, sp_type: ph.SpectrumTypes, emin: float, e1plus: np.ndarray, melems: np.ndarray, enei: float, full_func: Callable, transition: ph.TransitionTypes):
     """Function to be used as range of integration over (anti-)neutrino energies.
 
     Args:
@@ -132,7 +134,7 @@ def range_enu(e2: float, e1: float, total_ke: float, sp_type: ph.SpectrumTypes, 
         return [0., total_ke-e1-e2]
 
 
-def range_e2(e1: float, total_ke: float, sp_type: ph.SpectrumTypes, emin: float, enei: float,  full_func: Callable, transition: ph.TransitionTypes):
+def range_e2(e1: float, total_ke: float, sp_type: ph.SpectrumTypes, emin: float, e1plus: np.ndarray, melems: np.ndarray,  enei: float,  full_func: Callable, transition: ph.TransitionTypes):
     """Function to be used as range of integration over second electron (positron) energies.
 
     Args:
@@ -299,7 +301,7 @@ class TaylorSpectrum2nu(TaylorSpectrumBase):
                         ncols=100):
             e1 = self.energy_points[i_e]
             range_list = range_e2(e1, self.total_ke, sp_type,
-                                  self.energy_points[0], 0, self.full_func, self.transition)
+                                  self.energy_points[0], np.array([0.]), np.array([0.]), 0., self.full_func, self.transition)
             result = integrate.quad(
                 spectrum_integrant_taylor_2nubb,
                 a=range_list[0],
@@ -432,6 +434,8 @@ class ClosureSpectrum2nu(ClosureSpectrumBase):
                       self.total_ke,
                       sp_type,
                       self.energy_points[0],
+                      None,
+                      None,
                       self.enei,
                       lambda x: self.full_func(x, sp_type),
                       self.transition
@@ -445,6 +449,225 @@ class ClosureSpectrum2nu(ClosureSpectrumBase):
         self.spectrum_values[sp_type][-1] = 0.
 
     def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        self.spectrum_2D_values[sp_type] = np.zeros_like(self.e1_grid_2D)
+        if (self.e1_grid_2D is None) or (self.e2_grid_2D is None):
+            raise ValueError("2D energy grid not initialized properly")
+
+        for ie in tqdm(range(len(self.e1_grid_2D)),
+                       desc="\t"*2 +
+                       f"- 2D {ph.SPECTRUM_TYPES_NICE[sp_type]}",
+                       ncols=100):
+            for je in range(len(self.e2_grid_2D)):
+                e1 = self.e1_grid_2D[ie, je]
+                e2 = self.e2_grid_2D[ie, je]
+
+                if (e1+e2 <= self.total_ke):
+                    result = integrate.quad(
+                        func=spectrum_integrant_closure_2nubb,
+                        a=0.,
+                        b=self.total_ke-e1-e2,
+                        args=(e2, e1, self.total_ke, sp_type, self.min_ke, self.enei,
+                              lambda x: self.full_func(x, sp_type), self.transition)
+                    )
+                    if isinstance(result, tuple):
+                        self.spectrum_2D_values[sp_type][ie][je] = result[0]
+                    else:
+                        raise ValueError(
+                            "Spectrum integration did not succeed")
+                else:
+                    self.spectrum_2D_values[sp_type][ie, je] = np.nan
+
+
+class CIFRASpectrumBase(TwoBetaSpectrumBase):
+    """Base Closure spectrum class
+    """
+
+    def __init__(self, total_ke: float, ei_ef: float, e1plus: list[float], melems: list[float], fermi_functions: FermiFunctions, *args, **kwargs) -> None:
+        """
+        Args:
+            total_ke (float): total kinetic energy available in the rpcess
+            ei_ef (float): difference between initial and final NUCLEAR energy levels
+            enei (float): <E_N> - E_I
+            fermi_functions (FermiFunctions): fermi functions to be used in the defintion of spectra
+        Keyword args:
+            additional arguments passed to base class TwooBetaSpectrumBase
+        """
+        super().__init__(total_ke, ei_ef, fermi_functions, **kwargs)
+        self.e1plus = np.array(e1plus, dtype=np.float64)
+        self.melems = np.array(melems, dtype=np.float64)
+        self.constant_in_front = 1.0
+
+    @abstractmethod
+    def compute_spectrum(self, sp_type: int):
+        pass
+
+    @abstractmethod
+    def compute_2D_spectrum(self, sp_type: int):
+        pass
+
+    def integrate_spectrum(self):
+        self.spectrum_integrals = {}
+        for key in self.spectrum_values:
+            interp_func = interpolate.CubicSpline(
+                self.energy_points, self.spectrum_values[key]
+            )
+
+            result = integrate.qmc_quad(
+                interp_func,
+                self.energy_points[0],
+                self.energy_points[-1]
+            )
+            if isinstance(result, tuple):
+                self.spectrum_integrals[key] = result[0]
+            else:
+                raise ValueError("Spectrum integration did not succeed")
+
+            self.spectrum_values[key] = self.spectrum_values[key]/result[0]
+            if key in self.spectrum_2D_values:
+                self.spectrum_2D_values[key] = self.spectrum_2D_values[key]/result[0]
+
+    def compute_psf(self):
+        for key in self.spectrum_values:
+            psf_mev = self.spectrum_integrals[key]*self.constant_in_front
+            psf_years = psf_mev/(ph.hbar*np.log(2.))/(ph.year**(-1))
+            self.psfs[key] = psf_years
+
+
+def spectrum_integrant_cifra_2nubb(enu: float, e2: float, e1: float, total_ke: float,
+                                   sp_type: ph.SpectrumTypes, emin: float, e1plus: np.ndarray,
+                                   melems: np.ndarray, enei: float, full_func: Callable,
+                                   transition: ph.TransitionTypes):
+    et1 = e1+ph.electron_mass
+    et2 = e2+ph.electron_mass
+    enu2 = total_ke - e1 - e2 - enu
+    if sp_type == ph.SpectrumTypes.SINGLESPECTRUM:
+        if transition == ph.TransitionTypes.ZEROPLUS_TO_ZEROPLUS:
+            si = standard_electron_integrant_2nubb(e1, e2, full_func)
+            ni = neutrino_integrand_cifra_standard_00(
+                enu, e1, e2, enu2, e1plus, melems)
+            return si*ni
+        else:
+            raise NotImplementedError
+    elif sp_type == ph.SpectrumTypes.SUMMEDSPECTRUM:
+        t = e1
+        v = e2
+        ee2 = t*v/total_ke
+        ee1 = t - ee2
+
+        et1 = ee1+ph.electron_mass
+        et2 = ee2+ph.electron_mass
+        enu2 = total_ke + 2*ph.electron_mass - et1 - et2 - enu
+
+        if (ee1 < emin) or (ee2 < emin):
+            return 0.
+        if np.abs(ee1+ee2+enu+enu2-total_ke) > 1E-6:
+            return 0.
+
+        # t = e1
+        # v = e2
+
+        # ee1 = 0.5*(t+v)
+        # ee2 = 0.5*(t-v)
+        if (ee1 < 0.) or (ee2 < 0.):
+            print(f"{ee1} {ee2} {t} {v}")
+            exit(0)
+
+        enu2 = total_ke-t-enu
+        if (transition == ph.TransitionTypes.ZEROPLUS_TO_ZEROPLUS) or (transition == ph.TransitionTypes.ZEROPLUS_TO_ZEROTWOPLUS):
+            return t/total_ke*standard_electron_integrant_2nubb(ee1, ee2, full_func) *\
+                neutrino_integrand_cifra_standard_00(
+                    enu, ee2, ee1, enu2, e1plus, melems)
+        elif transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
+            raise NotImplementedError
+
+    elif sp_type == ph.SpectrumTypes.ANGULARSPECTRUM:
+        if (transition == ph.TransitionTypes.ZEROPLUS_TO_ZEROPLUS) or (transition == ph.TransitionTypes.ZEROPLUS_TO_ZEROTWOPLUS):
+            return -1.0*standard_electron_integrant_2nubb(e1, e2, full_func) *\
+                neutrino_integrand_cifra_angular_00(
+                    enu, e1, e2, enu2, e1plus, melems)
+        else:
+            raise NotImplementedError
+
+    else:
+        raise NotImplementedError("Unknown spectrum type")
+
+
+class CIFRASpectrum2nu(CIFRASpectrumBase):
+    """Concrete implementation for closure spectrum for 2nu 2beta (plus or minus) decays.
+    """
+
+    def __init__(self, total_ke: float, ei_ef: float, e1plus: list[float], melems: list[float], fermi_functions: FermiFunctions, eta_total: Callable | None,
+                 transition: int, **kwargs) -> None:
+        """
+        Args:
+            total_ke (float): total kinetic energy available in the rpcess
+            ei_ef (float): difference between initial and final NUCLEAR energy levels
+            enei (float): <E_N> - E_I
+            eta_total (Callable | None): exchange correction function
+            transition (int): transition type
+        Keyword args:
+            additional arguments passed to ClosureSpectrumBase
+        """
+        super().__init__(total_ke, ei_ef, e1plus, melems, fermi_functions, **kwargs)
+        self.transition = transition
+        if (transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS):
+            self.constant_in_front = ((ph.fermi_coupling_constant*ph.v_ud)**4) /\
+                (8.*(np.pi**7))
+        else:
+            self.constant_in_front = ((ph.fermi_coupling_constant*ph.v_ud)**4) /\
+                (8.*(np.pi**7))
+        if (eta_total is None):
+            self.eta_total = lambda x: 1.0
+        else:
+            self.eta_total = eta_total
+
+        self.e1_grid_2D = kwargs.get("e1_grid_2D", None)
+        self.e2_grid_2D = kwargs.get("e2_grid_2D", None)
+
+    # @lru_cache(maxsize=None)
+    def full_func(self, x, sp_type):
+        if sp_type == ph.SpectrumTypes.ANGULARSPECTRUM:
+            return self.fermi_functions.ff1_eval(x)*self.eta_total(x)
+        else:
+            return self.fermi_functions.ff0_eval(x)*self.eta_total(x)
+
+    def compute_spectrum(self, sp_type: ph.SpectrumTypes):
+        self.spectrum_values[sp_type] = np.zeros_like(self.energy_points)
+        for i_e in tqdm(range(len(self.energy_points)-1),
+                        desc="\t"*2 +
+                        f"- {ph.SPECTRUM_TYPES_NICE[sp_type]}",
+                        ncols=100):
+            e1 = self.energy_points[i_e]
+
+            result = integrate.nquad(
+                spectrum_integrant_cifra_2nubb,
+
+                # ranges=[range_enu, [-e1+self.min_ke, e1-self.min_ke]],
+                ranges=[range_enu, range_e2],
+                args=(e1,
+                      self.total_ke,
+                      sp_type,
+                      self.energy_points[0],
+                      self.e1plus,
+                      self.melems,
+                      None,
+                      lambda x: self.full_func(x, sp_type),
+                      self.transition
+                      ),
+                opts={"epsabs": 1E-12,
+                      # 'limit': 50, 'limit': 100
+                      },
+                full_output=True,
+            )
+            if isinstance(result, tuple):
+                self.spectrum_values[sp_type][i_e] = result[0]
+            else:
+                raise ValueError("Spectrum integration did not succeed")
+        self.spectrum_values[sp_type][-1] = 0.
+
+    def compute_2D_spectrum(self, sp_type: ph.SpectrumTypes):
+        raise NotImplementedError("2D spectrum not implemted for CIFRA method")
+
         self.spectrum_2D_values[sp_type] = np.zeros_like(self.e1_grid_2D)
         if (self.e1_grid_2D is None) or (self.e2_grid_2D is None):
             raise ValueError("2D energy grid not initialized properly")

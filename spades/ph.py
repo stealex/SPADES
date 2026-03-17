@@ -136,10 +136,12 @@ FERMIFUNCTIONS_MAP_REV = {FermiFunctionTypes.POINTLIKE_FERMIFUNCTIONS: "PointLik
 class SpectrumMethod(IntEnum):
     CLOSUREMETHOD = 1
     TAYLORMETHOD = 2
+    CIFRAMETHOD = 3
 
 
 SPECTRUM_METHODS = {"Closure": SpectrumMethod.CLOSUREMETHOD,
-                    "Taylor": SpectrumMethod.TAYLORMETHOD}
+                    "Taylor": SpectrumMethod.TAYLORMETHOD,
+                    "CIFRA": SpectrumMethod.CIFRAMETHOD}
 
 
 class SpectrumTypes(IntEnum):

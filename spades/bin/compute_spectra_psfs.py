@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
+import enum
 from typing import Callable
+from attr import dataclass
 from scipy import interpolate
 import yaml
 from argparse import ArgumentParser
@@ -9,8 +11,8 @@ import time
 import os
 import numpy as np
 
-from spades import fermi_functions, math_stuff, ph, exchange
-from spades.config import RunConfig
+from spades import fermi_functions, math_stuff, ph, exchange, spectra
+from spades.config import RunConfig, Value
 from spades.dhfs import AtomicSystem, create_ion
 from spades.spectra.base import SpectrumBase
 import spades.spectra.twobeta
@@ -20,6 +22,57 @@ from spades.wavefunctions import WaveFunctionsHandler
 from spades.spectra.spectrum_writer import SpectrumWriter
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class MethodConfig:
+    name: str
+    enei: float | None = None
+    orders: list | None = None
+    e1plus: list | None = None
+    melems: list | None = None
+
+
+def parse_method_config(input_config: RunConfig, final_atom) -> MethodConfig:
+    atilde = 1.12*(final_atom.mass_number**0.5)
+    enei = None
+    method = input_config.spectra_config.method
+    spectra_config = input_config.spectra_config
+    if "enei" in method:
+        if isinstance(method["enei"], float):
+            enei = method["enei"]
+        elif method["enei"] == "auto":
+            enei = atilde - 0.5*spectra_config.ei_ef
+        else:
+            raise ValueError(
+                f"Cannot interpret enei option: {method['enei']!r}")
+    orders = None
+    if "orders" in method:
+        if isinstance(method["orders"], list):
+            orders = [ph.TAYLOR_ORDER_NAMES_MAP[str(
+                k)] for k in method["orders"]]
+        elif method["orders"] == "auto":
+            if input_config.process.transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
+                orders = [ph.TaylorOrders.TWOTWO, ph.TaylorOrders.SIX]
+            else:
+                orders = [ph.TaylorOrders.ZERO, ph.TaylorOrders.TWO,
+                          ph.TaylorOrders.TWOTWO, ph.TaylorOrders.FOUR]
+        else:
+            raise ValueError(...)
+
+    e1plus = None
+    if "e1plus" in method:
+        if not isinstance(method["e1plus"], list):
+            raise ValueError("e1plus should be a list of numbers")
+        e1plus = [float(v) for v in method["e1plus"]]
+
+    melems = None
+    if "melems" in method:
+        if not isinstance(method["melems"], list):
+            raise ValueError("melem option should be a list of numbers")
+        melems = [float(v) for v in method["melems"]]
+
+    return MethodConfig(name=method["name"], enei=enei, orders=orders, e1plus=e1plus, melems=melems)
 
 
 def parse_input():
@@ -204,171 +257,139 @@ def compute_two_ec_psfs(input_config: RunConfig, wf_handler_init: WaveFunctionsH
     pass
 
 
-def create_spectrum(input_config: RunConfig, fermi_functions: fermi_functions.FermiFunctions | None, eta_total: Callable | None,
-                    final_atom: AtomicSystem, wf_handler_init: WaveFunctionsHandler | None, e1_grid_2D: np.ndarray | None = None, e2_grid_2D: np.ndarray | None = None) -> dict[str, SpectrumBase] | SpectrumBase:
-    # prepare for all options
-    atilde = 1.12*(final_atom.mass_number**0.5)
-    if ("enei" in input_config.spectra_config.method):
-        if (isinstance(input_config.spectra_config.method["enei"], float)):
-            enei = input_config.spectra_config.method["enei"]
-        elif isinstance(input_config.spectra_config.method["enei"], str):
-            if (input_config.spectra_config.method["enei"] != "auto"):
-                raise ValueError("Cannot interpret enei option")
-            enei = atilde - 0.5 * input_config.spectra_config.ei_ef
+def _make_twobeta_2nu_closure(input_config, method_config, f_funcs, eta_total, wf_handler_init, e1_grid_2D, e2_grid_2D):
+    return spades.spectra.twobeta.ClosureSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
+                                                     ei_ef=input_config.spectra_config.ei_ef,
+                                                     enei=method_config.enei,
+                                                     fermi_functions=f_funcs,
+                                                     eta_total=eta_total,
+                                                     transition=input_config.process.transition,
+                                                     min_ke=input_config.spectra_config.min_ke,
+                                                     n_ke_points=input_config.spectra_config.n_ke_points,
+                                                     energy_grid_type=input_config.spectra_config.energy_grid_type,
+                                                     e1_grid_2D=e1_grid_2D,
+                                                     e2_grid_2D=e2_grid_2D)
 
-    if ("orders" in input_config.spectra_config.method):
-        if (isinstance(input_config.spectra_config.method["orders"], list)):
-            orders = []
-            for key in input_config.spectra_config.method["orders"]:
-                orders.append(ph.TAYLOR_ORDER_NAMES_MAP[str(key)])
-        elif (isinstance(input_config.spectra_config.method["orders"], str)):
-            if (input_config.spectra_config.method["orders"] != "auto"):
-                raise ValueError("Cannot interpret orders option")
-            if input_config.process.transition == ph.TransitionTypes.ZEROPLUS_TO_TWOPLUS:
-                orders = [ph.TaylorOrders.TWOTWO, ph.TaylorOrders.SIX]
-            else:
-                orders = [ph.TaylorOrders.ZERO, ph.TaylorOrders.TWO,
-                          ph.TaylorOrders.TWOTWO, ph.TaylorOrders.FOUR]
 
-    if (input_config.process.type in [ph.ProcessTypes.TWONEUTRINO_TWOBMINUS, ph.ProcessTypes.TWONEUTRINO_TWOBPLUS]):
-        if (input_config.spectra_config.method["name"] == "Closure"):
-            print("EN-EI=", enei, " atilde=", atilde, " totalKE=", input_config.spectra_config.total_ke,
-                  " R=", input_config.spectra_config.nuclear_radius)
-            if fermi_functions is None:
-                print("Cannot use ff none")
-                exit(1)
-
-            return spades.spectra.twobeta.ClosureSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
-                                                             ei_ef=input_config.spectra_config.ei_ef,
-                                                             enei=enei,
-                                                             fermi_functions=fermi_functions,
-                                                             eta_total=eta_total,
-                                                             transition=input_config.process.transition,
-                                                             min_ke=input_config.spectra_config.min_ke,
-                                                             n_ke_points=input_config.spectra_config.n_ke_points,
-                                                             energy_grid_type=input_config.spectra_config.energy_grid_type,
-                                                             e1_grid_2D=e1_grid_2D,
-                                                             e2_grid_2D=e2_grid_2D)
-
-        elif (input_config.spectra_config.method["name"] == "Taylor"):
-            print("Computing with Taylor")
-            spectra = {}
-            if fermi_functions is None:
-                print("Cannot use ff none")
-                exit(1)
-
-            for ord in orders:
-                spectra[ord] = spades.spectra.twobeta.TaylorSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
-                                                                        ei_ef=input_config.spectra_config.ei_ef,
-                                                                        fermi_functions=fermi_functions,
-                                                                        eta_total=eta_total,
-                                                                        taylor_order=ord,
-                                                                        transition=input_config.process.transition,
-                                                                        min_ke=input_config.spectra_config.min_ke,
-                                                                        n_ke_points=input_config.spectra_config.n_ke_points,
-                                                                        energy_grid_type=input_config.spectra_config.energy_grid_type,
-                                                                        e1_grid_2D=e1_grid_2D,
-                                                                        e2_grid_2D=e2_grid_2D)
-
-            return spectra
-
-        else:
-            raise NotImplementedError()
-    elif (input_config.process.type in [ph.ProcessTypes.NEUTRINOLESS_TWOBMINUS, ph.ProcessTypes.NEUTRINOLESS_TWOBPLUS]):
-        if (input_config.spectra_config.method["name"] == "Closure"):
-            if (input_config.process.mechanism == ph.NeutrinoLessModes.LIGHT_NEUTRINO_EXCHANGE):
-                if fermi_functions is None:
-                    print("Cannot use ff none")
-                    exit(1)
-
-                return spades.spectra.twobeta.ClosureSpectrum0nu_LNE(total_ke=input_config.spectra_config.total_ke,
-                                                                     ei_ef=input_config.spectra_config.ei_ef,
-                                                                     nuclear_radius=input_config.spectra_config.nuclear_radius,
-                                                                     fermi_functions=fermi_functions,
-                                                                     eta_total=eta_total,
-                                                                     min_ke=input_config.spectra_config.min_ke,
-                                                                     n_ke_points=input_config.spectra_config.n_ke_points,
-                                                                     energy_grid_type=input_config.spectra_config.energy_grid_type)
-            else:
-                raise NotImplementedError()
-        else:
-            raise NotImplementedError()
-
-    elif (input_config.process.type == ph.ProcessTypes.TWONEUTRINO_BPLUSEC):
-        if (wf_handler_init is None):
-            raise ValueError(
-                "Received None for wf_handler_init. Cannot compute EC withouot it.")
-
-        if input_config.spectra_config.method["name"] == "Closure":
-            print(enei, atilde, input_config.spectra_config.total_ke,
-                  input_config.spectra_config.nuclear_radius)
-            if fermi_functions is None:
-                print("Cannot use ff none")
-                exit(1)
-
-            return spades.spectra.ecbeta.ClosureSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
+def _make_twobeta_2nu_taylor(input_config, method_config, f_funcs, eta_total, wf_handler_init, e1_grid_2D, e2_grid_2D):
+    return {order: spades.spectra.twobeta.TaylorSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
                                                             ei_ef=input_config.spectra_config.ei_ef,
-                                                            fermi_functions=fermi_functions,
-                                                            bound_handler=wf_handler_init.bound_handler,
-                                                            nuclear_radius=input_config.spectra_config.nuclear_radius,
-                                                            enei=enei,
-                                                            transition_type=input_config.process.transition,
+                                                            fermi_functions=f_funcs,
+                                                            eta_total=eta_total,
+                                                            taylor_order=order,
+                                                            transition=input_config.process.transition,
                                                             min_ke=input_config.spectra_config.min_ke,
                                                             n_ke_points=input_config.spectra_config.n_ke_points,
                                                             energy_grid_type=input_config.spectra_config.energy_grid_type,
                                                             e1_grid_2D=e1_grid_2D,
                                                             e2_grid_2D=e2_grid_2D)
-        else:
-            raise NotImplementedError()
-    elif (input_config.process.type == ph.ProcessTypes.NEUTRINOLESS_BPLUSEC):
-        if (wf_handler_init is None):
-            raise ValueError(
-                "Received None for wf_handler_init. Cannot compute EC withouot it.")
-        if input_config.spectra_config.method["name"] == "Closure":
-            print(enei, atilde, input_config.spectra_config.total_ke,
-                  input_config.spectra_config.nuclear_radius)
-            if fermi_functions is None:
-                print("Cannot use ff none")
-                exit(1)
+            for order in method_config.orders}
 
-            return spades.spectra.ecbeta.ClosureSpectrum0nu_LNE(total_ke=input_config.spectra_config.total_ke,
-                                                                ei_ef=input_config.spectra_config.ei_ef,
-                                                                fermi_functions=fermi_functions,
-                                                                bound_handler=wf_handler_init.bound_handler,
-                                                                nuclear_radius=input_config.spectra_config.nuclear_radius,
-                                                                enei=enei)
-        else:
-            raise NotImplementedError()
 
-    elif (input_config.process.type == ph.ProcessTypes.TWONEUTRINO_TWOEC):
-        if (wf_handler_init is None):
-            raise ValueError(
-                "Received None for wf_handler_init. Cannot compute EC withouot it.")
-        if input_config.spectra_config.method["name"] == "Closure":
-            print(enei, atilde, input_config.spectra_config.total_ke,
-                  input_config.spectra_config.nuclear_radius)
-            print("Creating 2EC spectrum Closure")
-            return spades.spectra.twoec.TwoECSpectrumClosure(total_ke=input_config.spectra_config.total_ke,
-                                                             ei_ef=input_config.spectra_config.ei_ef,
-                                                             bound_handler=wf_handler_init.bound_handler,
-                                                             nuclear_radius=input_config.spectra_config.nuclear_radius,
-                                                             enei=enei,
-                                                             transition_type=input_config.process.transition)
-        elif input_config.spectra_config.method["name"] == "Taylor":
-            spectra = {}
-            for ord in orders:
-                spectra[ord] = spades.spectra.twoec.TwoECSpectrumTaylor(total_ke=input_config.spectra_config.total_ke,
-                                                                        ei_ef=input_config.spectra_config.ei_ef,
-                                                                        bound_handler=wf_handler_init.bound_handler,
-                                                                        nuclear_radius=input_config.spectra_config.nuclear_radius,
-                                                                        transition_type=input_config.process.transition,
-                                                                        order=ord)
-            return spectra
-        else:
-            raise NotImplementedError
+def _make_twobeta_2nu_cifra(input_config, method_config, f_funcs, eta_total, wf_handler_init, e1_grid_2D, e2_grid_2D):
+    return spades.spectra.twobeta.CIFRASpectrum2nu(total_ke=input_config.spectra_config.total_ke,
+                                                   ei_ef=input_config.spectra_config.ei_ef,
+                                                   fermi_functions=f_funcs,
+                                                   eta_total=eta_total,
+                                                   e1plus=method_config.e1plus,
+                                                   melems=method_config.melems,
+                                                   transition=input_config.process.transition,
+                                                   min_ke=input_config.spectra_config.min_ke,
+                                                   n_ke_points=input_config.spectra_config.n_ke_points,
+                                                   energy_grid_type=input_config.spectra_config.energy_grid_type,
+                                                   e1_grid_2D=e1_grid_2D,
+                                                   e2_grid_2D=e2_grid_2D)
 
-    else:
-        raise NotImplementedError()
+
+def _make_twobeta_0nu_closure(input_config, method_config, f_funcs, eta_total, wf_handler_init, e1_grid_2D, e2_grid_2D):
+    return spades.spectra.twobeta.ClosureSpectrum0nu_LNE(total_ke=input_config.spectra_config.total_ke,
+                                                         ei_ef=input_config.spectra_config.ei_ef,
+                                                         nuclear_radius=input_config.spectra_config.nuclear_radius,
+                                                         fermi_functions=f_funcs,
+                                                         eta_total=eta_total,
+                                                         min_ke=input_config.spectra_config.min_ke,
+                                                         n_ke_points=input_config.spectra_config.n_ke_points,
+                                                         energy_grid_type=input_config.spectra_config.energy_grid_type)
+
+
+def _make_betaplusEC_2nu_closure(input_config, method_config, f_funcs, eta_total, wf_handler_init, e1_grid_2D, e2_grid_2D):
+    return spades.spectra.ecbeta.ClosureSpectrum2nu(total_ke=input_config.spectra_config.total_ke,
+                                                    ei_ef=input_config.spectra_config.ei_ef,
+                                                    fermi_functions=f_funcs,
+                                                    bound_handler=wf_handler_init.bound_handler,
+                                                    nuclear_radius=input_config.spectra_config.nuclear_radius,
+                                                    enei=method_config.enei,
+                                                    transition_type=input_config.process.transition,
+                                                    min_ke=input_config.spectra_config.min_ke,
+                                                    n_ke_points=input_config.spectra_config.n_ke_points,
+                                                    energy_grid_type=input_config.spectra_config.energy_grid_type,
+                                                    e1_grid_2D=e1_grid_2D,
+                                                    e2_grid_2D=e2_grid_2D)
+
+
+def _make_betaplusEC_0nu_closure(input_config, method_config, f_funcs, eta_total, wf_handler_init, e1_grid_2D, e2_grid_2D):
+    return spades.spectra.ecbeta.ClosureSpectrum0nu_LNE(total_ke=input_config.spectra_config.total_ke,
+                                                        ei_ef=input_config.spectra_config.ei_ef,
+                                                        fermi_functions=f_funcs,
+                                                        bound_handler=wf_handler_init.bound_handler,
+                                                        nuclear_radius=input_config.spectra_config.nuclear_radius,
+                                                        enei=method_config.enei)
+
+
+def _make_twoEC_2nu_closure(input_config, method_config, f_funcs, eta_total, wf_handler_init, e1_grid_2D, e2_grid_2D):
+    return spades.spectra.twoec.TwoECSpectrumClosure(total_ke=input_config.spectra_config.total_ke,
+                                                     ei_ef=input_config.spectra_config.ei_ef,
+                                                     bound_handler=wf_handler_init.bound_handler,
+                                                     nuclear_radius=input_config.spectra_config.nuclear_radius,
+                                                     enei=method_config.enei,
+                                                     transition_type=input_config.process.transition)
+
+
+def _make_twoEC_2nu_taylor(input_config, method_config, f_funcs, eta_total, wf_handler_init, e1_grid_2D, e2_grid_2D):
+    return {order: spades.spectra.twoec.TwoECSpectrumTaylor(total_ke=input_config.spectra_config.total_ke,
+                                                            ei_ef=input_config.spectra_config.ei_ef,
+                                                            bound_handler=wf_handler_init.bound_handler,
+                                                            nuclear_radius=input_config.spectra_config.nuclear_radius,
+                                                            transition_type=input_config.process.transition,
+                                                            order=order)
+            for order in method_config.orders}
+
+
+type _SpectrumFactory = Callable[..., SpectrumBase | dict]
+_SPECTRUM_REGISTRY: dict[tuple, _SpectrumFactory] = {
+    (ph.ProcessTypes.TWONEUTRINO_TWOBMINUS, "Closure"): _make_twobeta_2nu_closure,
+    (ph.ProcessTypes.TWONEUTRINO_TWOBPLUS, "Closure"): _make_twobeta_2nu_closure,
+    (ph.ProcessTypes.TWONEUTRINO_TWOBMINUS, "Taylor"): _make_twobeta_2nu_taylor,
+    (ph.ProcessTypes.TWONEUTRINO_TWOBPLUS, "Taylor"): _make_twobeta_2nu_taylor,
+    (ph.ProcessTypes.TWONEUTRINO_TWOBMINUS, "CIFRA"): _make_twobeta_2nu_cifra,
+    (ph.ProcessTypes.TWONEUTRINO_TWOBPLUS, "CIFRA"): _make_twobeta_2nu_cifra,
+
+    (ph.ProcessTypes.NEUTRINOLESS_TWOBMINUS, "Closure"): _make_twobeta_0nu_closure,
+    (ph.ProcessTypes.NEUTRINOLESS_TWOBPLUS, "Closure"): _make_twobeta_0nu_closure,
+
+    (ph.ProcessTypes.TWONEUTRINO_BPLUSEC, "Closure"): _make_betaplusEC_2nu_closure,
+    (ph.ProcessTypes.NEUTRINOLESS_BPLUSEC, "Closure"): _make_betaplusEC_0nu_closure,
+
+    (ph.ProcessTypes.TWONEUTRINO_TWOEC, "Closure"): _make_twoEC_2nu_closure,
+    (ph.ProcessTypes.TWONEUTRINO_TWOEC, "Taylor"): _make_twoEC_2nu_taylor,
+
+
+}
+
+
+def create_spectrum(input_config: RunConfig, f_funcs: fermi_functions.FermiFunctions | None, eta_total: Callable | None,
+                    final_atom: AtomicSystem, wf_handler_init: WaveFunctionsHandler | None, e1_grid_2D: np.ndarray | None = None, e2_grid_2D: np.ndarray | None = None) -> dict[str, SpectrumBase] | SpectrumBase:
+    # prepare for all options
+    mc = parse_method_config(input_config, final_atom)
+    key = (input_config.process.type, mc.name)
+
+    factory = _SPECTRUM_REGISTRY.get(key)
+    if factory is None:
+        raise NotImplementedError(
+            f"No spectrum registered for {input_config.process.type!r}, method={mc.name!r}")
+
+    return factory(input_config, mc, f_funcs, eta_total,
+                   wf_handler_init, e1_grid_2D, e2_grid_2D)
 
 
 def compute_spectra_and_psfs(input_config: RunConfig,
@@ -407,8 +428,9 @@ def compute_spectra_and_psfs(input_config: RunConfig,
 
             print("These are the PSFS ", spectrum.psfs)
             spectra[ph.FERMIFUNCTIONS_MAP_REV[ff_type]] = spectrum
+
         elif isinstance(spectrum, dict):
-            print("Doing this")
+            print("Taylor spectra")
             spectra[ph.FERMIFUNCTIONS_MAP_REV[ff_type]] = {}
             for key in spectrum:
                 for sp_type in input_config.spectra_config.types:
@@ -422,6 +444,7 @@ def compute_spectra_and_psfs(input_config: RunConfig,
 
                 print(f"These are the PSFs for {key} ", spectrum[key].psfs)
                 spectra[ph.FERMIFUNCTIONS_MAP_REV[ff_type]] = spectrum
+
     return spectra
 
 
