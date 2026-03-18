@@ -1,4 +1,5 @@
 build
+data_compute
 .vscode
 data/*/*.yaml
 config_files
