@@ -14,11 +14,33 @@ build-dir = "build"
 [project]
 name = "spades"
 version = "0.1.0"
-description = "sajkdgh"
+description = "Phase space factors, energy spectra and angular correlations for double beta decay"
 readme = "README.md"
 license = { file = "LICENSE" }
+requires-python = ">=3.12"
 authors = [
-    { name = "Your Name", email = "your.email@example.com" }
+    { name = "Stefan Ghinescu", email = "ghinescustefanalexandru95@gmail.com" }
+]
+maintainers = [
+    { name = "Stefan Ghinescu", email = "ghinescustefanalexandru95@gmail.com" }
+]
+keywords = [
+    "double beta decay",
+    "phase space factors",
+    "neutrino physics",
+    "nuclear physics",
+    "Dirac equation",
+    "Dirac-Hartree-Fock-Slater",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Fortran",
+    "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
     "numpy",
@@ -38,6 +60,8 @@ dependencies = [
 compute-spectra-psfs = "spades.bin.compute_spectra_psfs:main"
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/spades"
-"Documentation" = "https://yourdocs.example.com"
-"Source" = "https://github.com/yourusername/spades"
+"Homepage" = "https://github.com/stealex/2nubbspectra"
+"Source" = "https://github.com/stealex/2nubbspectra"
+"Issues" = "https://github.com/stealex/2nubbspectra/issues"
+"Paper" = "https://doi.org/10.1140/epjc/s10052-026-15656-6"
+"Zenodo" = "https://doi.org/10.5281/zenodo.12607448"
